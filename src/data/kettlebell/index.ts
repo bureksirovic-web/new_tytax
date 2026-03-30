@@ -1,3 +1,4 @@
-// Kettlebell exercise data — implemented by Agent D (Wave 1)
-export const KETTLEBELL_EXERCISES: import('@/types').Exercise[] = [];
-export const KETTLEBELL_PRESETS: import('@/types/program').Program[] = [];
+export { KB_EXERCISES } from './exercises';
+export type { ExperienceLevel, Gender } from './weight-tiers';
+export { getRecommendedWeight, getWeightTierLabel, getNextWeightTier } from './weight-tiers';
+export { KB_SIMPLE_SINISTER, KB_HYPERTROPHY, KB_CONDITIONING } from './presets';
