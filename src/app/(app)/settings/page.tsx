@@ -11,6 +11,7 @@ import type { UserProfile, FamilyMember } from '@/types/user';
 import { LOCALES, type Locale } from '@/lib/i18n';
 import { getSession, signOut } from '@/lib/auth/helpers';
 import type { Session } from '@supabase/supabase-js';
+import { SyncStatus } from '@/components/sync/sync-status';
 
 type UnitSystem = 'metric' | 'imperial';
 
@@ -313,6 +314,10 @@ export default function SettingsPage() {
           </div>
         )}
       </Section>
+
+      <div className="mt-2">
+        <SyncStatus />
+      </div>
 
       {/* Data */}
       <Section>
