@@ -6,7 +6,7 @@ import type { WarmupSet } from '@/types/analytics';
  */
 export function brzycki(weight: number, reps: number): number {
   if (reps === 1) return weight;
-  if (reps > 36) return weight;
+  if (reps > 36) reps = 36;
   return weight / (1.0278 - 0.0278 * reps);
 }
 
