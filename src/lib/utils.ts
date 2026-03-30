@@ -15,10 +15,10 @@ export function generateId(): string {
 export function slugify(str: string): string {
   return str
     .toLowerCase()
+    .trim()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim();
+    .replace(/-+/g, '-');
 }
 
 export function formatDuration(seconds: number): string {
