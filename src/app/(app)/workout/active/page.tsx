@@ -10,6 +10,7 @@ import { NumberStepper } from '@/components/ui/number-stepper';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDuration } from '@/lib/utils';
+import { WarmupCalculator } from '@/components/workout/warmup-calculator';
 
 function RestTimer({ seconds, isRunning, progress, skip }: {
   seconds: number; isRunning: boolean; progress: number; skip: () => void;
@@ -44,6 +45,7 @@ export default function ActiveWorkoutPage() {
   const [weight, setWeight] = useState(0);
   const [reps, setReps] = useState(10);
   const [saving, setSaving] = useState(false);
+  const [showWarmup, setShowWarmup] = useState(false);
 
   const currentEx = workout.exercises[exerciseIndex];
   const { isPR, prType } = usePRCheck(currentEx?.exerciseRef ?? '', weight, reps);
@@ -61,6 +63,18 @@ export default function ActiveWorkoutPage() {
     <main className="p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <p style={{ color: 'var(--text-muted)' }}>No exercises in this session.</p>
       <Button className="mt-4" onClick={() => router.push('/workout')}>Back</Button>
+      {process.env.NODE_ENV === 'development' && (
+        <Button className="mt-4 ml-2" onClick={() => {
+          workout.exercises.push({
+            exerciseRef: 'ex1',
+            exerciseName: 'Squat',
+            modality: 'tytax',
+            sets: [{ id: '1', setNumber: 1, type: 'working', kg: 0, reps: 0, done: false, timestamp: new Date().toISOString() }],
+          });
+          setExerciseIndex(0);
+          setWeight(60);
+        }}>Inject Demo Exercise</Button>
+      )}
     </main>
   );
 
@@ -97,7 +111,14 @@ export default function ActiveWorkoutPage() {
           <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
             {exerciseIndex + 1} / {workout.exercises.length}
           </span>
-          <Badge variant="default">{currentEx.modality}</Badge>
+          <div className="flex gap-2">
+            {weight > 0 && (
+              <Button variant="secondary" size="sm" onClick={() => setShowWarmup(w => !w)}>
+                WARMUP
+              </Button>
+            )}
+            <Badge variant="default">{currentEx.modality}</Badge>
+          </div>
         </div>
         <h2 className="text-2xl font-bold uppercase tracking-wide"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}>
@@ -109,6 +130,12 @@ export default function ActiveWorkoutPage() {
           </p>
         )}
       </div>
+
+      {showWarmup && weight > 0 && (
+        <div className="mb-4">
+          <WarmupCalculator workingWeight={weight} onClose={() => setShowWarmup(false)} />
+        </div>
+      )}
 
       <Card className="mb-4">
         <CardHeader>
