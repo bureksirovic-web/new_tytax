@@ -23,7 +23,13 @@ interface WorkoutStore {
   resetWorkout: () => void;
 }
 
-export const useWorkoutStore = create<WorkoutStore>((set) => ({
+export const useWorkoutStore = create<WorkoutStore>((set, get) => {
+  // Expose store globally for e2e tests
+  if (typeof window !== 'undefined') {
+    // @ts-ignore
+    window.useWorkoutStore = { getState: get, setState: set };
+  }
+  return {
   state: 'idle',
   sessionName: '',
   exercises: [],
@@ -89,4 +95,5 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   resumeWorkout: () => set({ state: 'active' }),
   finishWorkout: () => set({ state: 'debriefing' }),
   resetWorkout: () => set({ state: 'idle', sessionName: '', exercises: [], startedAt: undefined }),
-}));
+};
+});
