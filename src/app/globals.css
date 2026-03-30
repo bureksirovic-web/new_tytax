@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme {
+  /* Military/Tactical Color Palette */
+  --color-od-green-50: #f4f7f0;
+  --color-od-green-100: #e3ebda;
+  --color-od-green-200: #c8d8b8;
+  --color-od-green-300: #a3be8c;
+  --color-od-green-400: #7a9e5e;
+  --color-od-green-500: #4a7c3f;
+  --color-od-green-600: #3a6230;
+  --color-od-green-700: #2d4d25;
+  --color-od-green-800: #1f371a;
+  --color-od-green-900: #12210f;
+
+  --color-tactical-amber-50: #fffbeb;
+  --color-tactical-amber-100: #fef3c7;
+  --color-tactical-amber-200: #fde68a;
+  --color-tactical-amber-300: #fcd34d;
+  --color-tactical-amber-400: #fbbf24;
+  --color-tactical-amber-500: #f59e0b;
+  --color-tactical-amber-600: #d97706;
+  --color-tactical-amber-700: #b45309;
+  --color-tactical-amber-800: #92400e;
+  --color-tactical-amber-900: #78350f;
+
+  --color-gunmetal-50: #f6f7f8;
+  --color-gunmetal-100: #eaecef;
+  --color-gunmetal-200: #d1d5db;
+  --color-gunmetal-300: #9ca3af;
+  --color-gunmetal-400: #6b7280;
+  --color-gunmetal-500: #4b5563;
+  --color-gunmetal-600: #374151;
+  --color-gunmetal-700: #1f2937;
+  --color-gunmetal-800: #111827;
+  --color-gunmetal-900: #0a0f1a;
+  --color-gunmetal-950: #030712;
+
+  --color-steel-blue-400: #60a5fa;
+  --color-steel-blue-500: #3b82f6;
+  --color-steel-blue-600: #2563eb;
+
+  --color-status-fresh: #4ade80;
+  --color-status-recovering: #fbbf24;
+  --color-status-fried: #f87171;
+
+  /* Typography */
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+@layer base {
+  :root {
+    --bg-primary: theme(colors.gunmetal.900);
+    --bg-secondary: theme(colors.gunmetal.800);
+    --bg-card: theme(colors.gunmetal.800);
+    --bg-card-hover: theme(colors.gunmetal.700);
+    --border-color: theme(colors.gunmetal.700);
+    --text-primary: #f9fafb;
+    --text-secondary: theme(colors.gunmetal.300);
+    --text-muted: theme(colors.gunmetal.400);
+    --accent: theme(colors.od-green.500);
+    --accent-hover: theme(colors.od-green.400);
+    --highlight: theme(colors.tactical-amber.400);
+  }
+
+  [data-theme="oled"] {
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-card: #111111;
+    --bg-card-hover: #1a1a1a;
+    --border-color: #222222;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: var(--border-color);
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--bg-primary);
+  }
+
+  /* Safe area insets for iPhone notch */
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-left { padding-left: env(safe-area-inset-left); }
+  .safe-right { padding-right: env(safe-area-inset-right); }
+}

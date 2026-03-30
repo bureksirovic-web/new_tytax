@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: new-tytax
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
