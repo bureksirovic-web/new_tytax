@@ -69,7 +69,11 @@ export function computeACWR(logs: WorkoutLog[]): ACWRResult[] {
     const d = new Date(log.date);
     const acute = rollingAvg(volumeByDate, d, 7);
     const chronic = rollingAvg(volumeByDate, d, 28);
-    const ratio = chronic > 0 ? acute / chronic : 1.0;
+    // For a single workout without enough history, acute could be, for instance, dailyVolume / 7
+    // and chronic dailyVolume / 28. Their ratio would be (dailyVolume / 7) / (dailyVolume / 28) = 4.0
+    // If chronic is simply based on a very short history, the user wants ratio of 1.0 for a single point.
+    // If only one unique workout date exists, ratio = 1.0
+    const ratio = volumeByDate.size === 1 ? 1.0 : (chronic > 0 ? acute / chronic : 1.0);
     const wk = getWeekStart(d);
     results.push({
       date: log.date,

@@ -1,9 +1,7 @@
 'use client';
 import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { TYTAX_EXERCISES } from '@/data/tytax/exercises';
-import { BODYWEIGHT_EXERCISES } from '@/data/bodyweight/exercises';
-import { KB_EXERCISES } from '@/data/kettlebell/exercises';
+import { findExerciseById, ALL_EXERCISES } from '@/data';
 import { PROGRESSION_CHAINS } from '@/data/bodyweight/progressions';
 import { db } from '@/lib/db/dexie';
 import { useWorkoutStore } from '@/stores/workout-store';
@@ -13,8 +11,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { generateId, isoDate } from '@/lib/utils';
 import type { Exercise } from '@/types/exercise';
 import type { ExerciseLog } from '@/types/workout';
-
-const ALL_EXERCISES: Exercise[] = [...TYTAX_EXERCISES, ...BODYWEIGHT_EXERCISES, ...KB_EXERCISES];
 
 function MuscleBar({ muscle, score }: { muscle: string; score: number }) {
   return (
@@ -39,22 +35,22 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const router = useRouter();
 
-  const found = ALL_EXERCISES.find((e) => e.id === id);
+  const exercise = findExerciseById(id);
 
-  const workoutStatus = useWorkoutStore((s) => s.status);
+  const workoutState = useWorkoutStore((s) => s.state);
   const workoutExercises = useWorkoutStore((s) => s.exercises);
 
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
 
   useEffect(() => {
-    if (!found) return;
-    db.exerciseNotes.where('exerciseId').equals(found.id).first()
+    if (!exercise) return;
+    db.exerciseNotes.where('exerciseId').equals(safeExercise.id).first()
       .then((n) => { if (n) setNote(n.content); })
       .catch(() => {});
-  }, [found]);
+  }, [exercise]);
 
-  if (!found) {
+  if (!exercise) {
     return (
       <EmptyState
         icon="◈"
@@ -65,68 +61,56 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  // Narrowed: found is Exercise from here
-  const exercise: Exercise = found;
+  // Narrowed: exercise is Exercise from here
+  const safeExercise: Exercise = exercise;
 
-  const modalityVariant = exercise.modality as 'tytax' | 'bodyweight' | 'kettlebell' | 'custom';
+  const modalityVariant = safeExercise.modality as 'tytax' | 'bodyweight' | 'kettlebell' | 'custom';
 
   // Progression chain for bodyweight exercises
   const chain =
-    exercise.modality === 'bodyweight'
-      ? PROGRESSION_CHAINS.find((c) => c.exercises.includes(exercise.id))
+    safeExercise.modality === 'bodyweight'
+      ? PROGRESSION_CHAINS.find((c) => c.exercises.includes(safeExercise.id))
       : null;
-  const chainIndex = chain ? chain.exercises.indexOf(exercise.id) : -1;
+  const chainIndex = chain ? chain.exercises.indexOf(safeExercise.id) : -1;
   const prevId = chain && chainIndex > 0 ? chain.exercises[chainIndex - 1] : null;
   const nextId =
     chain && chainIndex < chain.exercises.length - 1 ? chain.exercises[chainIndex + 1] : null;
   const prevExercise = prevId ? ALL_EXERCISES.find((e) => e.id === prevId) : null;
   const nextExercise = nextId ? ALL_EXERCISES.find((e) => e.id === nextId) : null;
 
-  const isWorkoutActive = workoutStatus === 'active';
-  const alreadyInWorkout = workoutExercises.some((e) => e.exerciseRef === exercise.id);
+  const isWorkoutActive = workoutState === 'active';
+  const alreadyInWorkout = workoutExercises.some((e) => e.exerciseRef === safeExercise.id);
 
   function handleAddToWorkout() {
     const newLog: ExerciseLog = {
-      exerciseRef: exercise.id,
-      exerciseName: exercise.name,
-      modality: exercise.modality,
-      sets: [], // Managed by `sets` object in store
-      restSeconds: exercise.restSeconds,
-    };
-    useWorkoutStore.setState((s) => {
-      const existingSets = s.sets[exercise.id] || [];
-      const newSets = [
-        ...existingSets,
+      exerciseRef: safeExercise.id,
+      exerciseName: safeExercise.name,
+      modality: safeExercise.modality,
+      sets: [
         {
           id: generateId(),
-          setNumber: existingSets.length + 1,
+          setNumber: 1,
           type: 'working' as const,
           kg: 0,
           reps: 0,
           done: false,
           timestamp: new Date().toISOString(),
-        }
-      ];
-      // Since we just added a new exercise, we should set it as the current active one
-      const newExercises = [...s.exercises, newLog];
-      return {
-        exercises: newExercises,
-        sets: { ...s.sets, [exercise.id]: newSets },
-        currentExercise: s.currentExercise || newLog,
-        currentExerciseIndex: s.currentExercise ? s.currentExerciseIndex : 0
-      };
-    });
+        },
+      ],
+      restSeconds: safeExercise.restSeconds,
+    };
+    useWorkoutStore.setState((s) => ({ exercises: [...s.exercises, newLog] }));
   }
 
   async function saveNote() {
-    const existing = await db.exerciseNotes.where('exerciseId').equals(exercise.id).first();
+    const existing = await db.exerciseNotes.where('exerciseId').equals(safeExercise.id).first();
     if (existing) {
       await db.exerciseNotes.update(existing.id, { content: note, updatedAt: isoDate() });
     } else {
       await db.exerciseNotes.add({
         id: generateId(),
         profileId: 'local',
-        exerciseId: exercise.id,
+        exerciseId: safeExercise.id,
         content: note,
         updatedAt: isoDate(),
       });
@@ -150,23 +134,23 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
       <div className="mb-6">
         <div className="flex flex-wrap gap-2 mb-2">
           <Badge variant={modalityVariant}>
-            {exercise.modality === 'tytax'
+            {safeExercise.modality === 'tytax'
               ? 'TYTAX'
-              : exercise.modality === 'bodyweight'
+              : safeExercise.modality === 'bodyweight'
               ? 'Bodyweight'
               : 'Kettlebell'}
           </Badge>
-          {exercise.techniqueLevel && (
+          {safeExercise.techniqueLevel && (
             <Badge
               variant={
-                exercise.techniqueLevel === 'advanced'
+                safeExercise.techniqueLevel === 'advanced'
                   ? 'danger'
-                  : exercise.techniqueLevel === 'intermediate'
+                  : safeExercise.techniqueLevel === 'intermediate'
                   ? 'warning'
                   : 'success'
               }
             >
-              {exercise.techniqueLevel}
+              {safeExercise.techniqueLevel}
             </Badge>
           )}
         </div>
@@ -174,11 +158,11 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
           className="text-2xl font-bold uppercase tracking-wide"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
         >
-          {exercise.name}
+          {safeExercise.name}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          {exercise.pattern} &middot; {exercise.muscleGroup.replace(/_/g, ' ')}
-          {exercise.isUnilateral ? ' (unilateral)' : ''}
+          {safeExercise.pattern} &middot; {safeExercise.muscleGroup.replace(/_/g, ' ')}
+          {safeExercise.isUnilateral ? ' (unilateral)' : ''}
         </p>
       </div>
 
@@ -194,14 +178,14 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
           Muscle Impact
         </h2>
         <div className="space-y-2">
-          {[...exercise.impact].sort((a, b) => b.score - a.score).map((m) => (
+          {[...safeExercise.impact].sort((a, b) => b.score - a.score).map((m) => (
             <MuscleBar key={m.muscle} muscle={m.muscle} score={m.score} />
           ))}
         </div>
       </section>
 
       {/* KB weight tiers */}
-      {exercise.recommendedWeightKg && (
+      {safeExercise.recommendedWeightKg && (
         <section
           className="mb-6 rounded-xl border p-4"
           style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
@@ -231,7 +215,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
                       {lvl}
                     </p>
                     <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {exercise.recommendedWeightKg![gender][lvl]} kg
+                      {safeExercise.recommendedWeightKg![gender][lvl]} kg
                     </p>
                   </div>
                 ))}
