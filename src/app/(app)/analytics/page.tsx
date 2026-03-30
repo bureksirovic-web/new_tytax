@@ -30,7 +30,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function AnalyticsPage() {
-  const { acwr, weeklyVolume, muscleGaps, bestLifts, isLoading } = useAnalytics(90);
+  const { acwr, weeklyVolume, muscleGaps, bestLifts, volumeParity, kineticImpact, isLoading } = useAnalytics(90);
 
   if (isLoading) return (
     <div className="p-4 space-y-4">
@@ -178,6 +178,65 @@ export default function AnalyticsPage() {
         ) : (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No lifts logged yet.</p>
         )}
+      </Card>
+
+      {/* Kinetic Impact Score */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Kinetic Impact Score</CardTitle>
+          {kineticImpact && <Badge variant={kineticImpact.label === 'excellent' ? 'success' : kineticImpact.label === 'poor' ? 'danger' : 'default'}>{kineticImpact.label.toUpperCase()}</Badge>}
+        </CardHeader>
+        {kineticImpact ? (
+          <div className="px-6 pb-4">
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-5xl font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>{kineticImpact.score}</span>
+              <span className="text-sm text-muted-foreground">/ 100</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">{kineticImpact.explanation}</p>
+            <div className="space-y-2">
+              {[
+                { label: 'ACWR', val: kineticImpact.components.acwrScore, max: 30 },
+                { label: 'Parity', val: kineticImpact.components.parityScore, max: 30 },
+                { label: 'Consistency', val: kineticImpact.components.consistencyScore, max: 20 },
+                { label: 'Volume', val: kineticImpact.components.volumeScore, max: 20 },
+              ].map(c => (
+                <div key={c.label}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>{c.label}</span><span>{c.val}/{c.max}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-accent" style={{ width: `${(c.val/c.max)*100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <p className="text-sm text-muted-foreground px-6 pb-4">No data</p>}
+      </Card>
+
+      {/* Volume Parity */}
+      <Card>
+        <CardHeader><CardTitle>Volume Parity (30d)</CardTitle></CardHeader>
+        {volumeParity && volumeParity.length > 0 ? (
+          <div className="px-6 pb-4 space-y-3">
+            {volumeParity.map(p => {
+              const color = Math.abs(p.delta) <= 5 ? 'var(--accent)' : p.delta < 0 ? 'var(--highlight)' : '#ef4444';
+              return (
+                <div key={p.pattern}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="capitalize">{p.pattern}</span>
+                    <span className="text-muted-foreground">{p.percentage.toFixed(1)}% (Target: {p.targetPercentage}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--border-color)' }}>
+                    <div className="absolute top-0 bottom-0 left-0" style={{ width: '100%', backgroundColor: color, opacity: 0.2 }} />
+                    <div className="h-full rounded-full relative z-10" style={{ width: `${p.percentage}%`, backgroundColor: color }} />
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">Overall Balance: {volumeParity.filter(p => Math.abs(p.delta) <= 5).length} / 7 optimal</p>
+          </div>
+        ) : <p className="text-sm text-muted-foreground px-6 pb-4">No data</p>}
       </Card>
     </div>
   );
