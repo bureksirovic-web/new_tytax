@@ -41,7 +41,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
 
   const found = ALL_EXERCISES.find((e) => e.id === id);
 
-  const workoutState = useWorkoutStore((s) => s.state);
+  const workoutStatus = useWorkoutStore((s) => s.status);
   const workoutExercises = useWorkoutStore((s) => s.exercises);
 
   const [note, setNote] = useState('');
@@ -82,7 +82,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
   const prevExercise = prevId ? ALL_EXERCISES.find((e) => e.id === prevId) : null;
   const nextExercise = nextId ? ALL_EXERCISES.find((e) => e.id === nextId) : null;
 
-  const isWorkoutActive = workoutState === 'active';
+  const isWorkoutActive = workoutStatus === 'active';
   const alreadyInWorkout = workoutExercises.some((e) => e.exerciseRef === exercise.id);
 
   function handleAddToWorkout() {
@@ -90,20 +90,32 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
       exerciseRef: exercise.id,
       exerciseName: exercise.name,
       modality: exercise.modality,
-      sets: [
+      sets: [], // Managed by `sets` object in store
+      restSeconds: exercise.restSeconds,
+    };
+    useWorkoutStore.setState((s) => {
+      const existingSets = s.sets[exercise.id] || [];
+      const newSets = [
+        ...existingSets,
         {
           id: generateId(),
-          setNumber: 1,
+          setNumber: existingSets.length + 1,
           type: 'working' as const,
           kg: 0,
           reps: 0,
           done: false,
           timestamp: new Date().toISOString(),
-        },
-      ],
-      restSeconds: exercise.restSeconds,
-    };
-    useWorkoutStore.setState((s) => ({ exercises: [...s.exercises, newLog] }));
+        }
+      ];
+      // Since we just added a new exercise, we should set it as the current active one
+      const newExercises = [...s.exercises, newLog];
+      return {
+        exercises: newExercises,
+        sets: { ...s.sets, [exercise.id]: newSets },
+        currentExercise: s.currentExercise || newLog,
+        currentExerciseIndex: s.currentExercise ? s.currentExerciseIndex : 0
+      };
+    });
   }
 
   async function saveNote() {

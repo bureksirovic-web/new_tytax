@@ -11,36 +11,29 @@ import type { Program } from '@/types/program';
 export default function WorkoutPage() {
   const router = useRouter();
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
-  const storeState = useWorkoutStore((s) => s.state);
+  const storeStatus = useWorkoutStore((s) => s.status);
 
   const activeProgram = useLiveQuery<Program | undefined>(
     () => db.programs.where('isActive').equals(1).first(),
     []
   );
 
-  const handleQuickStart = () => {
-    const quickSession = {
-      id: crypto.randomUUID(),
-      programId: '',
-      name: 'Quick Workout',
-      dayIndex: 0,
-      exercises: [],
-    };
-    startWorkout(quickSession);
+  const handleQuickStart = async () => {
+    await startWorkout({});
     router.push('/workout/active');
   };
 
-  const handleProgramStart = () => {
+  const handleProgramStart = async () => {
     if (!activeProgram) return;
     const idx = activeProgram.currentSessionIndex ?? 0;
     const session = activeProgram.sessions[idx % activeProgram.sessions.length];
     if (!session) return;
-    startWorkout(session, activeProgram.id);
+    await startWorkout({ programSessionId: session.id });
     router.push('/workout/active');
   };
 
   // If already in an active workout, jump straight to it
-  if (storeState === 'active' || storeState === 'paused') {
+  if (storeStatus === 'active') {
     router.push('/workout/active');
     return null;
   }

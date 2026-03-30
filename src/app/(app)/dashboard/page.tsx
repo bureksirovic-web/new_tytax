@@ -36,15 +36,8 @@ export default function DashboardPage() {
   const weekVolume = weekLogs?.reduce((sum, l) => sum + (l.totalVolumeKg ?? 0), 0) ?? 0;
   const weekCount = weekLogs?.length ?? 0;
 
-  const handleQuickStart = () => {
-    const quickSession = {
-      id: crypto.randomUUID(),
-      programId: '',
-      name: 'Quick Workout',
-      dayIndex: 0,
-      exercises: [],
-    };
-    startWorkout(quickSession);
+  const handleQuickStart = async () => {
+    await startWorkout({});
     router.push('/workout/active');
   };
 
