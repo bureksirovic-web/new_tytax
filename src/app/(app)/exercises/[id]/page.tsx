@@ -37,7 +37,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
 
   const exercise = findExerciseById(id);
 
-  const workoutState = useWorkoutStore((s) => s.state);
+  const workoutState = useWorkoutStore((s) => s.status);
   const workoutExercises = useWorkoutStore((s) => s.exercises);
 
   const [note, setNote] = useState('');

@@ -65,18 +65,6 @@ export default function ActiveWorkoutPage() {
     <main className="p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <p style={{ color: 'var(--text-muted)' }}>No exercises in this session.</p>
       <Button className="mt-4" onClick={() => router.push('/workout')}>Back</Button>
-      {process.env.NODE_ENV === 'development' && (
-        <Button className="mt-4 ml-2" onClick={() => {
-          workout.exercises.push({
-            exerciseRef: 'ex1',
-            exerciseName: 'Squat',
-            modality: 'tytax',
-            sets: [{ id: '1', setNumber: 1, type: 'working', kg: 0, reps: 0, done: false, timestamp: new Date().toISOString() }],
-          });
-          setExerciseIndex(0);
-          setWeight(60);
-        }}>Inject Demo Exercise</Button>
-      )}
     </main>
   );
 
