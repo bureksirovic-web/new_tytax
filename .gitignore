@@ -43,3 +43,8 @@ next-env.d.ts
 .env*.local
 test-results/
 playwright-report/
+
+# Dev artifacts
+dev.log
+dev_server.log
+test-results/
