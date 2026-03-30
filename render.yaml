@@ -4,7 +4,7 @@ services:
     runtime: node
     region: frankfurt
     plan: starter
-    buildCommand: npm install && npm run build
+    buildCommand: npm run build
     startCommand: node .next/standalone/server.js
     healthCheckPath: /api/health
     envVars:
@@ -16,3 +16,5 @@ services:
         sync: false
       - key: NODE_ENV
         value: production
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://new-tytax.onrender.com
