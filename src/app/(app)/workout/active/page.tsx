@@ -41,18 +41,20 @@ export default function ActiveWorkoutPage() {
   const workout = useWorkout();
   const timer = useTimer(90);
   const toggleFocusMode = useUIStore((s) => s.toggleFocusMode);
-  const [exerciseIndex, setExerciseIndex] = useState(0);
   const [weight, setWeight] = useState(0);
   const [reps, setReps] = useState(10);
   const [saving, setSaving] = useState(false);
   const [showWarmup, setShowWarmup] = useState(false);
 
-  const currentEx = workout.exercises[exerciseIndex];
+  const currentEx = workout.currentExercise;
+  const currentSets = currentEx ? (workout.sets[currentEx.exerciseRef] || []) : [];
+  const exerciseIndex = workout.currentExerciseIndex;
+
   const { isPR, prType } = usePRCheck(currentEx?.exerciseRef ?? '', weight, reps);
 
   useEffect(() => {
-    if (workout.state !== 'active' && workout.state !== 'paused') router.replace('/workout');
-  }, [workout.state, router]);
+    if (workout.status !== 'active') router.replace('/workout');
+  }, [workout.status, router]);
 
   useEffect(() => {
     toggleFocusMode();
@@ -78,15 +80,16 @@ export default function ActiveWorkoutPage() {
     </main>
   );
 
-  const doneSets = currentEx.sets.filter((s) => s.done);
+  const doneSets = currentSets.filter((s) => s.done);
 
   const handleLogSet = () => {
-    const nextPending = currentEx.sets.findIndex((s) => !s.done);
+    if (!currentEx) return;
+    const nextPending = currentSets.findIndex((s) => !s.done);
     if (nextPending === -1) {
-      workout.addSet(exerciseIndex);
-      workout.updateSet(exerciseIndex, currentEx.sets.length, { kg: weight, reps, done: true, isPersonalRecord: isPR });
+      workout.addSet(currentEx.exerciseRef);
+      workout.updateSet(currentEx.exerciseRef, currentSets.length, { kg: weight, reps, done: true, isPersonalRecord: isPR });
     } else {
-      workout.updateSet(exerciseIndex, nextPending, { kg: weight, reps, done: true, isPersonalRecord: isPR });
+      workout.updateSet(currentEx.exerciseRef, nextPending, { kg: weight, reps, done: true, isPersonalRecord: isPR });
     }
     timer.start(currentEx.restSeconds ?? 90);
   };
@@ -99,7 +102,7 @@ export default function ActiveWorkoutPage() {
 
   const handleNextExercise = () => {
     if (exerciseIndex < workout.exercises.length - 1) {
-      setExerciseIndex((i) => i + 1);
+      workout.setCurrentExerciseIndex(exerciseIndex + 1);
       setWeight(0); setReps(10); timer.reset();
     } else { handleFinish(); }
   };

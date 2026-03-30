@@ -6,33 +6,35 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/dexie';
 import { useWorkoutStore } from '@/stores/workout-store';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDuration } from '@/lib/utils';
 
 export default function DebriefPage() {
   const router = useRouter();
-  const { state, resetWorkout, sessionName, startedAt } = useWorkoutStore();
+  const { status, resetWorkout, sessionName, finishedData } = useWorkoutStore();
 
-  // Load the most recent log (just saved)
+  // Load the most recent log (fallback if finishedData is null)
   const lastLog = useLiveQuery(() => db.workoutLogs.orderBy('date').last(), []);
 
-  // Guard: only accessible in debriefing state
+  // Guard: only accessible in debriefing state (complete) or if recently completed
   useEffect(() => {
-    if (state === 'idle') {
+    if (status === 'idle') {
       router.replace('/dashboard');
     }
-  }, [state, router]);
+  }, [status, router]);
 
   const handleSaveAndExit = () => {
     resetWorkout();
     router.push('/dashboard');
   };
 
-  const duration = lastLog?.durationSeconds ?? 0;
-  const prCount = lastLog?.prCount ?? 0;
-  const totalVolume = lastLog?.totalVolumeKg ?? 0;
-  const exerciseCount = lastLog?.exercises.length ?? 0;
+  const data = finishedData || lastLog;
+
+  const duration = data?.durationSeconds ?? 0;
+  const prCount = data?.prCount ?? 0;
+  const totalVolume = data?.totalVolumeKg ?? 0;
+  const exerciseCount = data?.exercises.length ?? 0;
 
   return (
     <main className="min-h-screen p-4 pb-24" style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -48,7 +50,7 @@ export default function DebriefPage() {
           DEBRIEF
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          {sessionName || lastLog?.sessionName || 'Workout'}
+          {sessionName || data?.sessionName || 'Workout'}
         </p>
       </div>
 
