@@ -6,6 +6,8 @@ import { computeACWR } from '@/lib/analytics/acwr';
 import { computeWeeklyVolume, volumeByMuscle } from '@/lib/analytics/volume';
 import { getE1RMProgression, getBestLifts } from '@/lib/analytics/pr-tracker';
 import { analyzeMusclGaps } from '@/lib/analytics/gap-analysis';
+import { computeVolumeParity } from '@/lib/analytics/volume-parity';
+import { computeKineticImpact } from '@/lib/analytics/kinetic-impact';
 
 export function useAnalytics(windowDays = 90) {
   const logs = useLiveQuery(() => {
@@ -23,6 +25,9 @@ export function useAnalytics(windowDays = 90) {
   const bestLifts = useMemo(() => (logs ? getBestLifts(logs) : {}), [logs]);
   const muscleVolume = useMemo(() => (logs ? volumeByMuscle(logs) : {}), [logs]);
 
+  const volumeParity = useMemo(() => (logs ? computeVolumeParity(logs, 30) : []), [logs]);
+  const kineticImpact = useMemo(() => (logs ? computeKineticImpact(logs, 28) : null), [logs]);
+
   return {
     logs: logs ?? [],
     acwr,
@@ -30,6 +35,8 @@ export function useAnalytics(windowDays = 90) {
     muscleGaps,
     bestLifts,
     muscleVolume,
+    volumeParity,
+    kineticImpact,
     isLoading: logs === undefined,
   };
 }

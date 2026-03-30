@@ -12,6 +12,7 @@ import { LOCALES, type Locale } from '@/lib/i18n';
 import { getSession, signOut } from '@/lib/auth/helpers';
 import type { Session } from '@supabase/supabase-js';
 import { SyncStatus } from '@/components/sync/sync-status';
+import { workoutLogsToCSV, downloadCSV } from '@/lib/export/csv';
 
 type UnitSystem = 'metric' | 'imperial';
 
@@ -115,8 +116,11 @@ export default function SettingsPage() {
     window.location.reload();
   }
 
-  function handleExportCSV() {
-    alert('Export CSV coming soon');
+  async function handleExportCSV() {
+    const logs = await db.workoutLogs.toArray();
+    const csv = workoutLogsToCSV(logs);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(csv, `new_tytax_export_${date}.csv`);
   }
 
   const radioClass =

@@ -1,20 +1,15 @@
 'use client';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { TYTAX_EXERCISES } from '@/data/tytax/exercises';
-import { BODYWEIGHT_EXERCISES } from '@/data/bodyweight/exercises';
-import { KB_EXERCISES } from '@/data/kettlebell/exercises';
+import { useExercises, ExerciseFilter } from '@/hooks/use-exercises';
+import { ALL_EXERCISES } from '@/data';
 import { Badge } from '@/components/ui/badge';
 import { SearchBar } from '@/components/ui/search-bar';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { Exercise, Modality } from '@/types/exercise';
+import type { Exercise } from '@/types/exercise';
 
-type ModalityFilter = 'all' | Modality;
-
-const ALL_EXERCISES: Exercise[] = [...TYTAX_EXERCISES, ...BODYWEIGHT_EXERCISES, ...KB_EXERCISES];
-
-const MODALITY_OPTIONS: Array<{ value: ModalityFilter; label: string }> = [
+const MODALITY_OPTIONS: Array<{ value: ExerciseFilter['modality']; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'tytax', label: 'TYTAX' },
   { value: 'bodyweight', label: 'Bodyweight' },
@@ -66,62 +61,32 @@ function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () =
 
 export default function ExercisesPage() {
   const router = useRouter();
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [modality, setModality] = useState<ModalityFilter>('all');
-  const [selectedMuscle, setSelectedMuscle] = useState('');
+  const { exercises: filtered, filter, setFilter, totalCount } = useExercises();
+  const [queryInput, setQueryInput] = useState(filter.query);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounce query 300ms
   const handleQueryChange = useCallback((val: string) => {
-    setQuery(val);
+    setQueryInput(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setDebouncedQuery(val);
+      setFilter({ query: val });
       setVisible(PAGE_SIZE);
     }, 300);
-  }, []);
+  }, [setFilter]);
 
-  useEffect(() => { setVisible(PAGE_SIZE); }, [modality, selectedMuscle]);
-
-  // Filtered exercises
-  const filtered = useMemo<Exercise[]>(() => {
-    let result = ALL_EXERCISES;
-    if (modality !== 'all') {
-      result = result.filter((e) => e.modality === modality);
-    }
-    if (selectedMuscle) {
-      const ml = selectedMuscle.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.impact.some((i) => i.muscle.toLowerCase().includes(ml)) ||
-          e.muscleGroup.toLowerCase().includes(ml),
-      );
-    }
-    if (debouncedQuery.trim()) {
-      const q = debouncedQuery.trim().toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.muscleGroup.toLowerCase().includes(q) ||
-          (e.pattern ?? '').toLowerCase().includes(q) ||
-          e.searchTerms?.some((t) => t.toLowerCase().includes(q)) ||
-          e.tags?.some((t) => t.toLowerCase().includes(q)),
-      );
-    }
-    return result;
-  }, [debouncedQuery, modality, selectedMuscle]);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [filter.modality, filter.muscle]);
 
   // Unique muscles from the current modality-filtered set (no muscle filter applied yet for the picker)
   const muscleOptions = useMemo(() => {
-    const baseSet = modality !== 'all'
-      ? ALL_EXERCISES.filter((e) => e.modality === modality)
+    const baseSet = filter.modality !== 'all'
+      ? ALL_EXERCISES.filter((e) => e.modality === filter.modality)
       : ALL_EXERCISES;
     const seen = new Set<string>();
     baseSet.forEach((e) => e.impact.forEach((i) => seen.add(i.muscle)));
     return Array.from(seen).sort();
-  }, [modality]);
+  }, [filter.modality]);
 
   const displayed = filtered.slice(0, visible);
 
@@ -136,15 +101,15 @@ export default function ExercisesPage() {
           Exercise Library
         </h1>
         <SearchBar
-          value={query}
+          value={queryInput}
           onChange={handleQueryChange}
-          placeholder={`Search ${ALL_EXERCISES.length} exercises…`}
+          placeholder={`Search ${totalCount} exercises…`}
           className="mb-3"
         />
-        <FilterChips<ModalityFilter>
+        <FilterChips<ExerciseFilter['modality']>
           options={MODALITY_OPTIONS}
-          selected={[modality]}
-          onChange={(vals) => setModality(vals[0] ?? 'all')}
+          selected={[filter.modality]}
+          onChange={(vals) => setFilter({ modality: vals[0] ?? 'all' })}
           multi={false}
           className="mb-2"
         />
@@ -155,12 +120,12 @@ export default function ExercisesPage() {
         <div className="px-4 py-2 overflow-x-auto border-b" style={{ borderColor: 'var(--border-color)' }}>
           <div className="flex gap-2 w-max">
             <button
-              onClick={() => setSelectedMuscle('')}
+              onClick={() => setFilter({ muscle: '' })}
               className="px-3 py-1 rounded-full text-xs font-medium border min-h-[32px] whitespace-nowrap transition-colors"
               style={{
-                backgroundColor: selectedMuscle === '' ? 'var(--accent)' : 'var(--bg-secondary)',
-                borderColor: selectedMuscle === '' ? 'var(--accent)' : 'var(--border-color)',
-                color: selectedMuscle === '' ? 'white' : 'var(--text-secondary)',
+                backgroundColor: filter.muscle === '' ? 'var(--accent)' : 'var(--bg-secondary)',
+                borderColor: filter.muscle === '' ? 'var(--accent)' : 'var(--border-color)',
+                color: filter.muscle === '' ? 'white' : 'var(--text-secondary)',
               }}
             >
               All muscles
@@ -168,12 +133,12 @@ export default function ExercisesPage() {
             {muscleOptions.slice(0, 20).map((m) => (
               <button
                 key={m}
-                onClick={() => setSelectedMuscle(selectedMuscle === m ? '' : m)}
+                onClick={() => setFilter({ muscle: filter.muscle === m ? '' : m })}
                 className="px-3 py-1 rounded-full text-xs font-medium border min-h-[32px] whitespace-nowrap transition-colors"
                 style={{
-                  backgroundColor: selectedMuscle === m ? 'var(--accent)' : 'var(--bg-secondary)',
-                  borderColor: selectedMuscle === m ? 'var(--accent)' : 'var(--border-color)',
-                  color: selectedMuscle === m ? 'white' : 'var(--text-secondary)',
+                  backgroundColor: filter.muscle === m ? 'var(--accent)' : 'var(--bg-secondary)',
+                  borderColor: filter.muscle === m ? 'var(--accent)' : 'var(--border-color)',
+                  color: filter.muscle === m ? 'white' : 'var(--text-secondary)',
                 }}
               >
                 {m}
@@ -197,10 +162,8 @@ export default function ExercisesPage() {
             action={{
               label: 'Clear filters',
               onClick: () => {
-                setQuery('');
-                setDebouncedQuery('');
-                setModality('all');
-                setSelectedMuscle('');
+                setQueryInput('');
+                setFilter({ query: '', modality: 'all', muscle: '' });
               },
             }}
           />

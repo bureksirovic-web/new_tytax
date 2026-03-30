@@ -1,99 +1,156 @@
 import { create } from 'zustand';
-import type { ExerciseLog, WorkoutState } from '@/types/workout';
-import type { ProgramSession } from '@/types/program';
+import type { LoggedSet, WorkoutLog, ExerciseLog } from '@/types/workout';
+import { db } from '@/lib/db/dexie';
 
 interface WorkoutStore {
-  state: WorkoutState;
+  status: 'idle' | 'active' | 'complete';
+  currentExercise: ExerciseLog | null;
+  sets: Record<string, LoggedSet[]>;
+  startTime: number | null;
+  finishedData: WorkoutLog | null;
+
+  exercises: ExerciseLog[];
+  currentExerciseIndex: number;
   sessionName: string;
   programId?: string;
-  session?: ProgramSession;
-  exercises: ExerciseLog[];
-  startedAt?: string;
-  bodyweightKg?: number;
 
-  // Actions
-  startWorkout: (session: ProgramSession, programId?: string) => void;
-  updateSet: (exerciseIndex: number, setIndex: number, data: Partial<ExerciseLog['sets'][0]>) => void;
-  addSet: (exerciseIndex: number) => void;
-  removeSet: (exerciseIndex: number, setIndex: number) => void;
-  swapExercise: (exerciseIndex: number, newExercise: ExerciseLog) => void;
-  pauseWorkout: () => void;
-  resumeWorkout: () => void;
-  finishWorkout: () => void;
+  startWorkout: (config: { modality?: string; programSessionId?: string }) => Promise<void>;
+  updateSet: (exerciseId: string, setIndex: number, data: Partial<LoggedSet>) => void;
+  addSet: (exerciseId: string) => void;
+  removeSet: (exerciseId: string, setIndex: number) => void;
+  setCurrentExerciseIndex: (index: number) => void;
+  finishWorkout: (log?: WorkoutLog) => void;
   resetWorkout: () => void;
 }
 
-export const useWorkoutStore = create<WorkoutStore>((set, get) => {
-  // Expose store globally for e2e tests
-  if (typeof window !== 'undefined') {
-    // @ts-ignore
-    window.useWorkoutStore = { getState: get, setState: set };
-  }
-  return {
-  state: 'idle',
-  sessionName: '',
-  exercises: [],
+export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
+  status: 'idle',
+  currentExercise: null,
+  sets: {},
+  startTime: null,
+  finishedData: null,
 
-  startWorkout: (session, programId) => set({
-    state: 'active',
-    sessionName: session.name,
-    programId,
-    session,
-    exercises: session.exercises.map((e) => ({
-      exerciseRef: e.exerciseId,
-      exerciseName: e.exerciseName,
-      modality: e.modality,
-      sets: Array.from({ length: e.sets }, (_, i) => ({
+  exercises: [],
+  currentExerciseIndex: 0,
+  sessionName: '',
+
+  startWorkout: async (config) => {
+    let exercises: ExerciseLog[] = [];
+    let sessionName = 'Quick Workout';
+    let programId: string | undefined = undefined;
+    const sets: Record<string, LoggedSet[]> = {};
+
+    if (config.programSessionId) {
+      const programs = await db.programs.toArray();
+      for (const prog of programs) {
+        const session = prog.sessions.find((s) => s.id === config.programSessionId);
+        if (session) {
+          programId = prog.id;
+          sessionName = session.name;
+          exercises = session.exercises.map((e) => {
+            const exerciseSets = Array.from({ length: e.sets }, (_, i) => ({
+              id: crypto.randomUUID(),
+              setNumber: i + 1,
+              type: 'working' as const,
+              kg: 0,
+              reps: 0,
+              done: false,
+              timestamp: new Date().toISOString(),
+            }));
+            sets[e.exerciseId] = exerciseSets;
+            return {
+              exerciseRef: e.exerciseId,
+              exerciseName: e.exerciseName,
+              modality: e.modality,
+              sets: [], // Sets are managed in the `sets` record
+              restSeconds: e.restSeconds,
+            };
+          });
+          break;
+        }
+      }
+    } else if (config.modality) {
+      sessionName = `${config.modality} Workout`;
+    }
+
+    set({
+      status: 'active',
+      startTime: Date.now(),
+      exercises,
+      currentExerciseIndex: 0,
+      currentExercise: exercises.length > 0 ? exercises[0] : null,
+      sets,
+      sessionName,
+      programId,
+      finishedData: null,
+    });
+  },
+
+  updateSet: (exerciseId, setIndex, data) =>
+    set((s) => {
+      const existingSets = s.sets[exerciseId];
+      if (!existingSets) return {};
+      const updatedSets = [...existingSets];
+      updatedSets[setIndex] = { ...updatedSets[setIndex], ...data };
+      return {
+        sets: { ...s.sets, [exerciseId]: updatedSets },
+      };
+    }),
+
+  addSet: (exerciseId) =>
+    set((s) => {
+      const existingSets = s.sets[exerciseId] || [];
+      const lastSet = existingSets[existingSets.length - 1];
+      const newSet: LoggedSet = {
         id: crypto.randomUUID(),
-        setNumber: i + 1,
-        type: 'working' as const,
-        kg: 0,
-        reps: 0,
+        setNumber: existingSets.length + 1,
+        type: 'working',
+        kg: lastSet?.kg ?? 0,
+        reps: lastSet?.reps ?? 0,
         done: false,
         timestamp: new Date().toISOString(),
-      })),
-      restSeconds: e.restSeconds,
+      };
+      return {
+        sets: { ...s.sets, [exerciseId]: [...existingSets, newSet] },
+      };
+    }),
+
+  removeSet: (exerciseId, setIndex) =>
+    set((s) => {
+      const existingSets = s.sets[exerciseId];
+      if (!existingSets) return {};
+      const updatedSets = [...existingSets];
+      updatedSets.splice(setIndex, 1);
+      updatedSets.forEach((set, i) => {
+        set.setNumber = i + 1;
+      });
+      return {
+        sets: { ...s.sets, [exerciseId]: updatedSets },
+      };
+    }),
+
+  setCurrentExerciseIndex: (index) =>
+    set((s) => ({
+      currentExerciseIndex: index,
+      currentExercise: s.exercises[index] || null,
     })),
-    startedAt: new Date().toISOString(),
-  }),
 
-  updateSet: (exerciseIndex, setIndex, data) => set((s) => {
-    const exercises = structuredClone(s.exercises);
-    Object.assign(exercises[exerciseIndex].sets[setIndex], data);
-    return { exercises };
-  }),
+  finishWorkout: (log) =>
+    set({
+      status: 'complete',
+      finishedData: log || null,
+    }),
 
-  addSet: (exerciseIndex) => set((s) => {
-    const exercises = structuredClone(s.exercises);
-    const ex = exercises[exerciseIndex];
-    ex.sets.push({
-      id: crypto.randomUUID(),
-      setNumber: ex.sets.length + 1,
-      type: 'working',
-      kg: ex.sets.at(-1)?.kg ?? 0,
-      reps: ex.sets.at(-1)?.reps ?? 0,
-      done: false,
-      timestamp: new Date().toISOString(),
-    });
-    return { exercises };
-  }),
-
-  removeSet: (exerciseIndex, setIndex) => set((s) => {
-    const exercises = structuredClone(s.exercises);
-    exercises[exerciseIndex].sets.splice(setIndex, 1);
-    exercises[exerciseIndex].sets.forEach((set, i) => { set.setNumber = i + 1; });
-    return { exercises };
-  }),
-
-  swapExercise: (exerciseIndex, newExercise) => set((s) => {
-    const exercises = structuredClone(s.exercises);
-    exercises[exerciseIndex] = newExercise;
-    return { exercises };
-  }),
-
-  pauseWorkout: () => set({ state: 'paused' }),
-  resumeWorkout: () => set({ state: 'active' }),
-  finishWorkout: () => set({ state: 'debriefing' }),
-  resetWorkout: () => set({ state: 'idle', sessionName: '', exercises: [], startedAt: undefined }),
-};
-});
+  resetWorkout: () =>
+    set({
+      status: 'idle',
+      currentExercise: null,
+      sets: {},
+      startTime: null,
+      finishedData: null,
+      exercises: [],
+      currentExerciseIndex: 0,
+      sessionName: '',
+      programId: undefined,
+    }),
+}));

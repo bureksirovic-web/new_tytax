@@ -3,11 +3,11 @@ import { useState, useMemo } from 'react';
 import { TYTAX_EXERCISES } from '@/data/tytax/exercises';
 import { BODYWEIGHT_EXERCISES } from '@/data/bodyweight/exercises';
 import { KB_EXERCISES } from '@/data/kettlebell/exercises';
-import type { Exercise, Modality } from '@/types/exercise';
+import type { Exercise } from '@/types/exercise';
 
 export type ExerciseFilter = {
   query: string;
-  modality: 'all' | Modality;
+  modality: 'all' | 'tytax' | 'bodyweight' | 'kettlebell';
   muscle: string;
 };
 
@@ -23,8 +23,13 @@ const ALL_EXERCISES: Exercise[] = [
   ...KB_EXERCISES,
 ];
 
-export function useExercises(initialFilter?: Partial<ExerciseFilter>) {
-  const [filter, setFilter] = useState<ExerciseFilter>({
+export function useExercises(initialFilter?: Partial<ExerciseFilter>): {
+  exercises: Exercise[];
+  filter: ExerciseFilter;
+  setFilter: (f: Partial<ExerciseFilter>) => void;
+  totalCount: number;
+} {
+  const [filter, setFilterState] = useState<ExerciseFilter>({
     ...DEFAULT_FILTER,
     ...initialFilter,
   });
@@ -59,6 +64,10 @@ export function useExercises(initialFilter?: Partial<ExerciseFilter>) {
 
     return result;
   }, [filter]);
+
+  const setFilter = (f: Partial<ExerciseFilter>) => {
+    setFilterState((prev) => ({ ...prev, ...f }));
+  };
 
   return {
     exercises,
