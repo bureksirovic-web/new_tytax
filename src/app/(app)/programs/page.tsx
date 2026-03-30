@@ -20,15 +20,15 @@ function ProgramCard({
   onInstall,
   onClick,
 }: {
-  program: Program | (typeof ALL_PRESETS)[number];
+  program: Program;
   isPreset?: boolean;
   onActivate?: () => void;
   onInstall?: () => void;
   onClick?: () => void;
 }) {
-  const isActive = 'isActive' in program && program.isActive;
-  const currentIdx = 'currentSessionIndex' in program ? program.currentSessionIndex : 0;
-  const currentSession = program.sessions[currentIdx];
+  const isActive = program.isActive;
+  const currentIdx = program.currentSessionIndex ?? 0;
+  const currentSession = program.sessions?.[currentIdx];
   const modalityVariant = (program.modalitiesUsed?.[0] ?? 'custom') as 'tytax' | 'bodyweight' | 'kettlebell' | 'custom';
 
   return (
@@ -169,8 +169,8 @@ export default function ProgramsPage() {
         <div className="flex flex-col gap-3">
           {ALL_PRESETS.map((preset, idx) => (
             <ProgramCard
-              key={`${preset.name}-${idx}`}
-              program={preset as Program}
+              key={preset.id}
+              program={preset}
               isPreset
               onInstall={() => handleInstall(idx)}
             />

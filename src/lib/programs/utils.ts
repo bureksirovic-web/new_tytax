@@ -30,7 +30,7 @@ export async function activateProgram(programId: string): Promise<void> {
  */
 export async function advanceSession(programId: string): Promise<void> {
   const program = await db.programs.get(programId);
-  if (!program) return;
+  if (!program || !program.sessions || program.sessions.length === 0) return;
   const next = (program.currentSessionIndex + 1) % program.sessions.length;
   await db.programs.update(programId, { currentSessionIndex: next, updatedAt: isoDate() });
 }
@@ -47,19 +47,24 @@ export function getCurrentSession(program: Program): ProgramSession | null {
  * Clones the template, assigns a fresh id + profileId, marks inactive, returns the new id.
  */
 export async function installPreset(
-  preset: Omit<Program, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>,
+  preset: Program,
   profileId: string,
 ): Promise<string> {
   const id = generateId();
   const now = isoDate();
   const newProgram: Program = {
-    ...(preset as Program),
+    ...preset,
     id,
     profileId,
     isActive: false,
     currentSessionIndex: 0,
     createdAt: now,
     updatedAt: now,
+    sessions: preset.sessions.map((s) => ({
+      ...s,
+      id: generateId(),
+      programId: id,
+    })),
   };
   await db.programs.add(newProgram);
   return id;

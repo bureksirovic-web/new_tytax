@@ -17,7 +17,12 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
 
   // useLiveQuery returns undefined while loading, then Program | undefined
-  const program = useLiveQuery<Program | undefined>(() => db.programs.get(id), [id]);
+  const program = useLiveQuery<Program | null | undefined>(async () => {
+    const p = await db.programs.get(id);
+    if (!p) return null;
+    if (p.deletedAt) return null;
+    return p;
+  }, [id]);
 
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
