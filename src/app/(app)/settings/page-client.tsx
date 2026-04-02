@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState('');
   const [bodyweight, setBodyweight] = useState('');
   const [units, setUnits] = useState<UnitSystem>(() => {
+    if (typeof window === 'undefined') return 'metric';
     const saved = localStorage.getItem('units') as UnitSystem | null;
     return (saved === 'metric' || saved === 'imperial') ? saved : 'metric';
   });
