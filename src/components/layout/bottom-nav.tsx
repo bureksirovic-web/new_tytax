@@ -51,7 +51,7 @@ export function BottomNav() {
             onClick={() => setMoreOpen(true)}
             className="flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] w-full transition-colors"
             style={{ color: moreActive ? 'var(--highlight)' : 'var(--text-muted)' }}
-            aria-current={moreActive ? 'page' : undefined}
+            aria-expanded={moreActive}
           >
             <span className="text-lg leading-none" aria-hidden="true">≡</span>
             <span className="text-[10px] font-medium uppercase tracking-wide" style={{ fontFamily: 'var(--font-display)' }}>

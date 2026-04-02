@@ -1,6 +1,5 @@
 'use client';
 import { getWarmupSets } from '@/lib/workout/e1rm';
-import { useState } from 'react';
 
 interface WarmupCalculatorProps {
   workingWeight: number;

@@ -24,9 +24,26 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
-      dialogRef.current?.focus();
-    } else {
-      document.body.style.overflow = '';
+      const modal = dialogRef.current;
+      if (modal) {
+        const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        first?.focus();
+        const handleTab = (e: KeyboardEvent) => {
+          if (e.key !== 'Tab') return;
+          if (e.shiftKey) {
+            if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+          } else {
+            if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+          }
+        };
+        modal.addEventListener('keydown', handleTab);
+        return () => {
+          document.body.style.overflow = '';
+          modal.removeEventListener('keydown', handleTab);
+        };
+      }
     }
     return () => { document.body.style.overflow = ''; };
   }, [open]);
