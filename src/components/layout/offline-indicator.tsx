@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useLocale } from '@/components/providers';
 
 export function OfflineIndicator() {
+  const { t } = useLocale();
   const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export function OfflineIndicator() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-[var(--highlight)] text-black text-xs font-bold text-center py-1">
-      OFFLINE — data saved locally
+      {t('offline')} — {t('offline_data_saved')}
     </div>
   );
 }

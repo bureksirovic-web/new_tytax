@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDuration, formatWeight } from '@/lib/utils';
+import { useLocale } from '@/components/providers';
 import type { WorkoutLog, ExerciseLog } from '@/types/workout';
 
 interface Props {
@@ -25,6 +26,7 @@ function modalityVariant(mod: string): ModalityBadge {
 }
 
 function ExerciseCard({ ex }: { ex: ExerciseLog }) {
+  const { t } = useLocale();
   const workingSets = ex.sets.filter((s) => s.done);
   const exVol = workingSets.reduce((s, set) => s + set.kg * set.reps, 0);
 
@@ -41,13 +43,13 @@ function ExerciseCard({ ex }: { ex: ExerciseLog }) {
           <div className="flex gap-1 mt-1">
             <Badge variant={modalityVariant(ex.modality)}>{ex.modality}</Badge>
             {ex.supersetGroup && (
-              <Badge variant="default">Superset {ex.supersetGroup}</Badge>
+              <Badge variant="default">{t('superset')} {ex.supersetGroup}</Badge>
             )}
           </div>
         </div>
         <div className="text-xs text-right" style={{ color: 'var(--text-muted)' }}>
           <div>{formatWeight(exVol)}</div>
-          <div>{workingSets.length} sets</div>
+          <div>{workingSets.length} {t('sets').toLowerCase()}</div>
         </div>
       </div>
 
@@ -66,12 +68,12 @@ function ExerciseCard({ ex }: { ex: ExerciseLog }) {
             </span>
             <span className="font-medium">{formatWeight(set.kg)}</span>
             <span style={{ color: 'var(--text-muted)' }}>&times;</span>
-            <span className="font-medium">{set.reps} reps</span>
+            <span className="font-medium">{set.reps} {t('workout_reps').toLowerCase()}</span>
             {set.rir !== undefined && (
               <span style={{ color: 'var(--text-muted)' }}>RIR {set.rir}</span>
             )}
             {set.isPersonalRecord && (
-              <Badge variant="warning">PR</Badge>
+              <Badge variant="warning">{t('workout_pr')}</Badge>
             )}
             {set.e1rm && set.e1rm > 0 && (
               <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>
@@ -88,6 +90,7 @@ function ExerciseCard({ ex }: { ex: ExerciseLog }) {
 export default function HistoryDetailPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
+  const { t } = useLocale();
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
 
   const log = useLiveQuery<WorkoutLog | undefined>(
@@ -109,7 +112,7 @@ export default function HistoryDetailPage({ params }: Props) {
   if (log === null) {
     return (
       <div className="p-4 text-center pt-20" style={{ color: 'var(--text-muted)' }}>
-        Workout not found.
+        {t('workout_not_found')}
       </div>
     );
   }
@@ -126,7 +129,7 @@ export default function HistoryDetailPage({ params }: Props) {
         className="text-sm mb-4 block pt-2"
         style={{ color: 'var(--text-muted)' }}
       >
-        &larr; History
+        &larr; {t('history')}
       </button>
 
       <Card className="mb-4">
@@ -154,7 +157,7 @@ export default function HistoryDetailPage({ params }: Props) {
             >
               {formatWeight(log.totalVolumeKg)}
             </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Volume</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('volume')}</div>
           </div>
           <div className="text-center">
             <div
@@ -163,7 +166,7 @@ export default function HistoryDetailPage({ params }: Props) {
             >
               {log.totalSets}
             </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Sets</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('sets')}</div>
           </div>
           <div className="text-center">
             <div
@@ -172,7 +175,7 @@ export default function HistoryDetailPage({ params }: Props) {
             >
               {log.exercises.length}
             </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Exercises</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('exercise_plural')}</div>
           </div>
         </div>
         {log.rpe && (
@@ -193,7 +196,7 @@ export default function HistoryDetailPage({ params }: Props) {
 
       <div className="mt-4 pb-6">
         <Button fullWidth onClick={handleRepeat} size="lg">
-          Repeat This Workout
+          {t('repeat_workout')}
         </Button>
       </div>
     </div>

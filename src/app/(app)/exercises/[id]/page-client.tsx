@@ -8,6 +8,7 @@ import { useWorkoutStore } from '@/stores/workout-store';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useLocale } from '@/components/providers';
 import { generateId, isoDate } from '@/lib/utils';
 import type { Exercise } from '@/types/exercise';
 import type { ExerciseLog } from '@/types/workout';
@@ -34,6 +35,7 @@ function MuscleBar({ muscle, score }: { muscle: string; score: number }) {
 export default function ExerciseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { t } = useLocale();
 
   const exercise = findExerciseById(id);
 
@@ -54,9 +56,9 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
     return (
       <EmptyState
         icon="◈"
-        title="Exercise not found"
-        description={`No exercise with id "${id}"`}
-        action={{ label: 'Back to library', onClick: () => router.push('/exercises') }}
+        title={t('exercise_not_found')}
+        description={`${t('exercise_not_found_desc')} "${id}"`}
+        action={{ label: t('back_to_library'), onClick: () => router.push('/exercises') }}
       />
     );
   }
@@ -124,17 +126,17 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
         className="text-xs mb-4 flex items-center gap-1 min-h-[44px]"
         style={{ color: 'var(--text-muted)' }}
       >
-        ← Back
+        ← {t('back')}
       </button>
 
       <div className="mb-6">
         <div className="flex flex-wrap gap-2 mb-2">
           <Badge variant={modalityVariant}>
             {safeExercise.modality === 'tytax'
-              ? 'TYTAX'
+              ? t('modality_tytax')
               : safeExercise.modality === 'bodyweight'
-              ? 'Bodyweight'
-              : 'Kettlebell'}
+              ? t('modality_bodyweight')
+              : t('modality_kettlebell')}
           </Badge>
           {safeExercise.techniqueLevel && (
             <Badge
@@ -170,7 +172,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
           className="text-xs font-semibold uppercase tracking-widest mb-3"
           style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}
         >
-          Muscle Impact
+          {t('muscle_impact')}
         </h2>
         <div className="space-y-2">
           {[...safeExercise.impact].sort((a, b) => b.score - a.score).map((m) => (
@@ -188,12 +190,12 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
             className="text-xs font-semibold uppercase tracking-widest mb-3"
             style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}
           >
-            Recommended Weight (kg)
+            {t('recommended_weight')} (kg)
           </h2>
           {(['male', 'female'] as const).map((gender) => (
             <div key={gender} className="mb-3">
               <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
-                {gender}
+                {t(gender)}
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {(['beginner', 'intermediate', 'advanced'] as const).map((lvl) => (
@@ -206,7 +208,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
                     }}
                   >
                     <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                      {lvl}
+                      {t(lvl)}
                     </p>
                     <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                       {safeExercise.recommendedWeightKg![gender][lvl]} kg
@@ -228,10 +230,10 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
             className="text-xs font-semibold uppercase tracking-widest mb-1"
             style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}
           >
-            Progression Chain: {chain.name}
+            {t('progression_chain')}: {chain.name}
           </h2>
           <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-            Step {chainIndex + 1} of {chain.exercises.length}
+            {t('step')} {chainIndex + 1} {t('of')} {chain.exercises.length}
           </p>
           <div className="flex gap-2 flex-wrap">
             {prevExercise && (
@@ -264,12 +266,12 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
           className="text-xs font-semibold uppercase tracking-widest mb-2"
           style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}
         >
-          My Notes
+          {t('my_notes')}
         </h2>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Add coaching notes, cues, or personal records…"
+          placeholder={t('notes_placeholder')}
           rows={3}
           className="w-full rounded-lg border p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-od-green-500/50"
           style={{
@@ -279,7 +281,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
           }}
         />
         <Button variant="secondary" size="sm" className="mt-2" onClick={() => { void saveNote(); }}>
-          {noteSaved ? 'Saved' : 'Save note'}
+          {noteSaved ? t('note_saved') : t('save_note')}
         </Button>
       </section>
 
@@ -292,10 +294,10 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
           onClick={handleAddToWorkout}
         >
           {!isWorkoutActive
-            ? 'No active workout'
+            ? t('workout_no_active')
             : alreadyInWorkout
-            ? 'Already in workout'
-            : 'Add to Workout'}
+            ? t('workout_already_added')
+            : t('workout_add_to_workout')}
         </Button>
       </div>
     </div>

@@ -8,6 +8,7 @@ export interface SyncResult {
   synced: number;
   failed: number;
   pending: number;
+  conflictsResolved: number;
 }
 
 export class SyncEngine {
@@ -15,7 +16,7 @@ export class SyncEngine {
 
   async sync(supabaseClient: ReturnType<typeof import('@/lib/supabase/client').createClient>): Promise<SyncResult> {
     if (this.isSyncing) {
-      return { status: 'busy', synced: 0, failed: 0, pending: 0 };
+      return { status: 'busy', synced: 0, failed: 0, pending: 0, conflictsResolved: 0 };
     }
     this.isSyncing = true;
 
@@ -32,6 +33,7 @@ export class SyncEngine {
 
       let synced = 0;
       let failed = 0;
+      let conflictsResolved = 0;
 
       for (const op of pending) {
         const retryCount = op.retryCount ?? 0;
@@ -47,7 +49,8 @@ export class SyncEngine {
         }
 
         try {
-          await this.processOperation(supabaseClient, op);
+          const conflict = await this.processOperation(supabaseClient, op);
+          if (conflict) conflictsResolved++;
           await db.syncQueue.delete(op.id);
           synced++;
         } catch (err) {
@@ -77,6 +80,7 @@ export class SyncEngine {
         synced,
         failed,
         pending: pending.length - synced - failed,
+        conflictsResolved,
       };
     } finally {
       this.isSyncing = false;
@@ -86,15 +90,36 @@ export class SyncEngine {
   private async processOperation(
     supabaseClient: ReturnType<typeof import('@/lib/supabase/client').createClient>,
     op: SyncOperation
-  ): Promise<void> {
+  ): Promise<boolean> {
     const { tableName, operationType, payload } = op;
 
     switch (operationType) {
       case 'create':
       case 'update': {
+        const { data: serverRecords, error: fetchError } = await supabaseClient
+          .from(tableName)
+          .select('*')
+          .eq('id', op.recordId)
+          .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        const localUpdatedAt = this.getTimestamp(payload, 'updatedAt');
+        const serverUpdatedAt = serverRecords
+          ? this.getTimestamp(serverRecords, 'updatedAt')
+          : null;
+
+        if (serverRecords && serverUpdatedAt && localUpdatedAt <= serverUpdatedAt) {
+          const localTable = this.getLocalTableName(tableName);
+          if (localTable) {
+            await db.table(localTable).update(op.recordId, serverRecords);
+          }
+          return true;
+        }
+
         const { error } = await supabaseClient.from(tableName).upsert(payload);
         if (error) throw error;
-        break;
+        return false;
       }
       case 'delete': {
         const { error } = await supabaseClient
@@ -102,13 +127,32 @@ export class SyncEngine {
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', op.recordId);
         if (error) throw error;
-        break;
+        return false;
       }
       default: {
         const _exhaustive: never = operationType;
         throw new Error(`Unknown operationType: ${_exhaustive}`);
       }
     }
+  }
+
+  private getTimestamp(record: Record<string, unknown>, field: string): number {
+    const val = record[field];
+    if (val) return new Date(val as string).getTime();
+    const fallback = record['createdAt'];
+    if (fallback) return new Date(fallback as string).getTime();
+    return 0;
+  }
+
+  private getLocalTableName(serverTableName: string): string | null {
+    const mapping: Record<string, string> = {
+      workout_logs: 'workoutLogs',
+      programs: 'programs',
+      profiles: 'profiles',
+      pr_records: 'prRecords',
+      bodyweight_entries: 'bodyweightEntries',
+    };
+    return mapping[serverTableName] ?? null;
   }
 }
 

@@ -4,6 +4,7 @@ import { use } from 'react';
 import { useExerciseAnalytics } from '@/hooks/use-analytics';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocale } from '@/components/providers';
 import { formatWeight } from '@/lib/utils';
 import type { E1RMDataPointWithExercise } from '@/lib/analytics/pr-tracker';
 
@@ -12,10 +13,11 @@ interface Props {
 }
 
 function E1RMChart({ points }: { points: E1RMDataPointWithExercise[] }) {
+  const { t } = useLocale();
   if (points.length === 0) {
     return (
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        No data to display.
+        {t('no_data_display')}
       </p>
     );
   }
@@ -59,6 +61,7 @@ function E1RMChart({ points }: { points: E1RMDataPointWithExercise[] }) {
 export default function ExerciseAnalyticsPage({ params }: Props) {
   const { exerciseId } = use(params);
   const decoded = decodeURIComponent(exerciseId);
+  const { t } = useLocale();
   const { e1rmProgression, isLoading } = useExerciseAnalytics(decoded);
 
   if (isLoading) {
@@ -90,7 +93,7 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
           className="text-sm"
           style={{ color: 'var(--text-muted)' }}
         >
-          &larr; Analytics
+          &larr; {t('analytics')}
         </Link>
       </div>
 
@@ -104,7 +107,7 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
       {best && (
         <Card>
           <CardHeader>
-            <CardTitle>Personal Best</CardTitle>
+            <CardTitle>{t('personal_best')}</CardTitle>
           </CardHeader>
           <div className="flex gap-6">
             <div>
@@ -119,7 +122,7 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
               </div>
             </div>
             <div className="text-sm space-y-1 pt-1" style={{ color: 'var(--text-secondary)' }}>
-              <div>{formatWeight(best.weight)} × {best.reps} reps</div>
+              <div>{formatWeight(best.weight)} × {best.reps} {t('workout_reps').toLowerCase()}</div>
               <div style={{ color: 'var(--text-muted)' }}>{best.date}</div>
             </div>
           </div>
@@ -128,9 +131,9 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>e1RM Progression</CardTitle>
+          <CardTitle>{t('e1rm_progression')}</CardTitle>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {e1rmProgression.length} sessions
+            {e1rmProgression.length} {t('history_sessions').toLowerCase()}
           </span>
         </CardHeader>
         <E1RMChart points={e1rmProgression} />
@@ -138,7 +141,7 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Volume Per Session</CardTitle>
+          <CardTitle>{t('volume_per_session')}</CardTitle>
         </CardHeader>
         {volHistory.length > 0 ? (
           <>
@@ -166,7 +169,7 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
             </div>
           </>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No sessions found.</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('no_sessions_found')}</p>
         )}
       </Card>
     </div>

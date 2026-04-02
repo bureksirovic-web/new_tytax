@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { SearchBar } from '@/components/ui/search-bar';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useLocale } from '@/components/providers';
 import type { Exercise } from '@/types/exercise';
 
 const MODALITY_OPTIONS: Array<{ value: ExerciseFilter['modality']; label: string }> = [
@@ -19,6 +20,7 @@ const MODALITY_OPTIONS: Array<{ value: ExerciseFilter['modality']; label: string
 const PAGE_SIZE = 50;
 
 function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () => void }) {
+  const { t } = useLocale();
   const primaryMuscle = exercise.impact[0]?.muscle ?? exercise.muscleGroup;
   const modalityVariant = exercise.modality as 'tytax' | 'bodyweight' | 'kettlebell' | 'custom';
 
@@ -42,8 +44,8 @@ function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () =
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <Badge variant={modalityVariant}>
             {exercise.modality === 'tytax' ? 'TYTAX' :
-             exercise.modality === 'bodyweight' ? 'BW' :
-             exercise.modality === 'kettlebell' ? 'KB' : exercise.modality.toUpperCase()}
+             exercise.modality === 'bodyweight' ? t('modality_bw') :
+             exercise.modality === 'kettlebell' ? t('modality_kb') : exercise.modality.toUpperCase()}
           </Badge>
           {exercise.techniqueLevel && (
             <Badge variant={
@@ -61,7 +63,8 @@ function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () =
 
 export default function ExercisesPage() {
   const router = useRouter();
-  const { exercises: filtered, filter, setFilter, totalCount } = useExercises();
+  const { t } = useLocale();
+  const { exercises: filtered, filter, setFilter } = useExercises();
   const [queryInput, setQueryInput] = useState(filter.query);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,12 +96,12 @@ export default function ExercisesPage() {
           className="text-2xl font-bold tracking-wider uppercase mb-4"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
         >
-          Exercise Library
+          {t('exercise_library')}
         </h1>
         <SearchBar
           value={queryInput}
           onChange={handleQueryChange}
-          placeholder={`Search ${totalCount} exercises…`}
+          placeholder={`${t('search_exercises')}`}
           className="mb-3"
         />
         <FilterChips<ExerciseFilter['modality']>
@@ -122,7 +125,7 @@ export default function ExercisesPage() {
                 color: filter.muscle === '' ? 'white' : 'var(--text-secondary)',
               }}
             >
-              All muscles
+              {t('all_muscles')}
             </button>
             {muscleOptions.slice(0, 20).map((m) => (
               <button
@@ -144,16 +147,16 @@ export default function ExercisesPage() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} {filtered.length !== 1 ? t('results') : t('results').slice(0, -1)}
         </p>
 
         {filtered.length === 0 ? (
           <EmptyState
             icon="◈"
-            title="No exercises found"
-            description="Try adjusting your search or filters"
+            title={t('no_exercises_found')}
+            description={t('no_exercises_desc')}
             action={{
-              label: 'Clear filters',
+              label: t('clear_filters'),
               onClick: () => {
                 setQueryInput('');
                 setFilter({ query: '', modality: 'all', muscle: '' });
@@ -179,7 +182,7 @@ export default function ExercisesPage() {
                   backgroundColor: 'var(--bg-secondary)',
                 }}
               >
-                Load more ({filtered.length - visible} remaining)
+                {t('load_more')} ({filtered.length - visible} {t('remaining')})
               </button>
             )}
           </div>

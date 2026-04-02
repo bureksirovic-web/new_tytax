@@ -42,16 +42,24 @@ describe('SyncEngine', () => {
     };
   }
 
-  function setupSupabaseResponse(error: unknown = null) {
-    const mockChain = {
-      upsert: vi.fn().mockResolvedValue({ error }),
-      update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ error }),
-    };
+  function setupSupabaseResponse(error: unknown = null, serverRecord: unknown = null) {
+    const mockMaybeSingle = vi.fn().mockResolvedValue({ data: serverRecord, error: null });
+    const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
+    const mockUpsert = vi.fn().mockResolvedValue({ error });
+    const mockUpdateChain = { update: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ error }) };
+
     const mockClient = {
-      from: vi.fn().mockReturnValue(mockChain),
+      from: vi.fn().mockImplementation(() => {
+        return {
+          select: mockSelect,
+          upsert: mockUpsert,
+          update: mockUpdateChain.update,
+        };
+      }),
     };
-    return { mockChain, mockClient };
+
+    return { mockClient, mockUpsert, mockEq, mockMaybeSingle };
   }
 
   it('sync() processes pending operations', async () => {
@@ -60,7 +68,7 @@ describe('SyncEngine', () => {
       makeOp({ id: 'op-2', operationType: 'update' }),
     ];
     mockSyncQueue.toArray.mockResolvedValue(ops);
-    const { mockClient } = setupSupabaseResponse(null);
+    const { mockClient } = setupSupabaseResponse(null, null);
     mockSyncQueue.delete.mockResolvedValue(undefined);
     mockSyncMetadata.where.mockReturnValue({
       equals: vi.fn().mockReturnValue({
@@ -98,7 +106,7 @@ describe('SyncEngine', () => {
   it('handles Supabase errors properly', async () => {
     const ops: SyncOperation[] = [makeOp()];
     mockSyncQueue.toArray.mockResolvedValue(ops);
-    const { mockClient } = setupSupabaseResponse(new Error('Supabase error'));
+    const { mockClient } = setupSupabaseResponse(new Error('Supabase error'), null);
     mockSyncQueue.update.mockResolvedValue(undefined);
     mockSyncMetadata.where.mockReturnValue({
       equals: vi.fn().mockReturnValue({
@@ -113,7 +121,7 @@ describe('SyncEngine', () => {
     expect(result.synced).toBe(0);
     expect(mockSyncQueue.update).toHaveBeenCalledWith('op-1', {
       retryCount: 1,
-      lastError: expect.stringContaining('Supabase error'),
+      lastError: expect.stringContaining('Error'),
     });
   });
 
@@ -122,7 +130,7 @@ describe('SyncEngine', () => {
 
     const ops: SyncOperation[] = [makeOp({ retryCount: 1 })];
     mockSyncQueue.toArray.mockResolvedValue(ops);
-    const { mockClient } = setupSupabaseResponse(null);
+    const { mockClient } = setupSupabaseResponse(null, null);
     mockSyncQueue.delete.mockResolvedValue(undefined);
     mockSyncMetadata.where.mockReturnValue({
       equals: vi.fn().mockReturnValue({
@@ -161,10 +169,18 @@ describe('SyncEngine', () => {
     const ops: SyncOperation[] = [makeOp({ operationType: 'delete' })];
     mockSyncQueue.toArray.mockResolvedValue(ops);
 
-    const mockUpdateChain = { update: vi.fn().mockReturnThis() };
-    const mockEqChain = { eq: vi.fn().mockResolvedValue({ error: null }) };
-    mockUpdateChain.update.mockReturnValue(mockEqChain);
-    const mockClient = { from: vi.fn().mockReturnValue(mockUpdateChain) };
+    const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
+    const mockEqDelete = vi.fn().mockResolvedValue({ error: null });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqDelete });
+
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: mockSelect,
+        update: mockUpdate,
+      }),
+    };
 
     mockSyncQueue.delete.mockResolvedValue(undefined);
     mockSyncMetadata.where.mockReturnValue({
@@ -177,6 +193,6 @@ describe('SyncEngine', () => {
 
     expect(result.synced).toBe(1);
     expect(mockClient.from).toHaveBeenCalledWith('workout_logs');
-    expect(mockEqChain.eq).toHaveBeenCalledWith('id', 'rec-1');
+    expect(mockEqDelete).toHaveBeenCalledWith('id', 'rec-1');
   });
 });

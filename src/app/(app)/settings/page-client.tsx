@@ -5,10 +5,11 @@ import { Input } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui';
 import { useLocale } from '@/components/providers';
 import { useTheme } from '@/components/providers';
+import { LOCALES, type Locale } from '@/lib/i18n';
 import { db } from '@/lib/db/dexie';
 import { generateId } from '@/lib/utils';
 import { getSession } from '@/lib/auth/helpers';
-import type { UserProfile, FamilyMember, UnitSystem } from '@/types/user';
+import type { UserProfile, FamilyMember } from '@/types/user';
 import type { Session } from '@supabase/supabase-js';
 import { SyncStatus } from '@/components/sync/sync-status';
 import { workoutLogsToCSV, downloadCSV } from '@/lib/export/csv';
@@ -138,20 +139,20 @@ export default function SettingsPage() {
       </h1>
 
       <Section>
-        <SectionTitle>Profile</SectionTitle>
+        <SectionTitle>{t('profile')}</SectionTitle>
         <Input
-          label="Display Name"
+          label={t('display_name')}
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Operator"
+          placeholder={t('display_name_placeholder')}
         />
         <Input
-          label={`Bodyweight (${units === 'metric' ? 'kg' : 'lb'})`}
+          label={`${t('bodyweight')} (${units === 'metric' ? 'kg' : 'lb'})`}
           type="number"
           inputMode="decimal"
           value={bodyweight}
           onChange={(e) => setBodyweight(e.target.value)}
-          placeholder="80"
+          placeholder={t('bodyweight_placeholder')}
         />
         <Button onClick={saveProfile} loading={saving} size="sm">
           {t('save')}
@@ -182,7 +183,7 @@ export default function SettingsPage() {
                 onChange={() => setUnitsAndSave(u)}
                 className="sr-only"
               />
-              {u === 'metric' ? 'kg / km' : 'lb / mi'}
+              {u === 'metric' ? t('units_metric') : t('units_imperial')}
             </label>
           ))}
         </div>
@@ -242,7 +243,7 @@ export default function SettingsPage() {
                 onChange={() => setTheme(th)}
                 className="sr-only"
               />
-              {th === 'dark' ? 'Dark' : 'OLED'}
+              {th === 'dark' ? t('theme_dark') : t('theme_oled')}
             </label>
           ))}
         </div>
@@ -270,28 +271,28 @@ export default function SettingsPage() {
         </div>
         <div className="flex gap-2">
           <Input
-            placeholder="Name"
+            placeholder={t('member_name')}
             value={newMemberName}
             onChange={(e) => setNewMemberName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addFamilyMember()}
           />
           <Button size="sm" onClick={addFamilyMember} disabled={!newMemberName.trim()}>
-            Add
+            {t('add')}
           </Button>
         </div>
       </Section>
 
       <Section>
-        <SectionTitle>Account</SectionTitle>
+        <SectionTitle>{t('account')}</SectionTitle>
         {session ? (
           <div className="space-y-2">
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Signed in as {session.user.email}
+              {t('signed_in_as')} {session.user.email}
             </p>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => signOut().then(() => setSession(null))}
+              onClick={() => (window.location.href = '/auth/logout')}
             >
               {t('sign_out')}
             </Button>
@@ -299,7 +300,7 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-2">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Sign in to sync your data across devices.
+              {t('sign_in_sync')}
             </p>
             <Button
               variant="secondary"
@@ -317,13 +318,13 @@ export default function SettingsPage() {
       </div>
 
       <Section>
-        <SectionTitle>Data</SectionTitle>
+        <SectionTitle>{t('data')}</SectionTitle>
         <div className="flex flex-col gap-2">
           <Button variant="secondary" size="sm" onClick={handleExportCSV}>
-            Export CSV
+            {t('export_csv')}
           </Button>
           <Button variant="danger" size="sm" onClick={() => setResetOpen(true)}>
-            Reset all data
+            {t('reset_all_data')}
           </Button>
         </div>
       </Section>
@@ -332,9 +333,9 @@ export default function SettingsPage() {
         open={resetOpen}
         onCancel={() => setResetOpen(false)}
         onConfirm={handleResetAllData}
-        title="Reset all data"
-        message="This will permanently delete all local data including workouts, programs, and profiles. This cannot be undone."
-        confirmLabel="Reset"
+        title={t('reset_all_data')}
+        message={t('reset_all_data_message')}
+        confirmLabel={t('reset')}
         cancelLabel={t('cancel')}
         danger
       />

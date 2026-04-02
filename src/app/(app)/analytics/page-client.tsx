@@ -4,21 +4,20 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocale } from '@/components/providers';
 import { formatWeight } from '@/lib/utils';
+import type { TranslationKey } from '@/lib/i18n';
 import type { ACWRWorkoutResult } from '@/lib/analytics/acwr';
 import { ACWR_ZONE_COLORS } from '@/lib/analytics/acwr';
 
 const ZONE_BADGE: Record<ACWRWorkoutResult['zone'], 'success' | 'warning' | 'danger' | 'default'> = {
   optimal: 'success', caution: 'warning', danger: 'danger', undertrain: 'default',
 };
-const ZONE_LABEL: Record<ACWRWorkoutResult['zone'], string> = {
-  optimal: 'OPTIMAL', caution: 'CAUTION', danger: 'DANGER', undertrain: 'UNDERTRAINED',
+const ZONE_LABEL_KEY: Record<ACWRWorkoutResult['zone'], TranslationKey> = {
+  optimal: 'optimal', caution: 'caution', danger: 'danger', undertrain: 'undertrained',
 };
-const ZONE_DESC: Record<ACWRWorkoutResult['zone'], string> = {
-  optimal: 'Load is balanced. Training stimulus is productive.',
-  caution: 'Acute load elevated. Monitor recovery closely.',
-  danger: 'Overreach risk. Consider a deload or rest day.',
-  undertrain: 'Load is low. Increase frequency or intensity.',
+const ZONE_DESC_KEY: Record<ACWRWorkoutResult['zone'], TranslationKey> = {
+  optimal: 'acwr_optimal_desc', caution: 'acwr_caution_desc', danger: 'acwr_danger_desc', undertrain: 'acwr_undertrain_desc',
 };
 const MOD_COLOR: Record<string, string> = {
   tytax: 'var(--highlight)', kettlebell: 'var(--accent)',
@@ -30,6 +29,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function AnalyticsPage() {
+  const { t } = useLocale();
   const { acwr, weeklyVolume, muscleGaps, bestLifts, volumeParity, kineticImpact, isLoading } = useAnalytics(90);
 
   if (isLoading) return (
@@ -50,13 +50,13 @@ export default function AnalyticsPage() {
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold uppercase tracking-wider pt-2"
         style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
-        Analytics
+        {t('analytics')}
       </h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>Training Load — ACWR</CardTitle>
-          {latest && <Badge variant={ZONE_BADGE[latest.zone]}>{ZONE_LABEL[latest.zone]}</Badge>}
+          <CardTitle>{t('training_load_acwr')}</CardTitle>
+          {latest && <Badge variant={ZONE_BADGE[latest.zone]}>{t(ZONE_LABEL_KEY[latest.zone])}</Badge>}
         </CardHeader>
         {latest ? (
           <>
@@ -66,11 +66,11 @@ export default function AnalyticsPage() {
                 {latest.ratio.toFixed(2)}
               </span>
               <div className="text-xs pb-1" style={{ color: 'var(--text-muted)' }}>
-                <div>Acute {Math.round(latest.acute)} kg/day</div>
-                <div>Chronic {Math.round(latest.chronic)} kg/day</div>
+                <div>{t('acute')} {Math.round(latest.acute)} kg/day</div>
+                <div>{t('chronic')} {Math.round(latest.chronic)} kg/day</div>
               </div>
             </div>
-            <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{ZONE_DESC[latest.zone]}</p>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{t(ZONE_DESC_KEY[latest.zone])}</p>
             <div className="flex items-end gap-1 h-12">
               {last7.map(pt => {
                 const maxA = Math.max(...last7.map(p => p.acute), 1);
@@ -82,15 +82,15 @@ export default function AnalyticsPage() {
                 );
               })}
             </div>
-            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>7-day acute trend</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('acute_trend')}</div>
           </>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Log a session to see your training load.</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('log_session_for_load')}</p>
         )}
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Weekly Volume</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('weekly_volume')}</CardTitle></CardHeader>
         {last8w.length > 0 ? (
           <>
             <div className="flex items-end gap-1 h-24 mb-1">
@@ -114,12 +114,12 @@ export default function AnalyticsPage() {
             </div>
           </>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No volume data yet.</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('no_volume_data')}</p>
         )}
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Muscle Balance (30d)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('muscle_balance')} (30d)</CardTitle></CardHeader>
         {topGaps.length > 0 ? (
           <div className="space-y-2">
             {topGaps.map(m => (
@@ -142,12 +142,12 @@ export default function AnalyticsPage() {
             ))}
           </div>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No data in last 30 days.</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('no_data_30d')}</p>
         )}
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Best Lifts (e1RM)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('best_lifts')} (e1RM)</CardTitle></CardHeader>
         {topLifts.length > 0 ? (
           <div className="space-y-1">
             {topLifts.map(([exId, lift]) => (
@@ -172,13 +172,13 @@ export default function AnalyticsPage() {
             ))}
           </div>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No lifts logged yet.</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('no_lifts_logged')}</p>
         )}
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Kinetic Impact Score</CardTitle>
+          <CardTitle>{t('kinetic_impact')}</CardTitle>
           {kineticImpact && <Badge variant={kineticImpact.label === 'excellent' ? 'success' : kineticImpact.label === 'poor' ? 'danger' : 'default'}>{kineticImpact.label.toUpperCase()}</Badge>}
         </CardHeader>
         {kineticImpact ? (
@@ -206,11 +206,11 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
-        ) : <p className="text-sm text-muted-foreground px-6 pb-4">No data</p>}
+        ) : <p className="text-sm text-muted-foreground px-6 pb-4">{t('no_data')}</p>}
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Volume Parity (30d)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('volume_parity')} (30d)</CardTitle></CardHeader>
         {volumeParity && volumeParity.length > 0 ? (
           <div className="px-6 pb-4 space-y-3">
             {volumeParity.map(p => {
@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
                 <div key={p.pattern}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="capitalize">{p.pattern}</span>
-                    <span className="text-muted-foreground">{p.percentage.toFixed(1)}% (Target: {p.targetPercentage}%)</span>
+                    <span className="text-muted-foreground">{p.percentage.toFixed(1)}% ({t('target')}: {p.targetPercentage}%)</span>
                   </div>
                   <div className="h-2 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--border-color)' }}>
                     <div className="absolute top-0 bottom-0 left-0" style={{ width: '100%', backgroundColor: color, opacity: 0.2 }} />
@@ -228,9 +228,9 @@ export default function AnalyticsPage() {
                 </div>
               );
             })}
-            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">Overall Balance: {volumeParity.filter(p => Math.abs(p.delta) <= 5).length} / 7 optimal</p>
+            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">{t('overall_balance')}: {volumeParity.filter(p => Math.abs(p.delta) <= 5).length} / 7 {t('optimal').toLowerCase()}</p>
           </div>
-        ) : <p className="text-sm text-muted-foreground px-6 pb-4">No data</p>}
+        ) : <p className="text-sm text-muted-foreground px-6 pb-4">{t('no_data')}</p>}
       </Card>
     </div>
   );

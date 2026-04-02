@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useLocale } from '@/components/providers';
 import { isoDate } from '@/lib/utils';
 import type { Program, ProgramSession, SessionExercise } from '@/types/program';
 
 export default function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { t } = useLocale();
 
   const program = useLiveQuery<Program | undefined>(() => db.programs.get(id), [id]);
 
@@ -26,7 +28,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
   if (program === undefined) {
     return (
       <div className="flex items-center justify-center h-full py-24">
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('loading')}</p>
       </div>
     );
   }
@@ -35,8 +37,8 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
     return (
       <EmptyState
         icon="◈"
-        title="Program not found"
-        action={{ label: 'Back to programs', onClick: () => router.push('/programs') }}
+        title={t('program_not_found')}
+        action={{ label: t('back_to_programs'), onClick: () => router.push('/programs') }}
       />
     );
   }
@@ -75,7 +77,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
         className="text-xs mb-4 flex items-center gap-1 min-h-[44px]"
         style={{ color: 'var(--text-muted)' }}
       >
-        ← Programs
+        ← {t('programs')}
       </button>
 
       <div className="mb-6">
@@ -83,7 +85,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
           <Badge variant={modalityVariant}>
             {(prog.modalitiesUsed?.[0] ?? 'custom').toUpperCase()}
           </Badge>
-          {prog.isActive && <Badge variant="success">ACTIVE</Badge>}
+          {prog.isActive && <Badge variant="success">{t('training_active')}</Badge>}
           {prog.isPreset && <Badge variant="default">PRESET</Badge>}
         </div>
 
@@ -106,10 +108,10 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
               }}
             />
             <Button size="sm" variant="primary" onClick={() => void saveName()}>
-              Save
+              {t('save')}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
           </div>
         ) : (
@@ -117,7 +119,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
             className="text-2xl font-bold uppercase tracking-wide cursor-pointer"
             style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
             onClick={() => { setNameValue(prog.name); setEditingName(true); }}
-            title="Click to edit"
+            title={t('click_to_edit')}
           >
             {prog.name} ✎
           </h1>
@@ -125,18 +127,18 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
 
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           {prog.frequency}x/week &middot; {prog.splitType.replace(/_/g, ' ')} &middot;{' '}
-          {prog.sessions.length} sessions
+          {prog.sessions.length} {t('sessions').toLowerCase()}
         </p>
       </div>
 
       <div className="flex gap-3 mb-8 flex-wrap">
         {!prog.isActive && (
           <Button variant="primary" size="md" onClick={() => void activateProgram(id)}>
-            Make Active
+            {t('make_active')}
           </Button>
         )}
         <Button variant="danger" size="md" onClick={() => setConfirmDelete(true)}>
-          Delete Program
+          {t('delete_program')}
         </Button>
       </div>
 
@@ -145,7 +147,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
           className="text-xs font-semibold uppercase tracking-widest mb-4"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--text-muted)' }}
         >
-          Sessions
+          {t('sessions')}
         </h2>
         <div className="flex flex-col gap-4">
           {prog.sessions.map((session: ProgramSession, sIdx: number) => (
@@ -167,9 +169,8 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                     {session.name}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {session.exercises.length} exercise
-                    {session.exercises.length !== 1 ? 's' : ''}
-                    {prog.currentSessionIndex === sIdx ? ' · NEXT UP' : ''}
+                    {session.exercises.length} {session.exercises.length !== 1 ? t('exercise_plural') : t('exercise_singular')}
+                    {prog.currentSessionIndex === sIdx ? ` · ${t('dashboard_next').toUpperCase()} ${t('training_next_session').toUpperCase()}` : ''}
                   </p>
                 </div>
                 <Button
@@ -177,7 +178,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                   size="sm"
                   onClick={() => setAddSheet({ sessionId: session.id })}
                 >
-                  + Add
+                  + {t('add')}
                 </Button>
               </div>
 
@@ -202,7 +203,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                         onClick={() => void removeExercise(session.id, ex.exerciseId)}
                         className="text-xs px-2 py-1 rounded min-h-[36px] min-w-[36px]"
                         style={{ color: 'var(--text-muted)' }}
-                        aria-label="Remove exercise"
+                        aria-label={t('delete')}
                       >
                         ✕
                       </button>
@@ -211,7 +212,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                 </ul>
               ) : (
                 <p className="px-4 py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  No exercises — tap + Add to build this session
+                  {t('no_exercises_session')}
                 </p>
               )}
             </div>
@@ -221,18 +222,18 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Delete Program"
-        message={`Delete "${prog.name}"? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t('delete_program')}
+        message={`${t('delete_program_confirm')} "${prog.name}"? ${t('delete_program_message')}`}
+        confirmLabel={t('delete')}
         danger
         onConfirm={() => void handleDelete()}
         onCancel={() => setConfirmDelete(false)}
       />
 
-      <BottomSheet open={!!addSheet} onClose={() => setAddSheet(null)} title="Add Exercise">
+      <BottomSheet open={!!addSheet} onClose={() => setAddSheet(null)} title={t('add_exercise')}>
         <div className="px-4 py-6">
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-            Exercise picker coming soon. Use the Exercise Library to find exercises.
+            {t('exercise_picker_coming')}
           </p>
           <Button
             variant="secondary"
@@ -242,7 +243,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
               router.push('/exercises');
             }}
           >
-            Browse Exercise Library
+            {t('browse_exercise_library')}
           </Button>
         </div>
       </BottomSheet>

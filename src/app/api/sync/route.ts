@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { SyncOperation } from '@/types/sync';
+import {
+  validate,
+  validateSyncOperation,
+  getTableSchema,
+} from '@/lib/validation';
 
 const ALLOWED_TABLES = new Set([
   'workout_logs',
@@ -20,14 +25,6 @@ interface SyncResponseBody {
   errors: string[];
 }
 
-/**
- * POST /api/sync
- * Server-side sync trigger: validates and executes a batch of SyncOperations
- * against Supabase on behalf of the authenticated user.
- *
- * Body: { operations: SyncOperation[] }
- * Response: { synced: number, failed: number, errors: string[] }
- */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -55,34 +52,80 @@ export async function POST(request: NextRequest) {
   const result: SyncResponseBody = { synced: 0, failed: 0, errors: [] };
 
   for (const op of body.operations) {
-    // Validate table is allowed
-    if (!ALLOWED_TABLES.has(op.tableName)) {
+    // Validate operation structure
+    const opValidation = validateSyncOperation(op);
+    if (!opValidation.valid) {
       result.failed++;
-      result.errors.push(`Operation ${op.id}: table "${op.tableName}" is not allowed`);
+      result.errors.push(
+        `Operation ${op?.id ?? 'unknown'}: ${opValidation.errors.join(', ')}`
+      );
+      continue;
+    }
+
+    const validated = opValidation.data;
+
+    // Validate table is allowed
+    if (!ALLOWED_TABLES.has(validated.tableName)) {
+      result.failed++;
+      result.errors.push(
+        `Operation ${validated.id}: table "${validated.tableName}" is not allowed`
+      );
       continue;
     }
 
     try {
-      switch (op.operationType) {
+      switch (validated.operationType) {
         case 'create':
-        case 'update':
-          await supabase.from(op.tableName).upsert(op.payload);
+        case 'update': {
+          // Validate payload against table-specific schema
+          const schema = getTableSchema(validated.tableName);
+          if (schema && validated.payload) {
+            const payloadValidation = validate(validated.payload, schema);
+            if (!payloadValidation.valid) {
+              result.failed++;
+              result.errors.push(
+                `Operation ${validated.id}: ${payloadValidation.errors.join(', ')}`
+              );
+              continue;
+            }
+            // Use stripped payload (only allowed fields)
+            const cleanPayload = {
+              ...(payloadValidation.data as Record<string, unknown>),
+            };
+            // Ensure profile_id is set for user-owned tables
+            if (
+              validated.tableName !== 'profiles' &&
+              !cleanPayload.profile_id
+            ) {
+              cleanPayload.profile_id = user.id;
+            }
+            await supabase
+              .from(validated.tableName)
+              .upsert(cleanPayload)
+              .select();
+          } else if (validated.payload) {
+            await supabase
+              .from(validated.tableName)
+              .upsert(validated.payload)
+              .select();
+          }
           break;
+        }
         case 'delete':
           await supabase
-            .from(op.tableName)
+            .from(validated.tableName)
             .update({ deleted_at: new Date().toISOString() })
-            .eq('id', op.recordId);
+            .eq('id', validated.recordId);
           break;
         default: {
-          const _exhaustive: never = op.operationType;
+          const _exhaustive: never = validated.operationType;
           throw new Error(`Unknown operationType: ${_exhaustive}`);
         }
       }
       result.synced++;
     } catch (err) {
       result.failed++;
-      result.errors.push(`Operation ${op.id}: ${String(err)}`);
+      result.errors.push(`Operation ${validated.id}: ${String(err)}`);
     }
   }
 

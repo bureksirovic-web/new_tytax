@@ -8,6 +8,7 @@ import { activateProgram, installPreset } from '@/lib/programs/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useLocale } from '@/components/providers';
 import type { Program } from '@/types/program';
 
 const PROFILE_ID = 'local';
@@ -25,6 +26,7 @@ function ProgramCard({
   onInstall?: () => void;
   onClick?: () => void;
 }) {
+  const { t } = useLocale();
   const isActive = 'isActive' in program && program.isActive;
   const currentIdx = 'currentSessionIndex' in program ? program.currentSessionIndex : 0;
   const currentSession = program.sessions[currentIdx];
@@ -53,15 +55,15 @@ function ProgramCard({
           <Badge variant={modalityVariant}>
             {(program.modalitiesUsed?.[0] ?? 'custom').toUpperCase()}
           </Badge>
-          {isActive && <Badge variant="success">ACTIVE</Badge>}
+          {isActive && <Badge variant="success">{t('active').toUpperCase()}</Badge>}
         </div>
       </div>
 
       {currentSession && (
-        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          Next: <span style={{ color: 'var(--text-secondary)' }}>{currentSession.name}</span>
-          {' '}&middot; {currentSession.exercises.length} exercises
-        </p>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+            {t('next')}: <span style={{ color: 'var(--text-secondary)' }}>{currentSession.name}</span>
+            {' '}&middot; {currentSession.exercises.length} {currentSession.exercises.length !== 1 ? t('exercise_plural') : t('exercise_singular')}
+          </p>
       )}
 
       <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -72,12 +74,12 @@ function ProgramCard({
             disabled={!!isActive}
             onClick={onActivate}
           >
-            {isActive ? 'Active' : 'Activate'}
+            {isActive ? t('active') : t('activate_program')}
           </Button>
         )}
         {isPreset && onInstall && (
           <Button variant="secondary" size="sm" onClick={onInstall}>
-            Install
+            {t('install')}
           </Button>
         )}
       </div>
@@ -87,6 +89,7 @@ function ProgramCard({
 
 export default function ProgramsPage() {
   const router = useRouter();
+  const { t } = useLocale();
   const [installing, setInstalling] = useState<string | null>(null);
 
   const myPrograms = useLiveQuery(
@@ -121,10 +124,10 @@ export default function ProgramsPage() {
           className="text-2xl font-bold tracking-wider uppercase"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
         >
-          Programs
+          {t('programs')}
         </h1>
         <Button variant="primary" size="sm" onClick={() => router.push('/programs/new')}>
-          + New
+          {t('new_program_short')}
         </Button>
       </div>
 
@@ -133,7 +136,7 @@ export default function ProgramsPage() {
           className="text-xs font-semibold uppercase tracking-widest mb-3"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--text-muted)' }}
         >
-          My Programs
+          {t('my_programs')}
         </h2>
         {myPrograms && myPrograms.length > 0 ? (
           <div className="flex flex-col gap-3">
@@ -149,8 +152,8 @@ export default function ProgramsPage() {
         ) : (
           <EmptyState
             icon="◈"
-            title="No programs yet"
-            description="Install a preset or create your own"
+            title={t('no_programs_yet')}
+            description={t('no_programs_desc')}
           />
         )}
       </section>
@@ -160,7 +163,7 @@ export default function ProgramsPage() {
           className="text-xs font-semibold uppercase tracking-widest mb-3"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--text-muted)' }}
         >
-          Browse Presets
+          {t('browse_presets')}
         </h2>
         <div className="flex flex-col gap-3">
           {ALL_PRESETS.map((preset, idx) => (

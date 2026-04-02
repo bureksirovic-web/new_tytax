@@ -1,10 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { validate, WorkoutLogSchema } from '@/lib/validation';
 
-/**
- * GET /api/workout
- * Fetch the authenticated user's workout logs from Supabase (newest first, max 100).
- */
 export async function GET() {
   const supabase = await createClient();
   const {
@@ -30,10 +27,6 @@ export async function GET() {
   return NextResponse.json({ data });
 }
 
-/**
- * POST /api/workout
- * Upsert a workout log for the authenticated user.
- */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -44,11 +37,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body: Record<string, unknown> = await request.json();
+  const body: unknown = await request.json();
+
+  const validation = validate(body, WorkoutLogSchema);
+  if (!validation.valid) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: validation.errors },
+      { status: 400 }
+    );
+  }
 
   const { data, error } = await supabase
     .from('workout_logs')
-    .upsert({ ...body, profile_id: user.id })
+    .upsert({ ...validation.data, profile_id: user.id })
     .select()
     .single();
 

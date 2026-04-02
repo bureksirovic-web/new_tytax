@@ -4,24 +4,26 @@ import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db/dexie';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useLocale } from '@/components/providers';
 import { generateId, isoDate } from '@/lib/utils';
+import type { TranslationKey } from '@/lib/i18n';
 import type { Modality } from '@/types/exercise';
 import type { Program, ProgramSession, SplitType } from '@/types/program';
 
 const PROFILE_ID = 'local';
 
-const MODALITY_OPTIONS: Array<{ value: Modality; label: string }> = [
-  { value: 'tytax', label: 'TYTAX T1' },
-  { value: 'bodyweight', label: 'Bodyweight' },
-  { value: 'kettlebell', label: 'Kettlebell' },
-  { value: 'custom', label: 'Custom' },
+const MODALITY_OPTIONS: Array<{ value: Modality; labelKey: TranslationKey }> = [
+  { value: 'tytax', labelKey: 'modality_tytax_t1' },
+  { value: 'bodyweight', labelKey: 'modality_bodyweight' },
+  { value: 'kettlebell', labelKey: 'modality_kettlebell' },
+  { value: 'custom', labelKey: 'modality_custom' },
 ];
 
-const SPLIT_OPTIONS: Array<{ value: SplitType; label: string; minDays: number }> = [
-  { value: 'full_body', label: 'Full Body', minDays: 2 },
-  { value: 'upper_lower', label: 'Upper / Lower', minDays: 2 },
-  { value: 'push_pull_legs', label: 'Push / Pull / Legs', minDays: 3 },
-  { value: 'custom', label: 'Custom', minDays: 1 },
+const SPLIT_OPTIONS: Array<{ value: SplitType; labelKey: TranslationKey; minDays: number }> = [
+  { value: 'full_body', labelKey: 'full_body', minDays: 2 },
+  { value: 'upper_lower', labelKey: 'upper_lower', minDays: 2 },
+  { value: 'push_pull_legs', labelKey: 'push_pull_legs', minDays: 3 },
+  { value: 'custom', labelKey: 'custom', minDays: 1 },
 ];
 
 const FREQ_OPTIONS = [2, 3, 4, 5, 6] as const;
@@ -54,6 +56,7 @@ type Step = 1 | 2 | 3;
 
 export default function NewProgramPage() {
   const router = useRouter();
+  const { t } = useLocale();
 
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState('');
@@ -96,9 +99,9 @@ export default function NewProgramPage() {
   }
 
   const stepTitles: Record<Step, string> = {
-    1: 'Name & Modality',
-    2: 'Structure',
-    3: 'Review',
+    1: t('name_modality'),
+    2: t('structure'),
+    3: t('review'),
   };
 
   return (
@@ -106,7 +109,7 @@ export default function NewProgramPage() {
       <button onClick={() => step > 1 ? setStep((s) => (s - 1) as Step) : router.push('/programs')}
         className="text-xs mb-4 flex items-center gap-1 min-h-[44px]"
         style={{ color: 'var(--text-muted)' }}>
-        ← {step > 1 ? 'Back' : 'Programs'}
+        ← {step > 1 ? t('back') : t('programs')}
       </button>
 
       <div className="flex gap-2 mb-6">
@@ -121,24 +124,24 @@ export default function NewProgramPage() {
 
       <h1 className="text-xl font-bold uppercase tracking-wide mb-1"
         style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}>
-        New Program
+        {t('new_program_page')}
       </h1>
       <p className="text-xs mb-6" style={{ color: 'var(--text-muted)' }}>
-        Step {step} of 3 — {stepTitles[step]}
+        {t('step_of')} {step} {t('of')} 3 — {stepTitles[step]}
       </p>
 
       {step === 1 && (
         <div className="space-y-5">
           <Input
-            label="Program name"
+            label={t('program_name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. My PPL Program"
+            placeholder={t('program_name_placeholder')}
             autoFocus
           />
           <div>
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>
-              Primary Modality
+              {t('primary_modality')}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {MODALITY_OPTIONS.map((opt) => (
@@ -152,13 +155,13 @@ export default function NewProgramPage() {
                     color: modality === opt.value ? 'white' : 'var(--text-secondary)',
                   }}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </button>
               ))}
             </div>
           </div>
           <Button fullWidth variant="primary" size="lg" disabled={!name.trim()} onClick={() => setStep(2)}>
-            Next
+            {t('next')}
           </Button>
         </div>
       )}
@@ -167,7 +170,7 @@ export default function NewProgramPage() {
         <div className="space-y-5">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>
-              Split Type
+              {t('split_type')}
             </p>
             <div className="flex flex-col gap-2">
               {SPLIT_OPTIONS.map((opt) => (
@@ -181,14 +184,14 @@ export default function NewProgramPage() {
                     color: split === opt.value ? 'white' : 'var(--text-secondary)',
                   }}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </button>
               ))}
             </div>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>
-              Frequency (days/week)
+              {t('frequency')} ({t('days_per_week')})
             </p>
             <div className="flex gap-2">
               {FREQ_OPTIONS.map((f) => (
@@ -208,7 +211,7 @@ export default function NewProgramPage() {
             </div>
           </div>
           <Button fullWidth variant="primary" size="lg" onClick={() => setStep(3)}>
-            Review
+            {t('review')}
           </Button>
         </div>
       )}
@@ -227,16 +230,16 @@ export default function NewProgramPage() {
                 <div key={i} className="flex items-center gap-3 py-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
                   <span className="text-xs w-6 text-center font-semibold" style={{ color: 'var(--text-muted)' }}>{i + 1}</span>
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{s.name}</span>
-                  <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>0 exercises</span>
+                  <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>0 {t('exercise_plural')}</span>
                 </div>
               ))}
             </div>
           </div>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Sessions will be empty. Add exercises from the program detail page.
+            {t('sessions_empty_note')}
           </p>
           <Button fullWidth variant="primary" size="lg" loading={saving} onClick={handleSave}>
-            Save Program
+            {t('save_program')}
           </Button>
         </div>
       )}

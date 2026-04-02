@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSync } from '../use-sync';
 import * as syncEngineModule from '@/lib/sync/engine';
+import type { SyncResult } from '@/lib/sync/engine';
 import * as dexieReactHooksModule from 'dexie-react-hooks';
 
 vi.mock('@/lib/db/dexie', () => {
@@ -64,6 +65,7 @@ describe('useSync', () => {
       synced: 2,
       failed: 0,
       pending: 1,
+      conflictsResolved: 0,
     });
 
     const { result } = renderHook(() => useSync());
@@ -96,7 +98,7 @@ describe('useSync', () => {
     const syncPromise = new Promise<void>((resolve) => {
       resolveSync = resolve;
     });
-    vi.mocked(syncEngineModule.syncEngine.sync).mockReturnValue(syncPromise as unknown as Promise<{ status: 'ok'; synced: number; failed: number; pending: number }>);
+    vi.mocked(syncEngineModule.syncEngine.sync).mockReturnValue(syncPromise as unknown as Promise<SyncResult>);
 
     const { result } = renderHook(() => useSync());
 
@@ -117,6 +119,7 @@ describe('useSync', () => {
       synced: 5,
       failed: 0,
       pending: 0,
+      conflictsResolved: 0,
     };
     vi.mocked(syncEngineModule.syncEngine.sync).mockResolvedValue(expectedResult);
 

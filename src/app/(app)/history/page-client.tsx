@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDuration, formatWeight } from '@/lib/utils';
+import { useLocale } from '@/components/providers';
 import type { WorkoutLog } from '@/types/workout';
 
 type ModalityBadge = 'tytax' | 'bodyweight' | 'kettlebell' | 'custom' | 'default';
@@ -19,6 +20,7 @@ function modalityVariant(mod: string): ModalityBadge {
 }
 
 function WorkoutCard({ log }: { log: WorkoutLog }) {
+  const { t } = useLocale();
   const exerciseCount = log.exercises.length;
   const uniqueModalities = [...new Set(log.modalitiesUsed ?? [])];
 
@@ -45,7 +47,7 @@ function WorkoutCard({ log }: { log: WorkoutLog }) {
               {formatWeight(log.totalVolumeKg)}
             </div>
             <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {exerciseCount} exercises &bull; {log.totalSets} sets
+              {exerciseCount} {t('exercise_plural')} &bull; {log.totalSets} {t('sets').toLowerCase()}
             </div>
           </div>
         </div>
@@ -65,6 +67,7 @@ function WorkoutCard({ log }: { log: WorkoutLog }) {
 }
 
 export default function HistoryPage() {
+  const { t } = useLocale();
   const { logs, total, page, hasMore, nextPage, prevPage, isLoading } = useHistory(20);
 
   return (
@@ -74,10 +77,10 @@ export default function HistoryPage() {
           className="text-2xl font-bold uppercase tracking-wider"
           style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
         >
-          History
+          {t('history')}
         </h1>
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {total} session{total !== 1 ? 's' : ''}
+          {total} {total !== 1 ? t('history_sessions') : t('history_session')}
         </span>
       </div>
 
@@ -90,8 +93,8 @@ export default function HistoryPage() {
       ) : logs.length === 0 ? (
         <EmptyState
           icon="dumbbell"
-          title="No workouts yet"
-          description="Complete your first session to see it here."
+          title={t('no_workouts_yet')}
+          description={t('no_workouts_desc')}
         />
       ) : (
         <>
@@ -106,10 +109,10 @@ export default function HistoryPage() {
               onClick={prevPage}
               disabled={page === 0}
             >
-              &larr; Prev
+              &larr; {t('prev')}
             </Button>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Page {page + 1}
+              {t('page')} {page + 1}
             </span>
             <Button
               variant="ghost"
@@ -117,7 +120,7 @@ export default function HistoryPage() {
               onClick={nextPage}
               disabled={!hasMore}
             >
-              Next &rarr;
+              {t('next_page')} &rarr;
             </Button>
           </div>
         </>
