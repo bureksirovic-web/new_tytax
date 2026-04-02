@@ -32,7 +32,7 @@ test.describe('Workout Flow', () => {
     const noExercisesText = page.locator('text="No exercises in this session."');
     if (await noExercisesText.isVisible()) {
       await page.evaluate(() => {
-        // @ts-ignore - access window for testing
+        // @ts-expect-error Playwright types for page.evaluate - access window for testing
         const store = window.useWorkoutStore?.getState?.();
         if (store) {
            store.exercises = [
@@ -54,7 +54,7 @@ test.describe('Workout Flow', () => {
                restSeconds: 60
              }
            ];
-           // @ts-ignore
+           // @ts-expect-error Playwright types for page.evaluate
            window.useWorkoutStore.setState({ exercises: [...store.exercises], state: 'active' });
         }
       });
