@@ -2,13 +2,15 @@ import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const response = NextResponse.next({ request });
 
-  // Refresh session silently — no redirects, auth is optional
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  // Auth is optional — skip entirely if Supabase is not configured
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return response;
+
+  try {
+    const supabase = createServerClient(url, key, {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
@@ -17,10 +19,12 @@ export async function middleware(request: NextRequest) {
           });
         },
       },
-    }
-  );
+    });
+    await supabase.auth.getUser();
+  } catch {
+    // Supabase unavailable — proceed without auth
+  }
 
-  await supabase.auth.getUser();
   return response;
 }
 

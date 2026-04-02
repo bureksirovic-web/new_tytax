@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * GET /api/profile
  * Fetch the current authenticated user's profile from Supabase.
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const {
     data: { user },
