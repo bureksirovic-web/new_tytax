@@ -1,7 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
-import { useUIStore } from '@/stores/ui-store';
 
 const MORE_ITEMS = [
   { href: '/history', label: 'Workout History', icon: '📋', description: 'Past sessions' },

@@ -1,5 +1,7 @@
 'use client';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
+
+const defaultFormat = (v: number) => String(v);
 
 interface NumberStepperProps {
   value: number;
@@ -19,7 +21,7 @@ export function NumberStepper({
   smallStep,
   min = 0,
   max = 999,
-  format = (v) => String(v),
+  format = defaultFormat,
   className = '',
 }: NumberStepperProps) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -40,10 +42,15 @@ export function NumberStepper({
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
+  useEffect(() => {
+    return () => stopHold();
+  }, []);
+
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       {smallStep && (
         <button
+          type="button"
           onClick={() => change(-smallStep)}
           onMouseDown={() => startHold(-smallStep)}
           onMouseUp={stopHold}
@@ -57,6 +64,7 @@ export function NumberStepper({
         </button>
       )}
       <button
+        type="button"
         onClick={() => change(-step)}
         onMouseDown={() => startHold(-step)}
         onMouseUp={stopHold}
@@ -75,6 +83,7 @@ export function NumberStepper({
         {format(value)}
       </span>
       <button
+        type="button"
         onClick={() => change(step)}
         onMouseDown={() => startHold(step)}
         onMouseUp={stopHold}
@@ -88,6 +97,7 @@ export function NumberStepper({
       </button>
       {smallStep && (
         <button
+          type="button"
           onClick={() => change(smallStep)}
           onMouseDown={() => startHold(smallStep)}
           onMouseUp={stopHold}

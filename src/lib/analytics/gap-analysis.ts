@@ -16,7 +16,7 @@ function getMuscleStatus(pct: number): MuscleGapResult['status'] {
   return 'balanced';
 }
 
-export function analyzeMusclGaps(logs: WorkoutLog[], windowDays = 30): MuscleGapResult[] {
+export function analyzeMuscleGaps(logs: WorkoutLog[], windowDays = 30): MuscleGapResult[] {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - windowDays);
   const cutoffStr = cutoff.toISOString().slice(0, 10);

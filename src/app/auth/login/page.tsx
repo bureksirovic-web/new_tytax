@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +20,7 @@ export default function LoginPage() {
     const { error: err } = await signInWithMagicLink(email.trim());
     setLoading(false);
     if (err) {
-      setError(err);
+      setError({ message: err.message || 'Failed to send magic link' });
     } else {
       setSent(true);
     }
@@ -69,7 +69,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              error={error ?? undefined}
+              error={error?.message ?? undefined}
               required
               autoFocus
             />

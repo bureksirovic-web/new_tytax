@@ -2,6 +2,12 @@
 import { useEffect } from 'react';
 import { useUIStore } from '@/stores/ui-store';
 
+const colors = {
+  success: { bg: '#14532d', border: '#16a34a', icon: '✓' },
+  error: { bg: '#450a0a', border: '#dc2626', icon: '✕' },
+  info: { bg: '#1e3a5f', border: '#3b82f6', icon: 'ℹ' },
+};
+
 function ToastItem({ id, message, type }: { id: string; message: string; type: 'success' | 'error' | 'info' }) {
   const removeToast = useUIStore((s) => s.removeToast);
 
@@ -10,11 +16,6 @@ function ToastItem({ id, message, type }: { id: string; message: string; type: '
     return () => clearTimeout(t);
   }, [id, removeToast]);
 
-  const colors = {
-    success: { bg: '#14532d', border: '#16a34a', icon: '✓' },
-    error: { bg: '#450a0a', border: '#dc2626', icon: '✕' },
-    info: { bg: '#1e3a5f', border: '#3b82f6', icon: 'ℹ' },
-  };
   const c = colors[type];
 
   return (

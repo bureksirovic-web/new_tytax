@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface BottomSheetProps {
   open: boolean;
@@ -10,16 +10,38 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = open ? 'hidden' : '';
+    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKey);
       document.body.style.overflow = '';
     };
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const focusable = sheet.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    sheet.addEventListener('keydown', handleTab);
+    return () => sheet.removeEventListener('keydown', handleTab);
+  }, [open]);
 
   if (!open) return null;
 
@@ -27,6 +49,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     <div className="fixed inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center md:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
+        ref={sheetRef}
         className="relative w-full md:max-w-lg rounded-t-2xl md:rounded-xl border-t md:border shadow-2xl max-h-[90dvh] flex flex-col"
         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
         role="dialog"
