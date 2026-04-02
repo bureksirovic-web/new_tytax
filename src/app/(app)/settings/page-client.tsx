@@ -111,11 +111,13 @@ export default function SettingsPage() {
     setFamilyMembers((prev) => prev.filter((m) => m.id !== id));
   }
 
-  async function handleResetAllData() {
-    await db.delete();
-    localStorage.clear();
-    window.location.reload();
-  }
+   async function handleResetAllData() {
+     await db.delete();
+     localStorage.clear();
+     if (typeof window !== 'undefined') {
+       window.location.reload();
+     }
+   }
 
   async function handleExportCSV() {
     const logs = await db.workoutLogs.toArray();
@@ -290,11 +292,15 @@ export default function SettingsPage() {
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               {t('signed_in_as')} {session.user.email}
             </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => (window.location.href = '/auth/logout')}
-            >
+           <Button
+             variant="secondary"
+             size="sm"
+             onClick={() => {
+               if (typeof window !== 'undefined') {
+                 window.location.href = '/auth/logout';
+               }
+             }}
+           >
               {t('sign_out')}
             </Button>
           </div>
@@ -303,11 +309,15 @@ export default function SettingsPage() {
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {t('sign_in_sync')}
             </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => (window.location.href = '/auth/login')}
-            >
+             <Button
+               variant="secondary"
+               size="sm"
+               onClick={() => {
+                 if (typeof window !== 'undefined') {
+                   window.location.href = '/auth/login';
+                 }
+               }}
+             >
               {t('sign_in')}
             </Button>
           </div>

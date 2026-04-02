@@ -4,7 +4,12 @@ import { useLocale } from '@/components/providers';
 
 export function OfflineIndicator() {
   const { t } = useLocale();
-  const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
+  const [isOffline, setIsOffline] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !navigator.onLine;
+    }
+    return false;
+  });
 
   useEffect(() => {
     const onOnline = () => setIsOffline(false);

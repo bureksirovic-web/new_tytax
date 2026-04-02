@@ -14,6 +14,8 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 function applyTheme(theme: Theme) {
+  if (typeof window === 'undefined') return;
+  
   if (theme === 'oled') {
     document.documentElement.setAttribute('data-theme', 'oled');
   } else {
