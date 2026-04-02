@@ -1,6 +1,7 @@
 import type { WorkoutLog } from '@/types/workout';
+import { ACWR_THRESHOLDS } from '@/lib/constants';
 
-export interface ACWRResult {
+export interface ACWRWorkoutResult {
   date: string;
   acute: number;
   chronic: number;
@@ -9,14 +10,14 @@ export interface ACWRResult {
   weeklyVolume: number;
 }
 
-export function getACWRZone(ratio: number): ACWRResult['zone'] {
-  if (ratio < 0.8) return 'undertrain';
-  if (ratio <= 1.3) return 'optimal';
-  if (ratio <= 1.5) return 'caution';
+export function getACWRZone(ratio: number): ACWRWorkoutResult['zone'] {
+  if (ratio < ACWR_THRESHOLDS.UNDERTRAIN_MAX) return 'undertrain';
+  if (ratio <= ACWR_THRESHOLDS.OPTIMAL_MAX) return 'optimal';
+  if (ratio <= ACWR_THRESHOLDS.CAUTION_MAX) return 'caution';
   return 'danger';
 }
 
-export const ACWR_ZONE_COLORS: Record<ACWRResult['zone'], string> = {
+export const ACWR_ZONE_COLORS: Record<ACWRWorkoutResult['zone'], string> = {
   undertrain: 'var(--text-muted)',
   optimal: 'var(--accent)',
   caution: 'var(--highlight)',
@@ -48,7 +49,7 @@ function getWeekStart(date: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function computeACWR(logs: WorkoutLog[]): ACWRResult[] {
+export function computeACWR(logs: WorkoutLog[]): ACWRWorkoutResult[] {
   const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
 
   const volumeByDate = new Map<string, number>();
@@ -64,7 +65,7 @@ export function computeACWR(logs: WorkoutLog[]): ACWRResult[] {
     weeklyVolume.set(wk, (weeklyVolume.get(wk) ?? 0) + vol);
   }
 
-  const results: ACWRResult[] = [];
+  const results: ACWRWorkoutResult[] = [];
   for (const log of sorted) {
     const d = new Date(log.date);
     const acute = rollingAvg(volumeByDate, d, 7);

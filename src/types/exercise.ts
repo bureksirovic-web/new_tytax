@@ -38,6 +38,7 @@ export interface Video {
 export interface WeightTier {
   male: { beginner: number; intermediate: number; advanced: number };
   female: { beginner: number; intermediate: number; advanced: number };
+  other: { beginner: number; intermediate: number; advanced: number };
 }
 
 export interface Exercise {

@@ -1,6 +1,8 @@
 import { db } from '@/lib/db/dexie';
 import type { SyncOperation } from '@/types/sync';
 
+const MAX_RETRIES = 5;
+
 export interface SyncResult {
   status: 'ok' | 'busy' | 'error';
   synced: number;
@@ -32,14 +34,25 @@ export class SyncEngine {
       let failed = 0;
 
       for (const op of pending) {
+        const retryCount = op.retryCount ?? 0;
+
+        if (retryCount >= MAX_RETRIES) {
+          failed++;
+          continue;
+        }
+
+        if (retryCount > 0) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
         try {
           await this.processOperation(supabaseClient, op);
-          // On success, remove from queue
           await db.syncQueue.delete(op.id);
           synced++;
         } catch (err) {
           await db.syncQueue.update(op.id, {
-            retryCount: (op.retryCount ?? 0) + 1,
+            retryCount: retryCount + 1,
             lastError: String(err),
           });
           failed++;
@@ -78,15 +91,19 @@ export class SyncEngine {
 
     switch (operationType) {
       case 'create':
-      case 'update':
-        await supabaseClient.from(tableName).upsert(payload);
+      case 'update': {
+        const { error } = await supabaseClient.from(tableName).upsert(payload);
+        if (error) throw error;
         break;
-      case 'delete':
-        await supabaseClient
+      }
+      case 'delete': {
+        const { error } = await supabaseClient
           .from(tableName)
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', op.recordId);
+        if (error) throw error;
         break;
+      }
       default: {
         const _exhaustive: never = operationType;
         throw new Error(`Unknown operationType: ${_exhaustive}`);

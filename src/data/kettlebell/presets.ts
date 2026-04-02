@@ -39,8 +39,9 @@ export const KB_SIMPLE_SINISTER: Program = {
   isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  // Presets don't have real timestamps — set at install time
+  createdAt: '',
+  updatedAt: '',
 };
 
 export const KB_HYPERTROPHY: Program = {
@@ -218,8 +219,9 @@ export const KB_HYPERTROPHY: Program = {
   isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  // Presets don't have real timestamps — set at install time
+  createdAt: '',
+  updatedAt: '',
 };
 
 export const KB_CONDITIONING: Program = {
@@ -341,6 +343,7 @@ export const KB_CONDITIONING: Program = {
   isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  // Presets don't have real timestamps — set at install time
+  createdAt: '',
+  updatedAt: '',
 };

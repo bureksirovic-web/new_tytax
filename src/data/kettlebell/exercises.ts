@@ -1,18 +1,18 @@
 import type { Exercise } from '@/types/exercise';
 
 // Weight tier helpers by category
-const swingWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 } };
-const cleanWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 20 } };
-const snatchWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 16 } };
-const pressWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 20 } };
-const squatWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 } };
-const deadliftWeight = { male: { beginner: 16, intermediate: 28, advanced: 40 }, female: { beginner: 12, intermediate: 20, advanced: 28 } };
-const rowWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 } };
-const tguWeight = { male: { beginner: 8, intermediate: 16, advanced: 24 }, female: { beginner: 4, intermediate: 8, advanced: 16 } };
-const lungeWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 20 } };
-const coreWeight = { male: { beginner: 8, intermediate: 12, advanced: 20 }, female: { beginner: 4, intermediate: 8, advanced: 12 } };
-const carryWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 } };
-const comboWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 20 } };
+const swingWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 }, other: { beginner: 16, intermediate: 24, advanced: 32 } };
+const cleanWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 20 }, other: { beginner: 16, intermediate: 24, advanced: 32 } };
+const snatchWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 16 }, other: { beginner: 12, intermediate: 20, advanced: 28 } };
+const pressWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 20 }, other: { beginner: 12, intermediate: 20, advanced: 28 } };
+const squatWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 }, other: { beginner: 16, intermediate: 24, advanced: 32 } };
+const deadliftWeight = { male: { beginner: 16, intermediate: 28, advanced: 40 }, female: { beginner: 12, intermediate: 20, advanced: 28 }, other: { beginner: 16, intermediate: 28, advanced: 40 } };
+const rowWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 }, other: { beginner: 16, intermediate: 24, advanced: 32 } };
+const tguWeight = { male: { beginner: 8, intermediate: 16, advanced: 24 }, female: { beginner: 4, intermediate: 8, advanced: 16 }, other: { beginner: 8, intermediate: 16, advanced: 24 } };
+const lungeWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 20 }, other: { beginner: 12, intermediate: 20, advanced: 28 } };
+const coreWeight = { male: { beginner: 8, intermediate: 12, advanced: 20 }, female: { beginner: 4, intermediate: 8, advanced: 12 }, other: { beginner: 8, intermediate: 12, advanced: 20 } };
+const carryWeight = { male: { beginner: 16, intermediate: 24, advanced: 32 }, female: { beginner: 8, intermediate: 16, advanced: 24 }, other: { beginner: 16, intermediate: 24, advanced: 32 } };
+const comboWeight = { male: { beginner: 12, intermediate: 20, advanced: 28 }, female: { beginner: 8, intermediate: 12, advanced: 20 }, other: { beginner: 12, intermediate: 20, advanced: 28 } };
 
 export const KB_EXERCISES: Exercise[] = [
   // ─── SWING (ballistic) ───────────────────────────────────────────────────

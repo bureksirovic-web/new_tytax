@@ -1,7 +1,5 @@
 import type { Exercise } from '@/types/exercise';
-
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
-export type Gender = 'male' | 'female';
+import type { Gender, ExperienceLevel } from '@/types/user';
 
 export function getRecommendedWeight(
   exercise: Exercise,

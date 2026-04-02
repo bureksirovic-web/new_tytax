@@ -23,13 +23,31 @@ export async function enqueue(
   recordId: string,
   payload: Record<string, unknown>
 ): Promise<void> {
-  await db.syncQueue.add({
-    id: generateId(),
-    tableName,
-    operationType,
-    recordId,
-    payload,
-    createdAt: new Date().toISOString(),
-    retryCount: 0,
-  });
+  const existing = await db.syncQueue.where({ recordId, tableName }).first();
+
+  if (existing) {
+    if (operationType === 'delete') {
+      await db.syncQueue.update(existing.id, {
+        operationType: 'delete',
+        payload,
+        createdAt: new Date().toISOString(),
+      });
+    } else {
+      await db.syncQueue.update(existing.id, {
+        operationType: existing.operationType === 'delete' ? 'delete' : operationType,
+        payload,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  } else {
+    await db.syncQueue.add({
+      id: generateId(),
+      tableName,
+      operationType,
+      recordId,
+      payload,
+      createdAt: new Date().toISOString(),
+      retryCount: 0,
+    });
+  }
 }
