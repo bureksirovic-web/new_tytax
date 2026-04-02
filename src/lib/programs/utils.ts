@@ -8,10 +8,10 @@ import { generateId, isoDate } from '@/lib/utils';
  */
 export async function activateProgram(programId: string): Promise<void> {
   const target = await db.programs.get(programId);
-  if (!target) return;
+  if (!target || target.deletedAt) return;
 
   // Deactivate all programs for this profile
-  const all = await db.programs.where('profileId').equals(target.profileId).toArray();
+  const all = await db.programs.where('profileId').equals(target.profileId).and((p) => !p.deletedAt).toArray();
   await Promise.all(
     all
       .filter((p) => p.isActive)
@@ -30,7 +30,7 @@ export async function activateProgram(programId: string): Promise<void> {
  */
 export async function advanceSession(programId: string): Promise<void> {
   const program = await db.programs.get(programId);
-  if (!program || !program.sessions || program.sessions.length === 0) return;
+  if (!program || program.deletedAt || !program.sessions || program.sessions.length === 0) return;
   const next = (program.currentSessionIndex + 1) % program.sessions.length;
   await db.programs.update(programId, { currentSessionIndex: next, updatedAt: isoDate() });
 }

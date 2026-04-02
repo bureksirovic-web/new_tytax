@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { LoggedSet, WorkoutLog, ExerciseLog } from '@/types/workout';
 import { db } from '@/lib/db/dexie';
+import { enqueue } from '@/lib/sync/queue';
+import { generateId, isoDate } from '@/lib/utils';
 
 interface WorkoutStore {
   status: 'idle' | 'active' | 'complete';
@@ -19,7 +21,7 @@ interface WorkoutStore {
   addSet: (exerciseId: string) => void;
   removeSet: (exerciseId: string, setIndex: number) => void;
   setCurrentExerciseIndex: (index: number) => void;
-  finishWorkout: (log?: WorkoutLog) => void;
+  finishWorkout: (log?: WorkoutLog) => Promise<void>;
   resetWorkout: () => void;
 }
 
@@ -41,7 +43,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const sets: Record<string, LoggedSet[]> = {};
 
     if (config.programSessionId) {
-      const programs = await db.programs.toArray();
+      const programs = (await db.programs.toArray()).filter((p) => !p.deletedAt);
       for (const prog of programs) {
         const session = prog.sessions.find((s) => s.id === config.programSessionId);
         if (session) {
@@ -135,11 +137,63 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       currentExercise: s.exercises[index] || null,
     })),
 
-  finishWorkout: (log) =>
+  finishWorkout: async (log) => {
+    const now = new Date();
+    const startedAt = get().startTime ? new Date(get().startTime!).toISOString() : now.toISOString();
+    const finishedAt = now.toISOString();
+    const durationSeconds = Math.round((now.getTime() - new Date(startedAt).getTime()) / 1000);
+
+    const fullExercises = get().exercises.map((ex) => ({
+      ...ex,
+      sets: get().sets[ex.exerciseRef] || [],
+    }));
+
+    const totalVolumeKg = fullExercises.reduce(
+      (total, ex) =>
+        total + ex.sets.reduce((s, set) => s + (set.done ? set.kg * set.reps : 0), 0),
+      0
+    );
+    const totalSets = fullExercises.reduce(
+      (total, ex) => total + ex.sets.filter((s) => s.done).length,
+      0
+    );
+    const prCount = fullExercises.reduce(
+      (n, ex) => n + ex.sets.filter((s) => s.isPersonalRecord).length,
+      0
+    );
+    const modalitiesUsed = [...new Set(fullExercises.map((e) => e.modality))];
+
+    const workoutLog: WorkoutLog = {
+      id: log?.id ?? generateId(),
+      profileId: log?.profileId ?? 'local',
+      familyMemberId: log?.familyMemberId,
+      programId: log?.programId ?? get().programId,
+      sessionName: log?.sessionName ?? get().sessionName ?? 'Quick Workout',
+      date: log?.date ?? isoDate(),
+      startedAt: log?.startedAt ?? startedAt,
+      finishedAt: log?.finishedAt ?? finishedAt,
+      durationSeconds: log?.durationSeconds ?? durationSeconds,
+      exercises: log?.exercises ?? fullExercises,
+      notes: log?.notes,
+      rpe: log?.rpe,
+      bodyweightKg: log?.bodyweightKg,
+      totalVolumeKg: log?.totalVolumeKg ?? totalVolumeKg,
+      totalSets: log?.totalSets ?? totalSets,
+      prCount: log?.prCount ?? prCount,
+      modalitiesUsed: log?.modalitiesUsed ?? modalitiesUsed,
+      createdAt: log?.createdAt ?? now.toISOString(),
+      updatedAt: now.toISOString(),
+      syncedAt: undefined,
+    };
+
+    await db.workoutLogs.add(workoutLog);
+    await enqueue('workout_logs', 'create', workoutLog.id, workoutLog as unknown as Record<string, unknown>);
+
     set({
       status: 'complete',
-      finishedData: log || null,
-    }),
+      finishedData: workoutLog,
+    });
+  },
 
   resetWorkout: () =>
     set({

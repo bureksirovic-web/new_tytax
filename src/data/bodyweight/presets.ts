@@ -18,7 +18,7 @@ export const BW_FUNDAMENTALS: Omit<Program, 'id' | 'profileId' | 'createdAt' | '
   sessions: [
     {
       id: 'bw-fundamentals-a',
-      programId: '',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Full Body A',
       dayIndex: 0,
       exercises: [
@@ -31,7 +31,7 @@ export const BW_FUNDAMENTALS: Omit<Program, 'id' | 'profileId' | 'createdAt' | '
     },
     {
       id: 'bw-fundamentals-b',
-      programId: '',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Full Body B',
       dayIndex: 1,
       exercises: [
@@ -44,7 +44,7 @@ export const BW_FUNDAMENTALS: Omit<Program, 'id' | 'profileId' | 'createdAt' | '
     },
     {
       id: 'bw-fundamentals-c',
-      programId: '',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Full Body C',
       dayIndex: 2,
       exercises: [

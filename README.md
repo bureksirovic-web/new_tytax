@@ -27,7 +27,7 @@
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS v4 |
 | State | Zustand (ephemeral), Dexie.js/IndexedDB (persistent) |
 | Backend | Supabase (PostgreSQL + Auth) |
-| Sync | Outbox pattern: Dexie → SyncQueue → Supabase |
+| Sync | Outbox pattern: Dexie (IndexedDB queue) → Supabase |
 | Deploy | Render.com (Docker standalone) |
 | Tests | Playwright (E2E), Vitest (unit) |
 
@@ -53,7 +53,6 @@ Edit `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -86,7 +85,6 @@ npm run dev
 |----------|-------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key |
 | `NEXT_PUBLIC_APP_URL` | `https://your-app.onrender.com` |
 
 ### 4. Deploy
@@ -103,7 +101,7 @@ Run `supabase/migrations/001_initial_schema.sql` in SQL Editor. This creates:
 - `profiles`, `family_members`, `equipment_profiles`
 - `workout_logs`, `pr_records`, `programs`
 - `bodyweight_entries`, `exercise_notes`
-- `sync_queue`, `sync_metadata`
+- `sync_metadata`
 - Row Level Security on all tables
 
 ## Running Tests

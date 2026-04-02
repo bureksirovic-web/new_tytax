@@ -14,6 +14,8 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 function applyTheme(theme: Theme) {
+  if (typeof window === 'undefined') return;
+  
   if (theme === 'oled') {
     document.documentElement.setAttribute('data-theme', 'oled');
   } else {
@@ -22,14 +24,15 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const saved = localStorage.getItem('theme') as Theme | null;
+    return (saved === 'dark' || saved === 'oled') ? saved : 'dark';
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem('theme') as Theme | null;
-    const initial = saved === 'dark' || saved === 'oled' ? saved : 'dark';
-    setThemeState(initial);
-    applyTheme(initial);
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);

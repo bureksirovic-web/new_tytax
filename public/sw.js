@@ -1,4 +1,7 @@
-const CACHE_NAME = 'new-tytax-v1';
+const CACHE_VERSION = 'v1';
+const CACHE_NAME = `new-tytax-${CACHE_VERSION}`;
+const OFFLINE_FALLBACK = '/offline.html';
+
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
@@ -6,6 +9,7 @@ const STATIC_ASSETS = [
   '/exercises',
   '/programs',
   '/manifest.json',
+  OFFLINE_FALLBACK,
 ];
 
 // Install: cache static assets
@@ -46,7 +50,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for all pages: try network, fall back to cache
+  // Navigation requests: network-first with offline fallback
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((cached) => cached ?? caches.match(OFFLINE_FALLBACK))
+        )
+    );
+    return;
+  }
+
+  // Network-first for all other requests: try network, fall back to cache
   event.respondWith(
     fetch(request)
       .then((response) => {

@@ -45,7 +45,7 @@ test.describe('Settings Flow', () => {
 
     // 4. Navigate back to dashboard and ensure theme persists
     await page.goto('/dashboard');
-    await expect(page.locator('text="COMMAND CENTER"').first()).toBeVisible();
+    await expect(page.locator('text="Command Center"').first()).toBeVisible();
 
     // Check theme again
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'oled');

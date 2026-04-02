@@ -1,11 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { validate, ProfileSchema } from '@/lib/validation';
 
-/**
- * GET /api/profile
- * Fetch the current authenticated user's profile from Supabase.
- */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,10 +25,6 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json({ data });
 }
 
-/**
- * POST /api/profile
- * Upsert the current authenticated user's profile in Supabase.
- */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -42,11 +35,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body: Record<string, unknown> = await request.json();
+  const body: unknown = await request.json();
+
+  const validation = validate(body, ProfileSchema);
+  if (!validation.valid) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: validation.errors },
+      { status: 400 }
+    );
+  }
 
   const { data, error } = await supabase
     .from('profiles')
-    .upsert({ ...body, id: user.id })
+    .upsert({ ...validation.data, id: user.id })
     .select()
     .single();
 

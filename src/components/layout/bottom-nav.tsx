@@ -3,17 +3,20 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/stores/ui-store';
+import { useLocale } from '@/components/providers';
 import { MoreDrawer } from './more-drawer';
+import type { TranslationKey } from '@/lib/i18n';
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Home', icon: '⌂' },
-  { href: '/workout', label: 'Workout', icon: '◈' },
-  { href: '/exercises', label: 'Exercises', icon: '⊞' },
-  { href: '/analytics', label: 'Analytics', icon: '▲' },
-] as const;
+const NAV_ITEMS: Array<{ href: string; label: TranslationKey; icon: string }> = [
+  { href: '/dashboard', label: 'nav_home', icon: '⌂' },
+  { href: '/workout', label: 'nav_workout', icon: '◈' },
+  { href: '/exercises', label: 'nav_exercises', icon: '⊞' },
+  { href: '/analytics', label: 'nav_analytics', icon: '▲' },
+];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLocale();
   const focusMode = useUIStore((s) => s.focusMode);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -40,7 +43,7 @@ export function BottomNav() {
               >
                 <span className="text-lg leading-none" aria-hidden="true">{item.icon}</span>
                 <span className="text-[10px] font-medium uppercase tracking-wide" style={{ fontFamily: 'var(--font-display)' }}>
-                  {item.label}
+                  {t(item.label)}
                 </span>
               </Link>
             </li>
@@ -51,11 +54,11 @@ export function BottomNav() {
             onClick={() => setMoreOpen(true)}
             className="flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] w-full transition-colors"
             style={{ color: moreActive ? 'var(--highlight)' : 'var(--text-muted)' }}
-            aria-current={moreActive ? 'page' : undefined}
+            aria-expanded={moreActive}
           >
             <span className="text-lg leading-none" aria-hidden="true">≡</span>
             <span className="text-[10px] font-medium uppercase tracking-wide" style={{ fontFamily: 'var(--font-display)' }}>
-              More
+              {t('nav_more')}
             </span>
           </button>
         </li>

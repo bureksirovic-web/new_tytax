@@ -223,3 +223,29 @@ create trigger handle_programs_updated_at before update on public.programs
   for each row execute procedure public.handle_updated_at();
 create trigger handle_workout_logs_updated_at before update on public.workout_logs
   for each row execute procedure public.handle_updated_at();
+
+-- ============================================================
+-- FOREIGN KEY INDEXES
+-- ============================================================
+create index family_members_profile_id_idx on public.family_members(profile_id);
+create index equipment_profiles_profile_id_idx on public.equipment_profiles(profile_id);
+create index programs_profile_id_idx on public.programs(profile_id);
+create index bodyweight_entries_profile_id_idx on public.bodyweight_entries(profile_id);
+create index exercise_notes_profile_id_idx on public.exercise_notes(profile_id);
+create index sync_metadata_profile_id_idx on public.sync_metadata(profile_id);
+create index pr_records_workout_log_id_idx on public.pr_records(workout_log_id);
+create index workout_logs_family_member_id_idx on public.workout_logs(family_member_id);
+
+-- ============================================================
+-- ADDITIONAL UPDATED_AT TRIGGERS
+-- ============================================================
+create trigger handle_family_members_updated_at before update on public.family_members
+  for each row execute function public.handle_updated_at();
+create trigger handle_equipment_profiles_updated_at before update on public.equipment_profiles
+  for each row execute function public.handle_updated_at();
+create trigger handle_bodyweight_entries_updated_at before update on public.bodyweight_entries
+  for each row execute function public.handle_updated_at();
+create trigger handle_exercise_notes_updated_at before update on public.exercise_notes
+  for each row execute function public.handle_updated_at();
+create trigger handle_sync_metadata_updated_at before update on public.sync_metadata
+  for each row execute function public.handle_updated_at();

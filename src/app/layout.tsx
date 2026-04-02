@@ -1,7 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
+import { Inter, Oswald, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const oswald = Oswald({ subsets: ['latin'], variable: '--font-display' });
+const jetBrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
   title: 'New TYTAX — Training Companion',
@@ -25,15 +30,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-theme="tactical" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
+      <body className={`${inter.variable} ${oswald.variable} ${jetBrainsMono.variable}`}>
         <Providers>{children}</Providers>
         <Script id="sw-register" strategy="afterInteractive">
           {`

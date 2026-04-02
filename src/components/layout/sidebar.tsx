@@ -1,42 +1,45 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useLocale } from '@/components/providers';
+import type { TranslationKey } from '@/lib/i18n';
 
-const NAV_SECTIONS = [
+const NAV_SECTIONS: Array<{ label: TranslationKey; items: Array<{ href: string; label: TranslationKey; icon: string }> }> = [
   {
-    label: 'Training',
+    label: 'sidebar_training',
     items: [
-      { href: '/dashboard', label: 'Command Center', icon: '⌂' },
-      { href: '/workout', label: 'Training Center', icon: '◈' },
-      { href: '/history', label: 'Vault', icon: '◫' },
+      { href: '/dashboard', label: 'sidebar_command_center', icon: '⌂' },
+      { href: '/workout', label: 'sidebar_training_center', icon: '◈' },
+      { href: '/history', label: 'sidebar_vault', icon: '◫' },
     ],
   },
   {
-    label: 'Intel',
+    label: 'sidebar_intel',
     items: [
-      { href: '/exercises', label: 'Meta-Library', icon: '⊞' },
-      { href: '/exercises/arsenal', label: 'Arsenal', icon: '⋈' },
-      { href: '/programs', label: 'Programs', icon: '▦' },
+      { href: '/exercises', label: 'sidebar_meta_library', icon: '⊞' },
+      { href: '/exercises/arsenal', label: 'sidebar_arsenal', icon: '⋈' },
+      { href: '/programs', label: 'nav_programs', icon: '▦' },
     ],
   },
   {
-    label: 'Analysis',
+    label: 'sidebar_analysis',
     items: [
-      { href: '/analytics', label: 'Force Analytics', icon: '▲' },
+      { href: '/analytics', label: 'sidebar_force_analytics', icon: '▲' },
     ],
   },
   {
-    label: 'System',
+    label: 'sidebar_system',
     items: [
-      { href: '/tools/plate-calculator', label: 'Plate Calculator', icon: '⚖' },
-      { href: '/tools/rm-calculator', label: '1RM Calculator', icon: '⟨' },
-      { href: '/settings', label: 'Settings', icon: '≡' },
+      { href: '/tools/plate-calculator', label: 'sidebar_plate_calc', icon: '⚖' },
+      { href: '/tools/rm-calculator', label: 'sidebar_rm_calc', icon: '⟨' },
+      { href: '/settings', label: 'nav_settings', icon: '≡' },
     ],
   },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { t } = useLocale();
 
   return (
     <aside
@@ -58,7 +61,7 @@ export function Sidebar() {
         {NAV_SECTIONS.map((section) => (
           <div key={section.label} className="mb-4">
             <div className="px-4 py-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>
-              {section.label}
+              {t(section.label)}
             </div>
             {section.items.map((item) => {
               const active = pathname.startsWith(item.href);
@@ -71,7 +74,7 @@ export function Sidebar() {
                   aria-current={active ? 'page' : undefined}
                 >
                   <span className="text-base w-5 text-center flex-shrink-0" aria-hidden="true">{item.icon}</span>
-                  <span style={{ fontFamily: active ? 'var(--font-display)' : undefined }}>{item.label}</span>
+                  <span style={{ fontFamily: active ? 'var(--font-display)' : undefined }}>{t(item.label)}</span>
                 </Link>
               );
             })}

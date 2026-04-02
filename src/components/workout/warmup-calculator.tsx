@@ -1,6 +1,6 @@
 'use client';
 import { getWarmupSets } from '@/lib/workout/e1rm';
-import { useState } from 'react';
+import { useLocale } from '@/components/providers';
 
 interface WarmupCalculatorProps {
   workingWeight: number;
@@ -8,21 +8,19 @@ interface WarmupCalculatorProps {
 }
 
 export function WarmupCalculator({ workingWeight, onClose }: WarmupCalculatorProps) {
-  // Show 4 warmup sets (40%/60%/80%/90%) based on working weight
-  // Each row: percentage, weight (kg), reps
-  // "Close" button
+  const { t } = useLocale();
   return (
     <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border)]">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="font-['Oswald'] text-sm uppercase text-[var(--text-muted)]">Warmup Sets</h3>
+        <h3 className="font-['Oswald'] text-sm uppercase text-[var(--text-muted)]">{t('warmup_sets')}</h3>
         <button onClick={onClose} className="text-[var(--text-muted)] text-xs">✕</button>
       </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-[var(--text-muted)] text-xs">
             <th className="text-left">%</th>
-            <th className="text-right">Weight</th>
-            <th className="text-right">Reps</th>
+            <th className="text-right">{t('workout_weight')}</th>
+            <th className="text-right">{t('workout_reps')}</th>
           </tr>
         </thead>
         <tbody>

@@ -118,13 +118,11 @@ export const MODALITY_COLORS: Record<string, string> = {
 };
 
 export const ACWR_THRESHOLDS = {
-  FRESH_MAX: 1.5,
-  RECOVERING_MAX: 2.0,
-};
+  UNDERTRAIN_MAX: 0.8,
+  OPTIMAL_MAX: 1.3,
+  CAUTION_MAX: 1.5,
+} as const;
 
 export const GAP_THRESHOLD = 0.30; // 30% gap = lagging
 
-export const BRZYCKI_FORMULA = (weight: number, reps: number): number => {
-  if (reps >= 37) return weight * (1 + reps / 30); // Epley fallback
-  return weight * (36 / (37 - reps));
-};
+

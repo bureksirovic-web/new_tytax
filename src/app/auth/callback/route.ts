@@ -7,7 +7,12 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    try {
+      await supabase.auth.exchangeCodeForSession(code);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    } catch {
+      return NextResponse.redirect(new URL('/auth/login?error=auth_exchange_failed', request.url));
+    }
   }
 
   return NextResponse.redirect(new URL('/dashboard', request.url));

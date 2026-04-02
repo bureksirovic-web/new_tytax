@@ -1,7 +1,7 @@
 import type { WorkoutLog } from '@/types/workout';
 import { brzycki } from '@/lib/workout/e1rm';
 
-export interface E1RMDataPoint {
+export interface E1RMDataPointWithExercise {
   date: string;
   exerciseId: string;
   weight: number;
@@ -12,8 +12,8 @@ export interface E1RMDataPoint {
 export function getE1RMProgression(
   logs: WorkoutLog[],
   exerciseId: string
-): E1RMDataPoint[] {
-  const byDay = new Map<string, E1RMDataPoint>();
+): E1RMDataPointWithExercise[] {
+  const byDay = new Map<string, E1RMDataPointWithExercise>();
 
   const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
 
