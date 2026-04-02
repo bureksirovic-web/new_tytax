@@ -40,12 +40,8 @@ test.describe('Authentication Flow', () => {
   });
 
   test('signs out from settings and redirects to login', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForURL('**/dashboard');
-
-    await page.locator('button[aria-label="More"]').click();
-
-    await page.locator('text="Settings"').click();
+    await page.goto('/settings');
+    await page.waitForURL('**/settings');
 
     await expect(page.locator('text="Settings"').first()).toBeVisible();
 

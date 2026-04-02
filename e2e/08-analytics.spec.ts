@@ -39,7 +39,7 @@ test.describe('Analytics Flow', () => {
     if (hasBestLifts) {
       await bestLiftsLink.click();
       await page.waitForURL('**/analytics/**');
-      await expect(page.locator('text="Back"').first()).toBeVisible();
+      await expect(page.locator('text="← Analytics"').first()).toBeVisible();
     } else {
       const noLiftsText = page.locator('text="No lifts logged yet."');
       await expect(noLiftsText.first()).toBeVisible();

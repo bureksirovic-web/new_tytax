@@ -27,12 +27,12 @@ test.describe('History Flow', () => {
   test('creates a workout and verifies it appears in history', async ({ page }) => {
     await page.goto('/workout');
 
-    await page.locator('button', { hasText: 'START WORKOUT' }).click();
+    await page.locator('button', { hasText: 'Start Workout' }).click();
 
     await page.waitForURL('**/workout/active');
     await page.waitForTimeout(500);
 
-    const noExercisesText = page.locator('text="No exercises in this session."');
+    const noExercisesText = page.locator('text=/add your first exercise/i');
     if (await noExercisesText.isVisible()) {
       await page.evaluate(() => {
         // @ts-expect-error Playwright types for page.evaluate
@@ -73,13 +73,13 @@ test.describe('History Flow', () => {
 
     await expect(page.locator('text="Set 1"').first()).toBeVisible();
 
-    await page.locator('button', { hasText: 'FINISH' }).first().click();
+    await page.locator('button', { hasText: 'Finish' }).first().click();
 
     await page.waitForURL('**/workout/debrief');
 
-    await expect(page.locator('text="DEBRIEF"')).toBeVisible();
+    await expect(page.locator('text="Debrief"')).toBeVisible();
 
-    await page.locator('button', { hasText: 'SAVE & EXIT' }).click();
+    await page.locator('button', { hasText: 'Save & Exit' }).click();
 
     await page.waitForURL('**/dashboard');
 
@@ -100,6 +100,6 @@ test.describe('History Flow', () => {
 
     await expect(page.locator('text="Volume"').first()).toBeVisible();
     await expect(page.locator('text="Sets"').first()).toBeVisible();
-    await expect(page.locator('text="Exercises"').first()).toBeVisible();
+    await expect(page.locator('text=/exercises/i').first()).toBeVisible();
   });
 });

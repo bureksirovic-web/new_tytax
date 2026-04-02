@@ -21,11 +21,11 @@ test.describe('Navigation', () => {
     // 1. / redirects to /dashboard
     await page.goto('/');
     await page.waitForURL('**/dashboard');
-    await expect(page.locator('text="COMMAND CENTER"').first()).toBeVisible();
+    await expect(page.locator('text="Command Center"').first()).toBeVisible();
 
     // 2. /workout
     await page.goto('/workout');
-    await expect(page.locator('text="TRAINING OPS"').first()).toBeVisible();
+    await expect(page.locator('text="Training Ops"').first()).toBeVisible();
 
     // 3. /exercises
     await page.goto('/exercises');
