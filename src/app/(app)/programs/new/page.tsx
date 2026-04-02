@@ -62,7 +62,7 @@ export default function NewProgramPage() {
   const [frequency, setFrequency] = useState<number>(3);
   const [saving, setSaving] = useState(false);
 
-  const programId = generateId(); // stable across renders via ref-less approach — OK for new flow
+  const [programId] = useState(() => generateId()); // stable across renders
 
   const previewSessions = generateSessions(split, frequency, programId);
 
