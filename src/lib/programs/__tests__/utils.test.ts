@@ -125,7 +125,11 @@ describe('installPreset', () => {
   });
 
   it('creates program from preset', async () => {
-    const preset: Omit<Program, 'id' | 'profileId' | 'createdAt' | 'updatedAt'> = {
+    const preset: Program = {
+      id: 'preset_test',
+      profileId: 'preset',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
       name: 'Preset Program',
       splitType: 'upper_lower',
       frequency: 4,

@@ -110,6 +110,7 @@ export class TytaxDatabase extends Dexie {
         profileId: '',
         tableName: '',
         deviceId: '',
+        lastSyncedAt: new Date().toISOString(),
         schemaVersion: 2,
       } as SyncMetadata & { schemaVersion: number });
     });

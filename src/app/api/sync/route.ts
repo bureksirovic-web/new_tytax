@@ -77,9 +77,16 @@ export async function POST(request: NextRequest) {
       switch (validated.operationType) {
         case 'create':
         case 'update': {
+          if (!validated.payload) {
+            result.failed++;
+            result.errors.push(`Operation ${validated.id}: missing payload for ${validated.operationType}`);
+            continue;
+          }
+
           // Validate payload against table-specific schema
           const schema = getTableSchema(validated.tableName);
-          if (schema && validated.payload) {
+          let upsertPayload: Record<string, unknown>;
+          if (schema) {
             const payloadValidation = validate(validated.payload, schema);
             if (!payloadValidation.valid) {
               result.failed++;
@@ -88,35 +95,33 @@ export async function POST(request: NextRequest) {
               );
               continue;
             }
-            // Use stripped payload (only allowed fields)
-            const cleanPayload = {
+            upsertPayload = {
               ...(payloadValidation.data as Record<string, unknown>),
             };
-            // Ensure profile_id is set for user-owned tables
-            if (
-              validated.tableName !== 'profiles' &&
-              !cleanPayload.profile_id
-            ) {
-              cleanPayload.profile_id = user.id;
-            }
-            await supabase
-              .from(validated.tableName)
-              .upsert(cleanPayload)
-              .select();
-          } else if (validated.payload) {
-            await supabase
-              .from(validated.tableName)
-              .upsert(validated.payload)
-              .select();
+          } else {
+            upsertPayload = { ...validated.payload };
           }
+
+          // Ensure profile_id is set for user-owned tables
+          if (validated.tableName !== 'profiles' && !upsertPayload.profile_id) {
+            upsertPayload.profile_id = user.id;
+          }
+
+          const { error: upsertError } = await supabase
+            .from(validated.tableName)
+            .upsert(upsertPayload)
+            .select();
+          if (upsertError) throw upsertError;
           break;
         }
-        case 'delete':
-          await supabase
+        case 'delete': {
+          const { error: deleteError } = await supabase
             .from(validated.tableName)
             .update({ deleted_at: new Date().toISOString() })
             .eq('id', validated.recordId);
+          if (deleteError) throw deleteError;
           break;
+        }
         default: {
           const _exhaustive: never = validated.operationType;
           throw new Error(`Unknown operationType: ${_exhaustive}`);

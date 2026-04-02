@@ -96,7 +96,7 @@ export class SyncEngine {
     switch (operationType) {
       case 'create':
       case 'update': {
-        const { data: serverRecords, error: fetchError } = await supabaseClient
+        const { data: serverRecord, error: fetchError } = await supabaseClient
           .from(tableName)
           .select('*')
           .eq('id', op.recordId)
@@ -105,14 +105,16 @@ export class SyncEngine {
         if (fetchError) throw fetchError;
 
         const localUpdatedAt = this.getTimestamp(payload, 'updatedAt');
-        const serverUpdatedAt = serverRecords
-          ? this.getTimestamp(serverRecords, 'updatedAt')
+        const serverUpdatedAt = serverRecord
+          ? this.getTimestamp(serverRecord, 'updated_at')
           : null;
 
-        if (serverRecords && serverUpdatedAt && localUpdatedAt <= serverUpdatedAt) {
+        // Server wins only if strictly newer (tie → local wins to avoid silent data loss)
+        if (serverRecord && serverUpdatedAt && localUpdatedAt < serverUpdatedAt) {
           const localTable = this.getLocalTableName(tableName);
           if (localTable) {
-            await db.table(localTable).update(op.recordId, serverRecords);
+            const camelRecord = this.snakeToCamel(serverRecord as Record<string, unknown>);
+            await db.table(localTable).update(op.recordId, camelRecord);
           }
           return true;
         }
@@ -137,11 +139,25 @@ export class SyncEngine {
   }
 
   private getTimestamp(record: Record<string, unknown>, field: string): number {
-    const val = record[field];
+    // Check both camelCase (local) and snake_case (server) variants
+    const val = record[field] ?? record[this.camelToSnake(field)];
     if (val) return new Date(val as string).getTime();
-    const fallback = record['createdAt'];
+    const fallback = record['createdAt'] ?? record['created_at'];
     if (fallback) return new Date(fallback as string).getTime();
     return 0;
+  }
+
+  private snakeToCamel(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const camelKey = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+      result[camelKey] = value;
+    }
+    return result;
+  }
+
+  private camelToSnake(str: string): string {
+    return str.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
   }
 
   private getLocalTableName(serverTableName: string): string | null {
