@@ -9,8 +9,8 @@ const oswald = Oswald({ subsets: ['latin'], variable: '--font-display' });
 const jetBrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
-  title: 'New TYTAX — Training Companion',
-  description: 'TYTAX T1, Bodyweight & Kettlebell training companion',
+  title: 'TYTAX — trening',
+  description: 'TYTAX T1, trening s vlastitom težinom i kettlebellom',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -23,13 +23,11 @@ export const viewport: Viewport = {
   themeColor: '#0a0f1a',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="tactical" suppressHydrationWarning>
+    <html lang="hr" data-theme="tactical" suppressHydrationWarning>
       <body className={`${inter.variable} ${oswald.variable} ${jetBrainsMono.variable}`}>
         <Providers>{children}</Providers>
         <Script id="sw-register" strategy="afterInteractive">
