@@ -1,9 +1,9 @@
 -- anon (and authenticated without a user id) see and modify nothing.
--- Generated for TYTAX v2 migration 002; run with: npx -y supabase@2.118.0 test db
+-- Generated for TYTAX v2 migrations 002-004; run with: npx -y supabase@2.118.0 test db
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(46);
+select plan(56);
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role, instance_id) values
   ('aaaaaaaa-0000-4000-8000-000000000000', 'alice@example.test', '{"display_name":"Alice A"}'::jsonb, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
@@ -17,6 +17,8 @@ insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_ty
 insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000006', 'aaaaaaaa-0000-4000-8000-000000000000', '2026-09-01', 80, 'aaaaaaaa-0000-4000-8000-000000000001');
 insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000007', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'aaaaaaaa-0000-4000-8000-000000000001');
 insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('aaaaaaaa-0000-4000-8000-000000000008', 'aaaaaaaa-0000-4000-8000-000000000000', 'workout_logs', 'device-a-0008');
+insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000010', 'aaaaaaaa-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'aaaaaaaa-0000-4000-8000-000000000001');
 insert into public.family_members (id, profile_id, name) values ('bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000000', 'Kid of b');
 insert into public.equipment_profiles (id, profile_id, name, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000002', 'bbbbbbbb-0000-4000-8000-000000000000', 'Home gym', 'bbbbbbbb-0000-4000-8000-000000000001');
 insert into public.programs (id, profile_id, name, split_type, frequency, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000003', 'bbbbbbbb-0000-4000-8000-000000000000', 'PPL', 'ppl', 6, 'bbbbbbbb-0000-4000-8000-000000000001');
@@ -25,6 +27,8 @@ insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_ty
 insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000006', 'bbbbbbbb-0000-4000-8000-000000000000', '2026-09-01', 80, 'bbbbbbbb-0000-4000-8000-000000000001');
 insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000007', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'bbbbbbbb-0000-4000-8000-000000000001');
 insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('bbbbbbbb-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-000000000000', 'workout_logs', 'device-b-0008');
+insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000009', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000010', 'bbbbbbbb-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'bbbbbbbb-0000-4000-8000-000000000001');
 
 set local role anon;
 select set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
@@ -65,6 +69,14 @@ select throws_ok($sql$select 1 from public.sync_metadata$sql$, '42501', null, 's
 select throws_ok($sql$insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('aaaaaaaa-0000-4000-8000-000000000508', 'aaaaaaaa-0000-4000-8000-000000000000', 'workout_logs', 'device-a-0508')$sql$, '42501', null, 'sync_metadata: anon cannot INSERT');
 select throws_ok($sql$update public.sync_metadata set updated_at = now() where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000'$sql$, '42501', null, 'sync_metadata: anon cannot UPDATE');
 select throws_ok($sql$delete from public.sync_metadata where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000'$sql$, '42501', null, 'sync_metadata: anon cannot DELETE');
+select throws_ok($sql$select 1 from public.arsenal$sql$, '42501', null, 'arsenal: anon cannot SELECT');
+select throws_ok($sql$insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000509', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'aaaaaaaa-0000-4000-8000-000000000001')$sql$, '42501', null, 'arsenal: anon cannot INSERT');
+select throws_ok($sql$update public.arsenal set updated_at = now() where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000'$sql$, '42501', null, 'arsenal: anon cannot UPDATE');
+select throws_ok($sql$delete from public.arsenal where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000'$sql$, '42501', null, 'arsenal: anon cannot DELETE');
+select throws_ok($sql$select 1 from public.equipment$sql$, '42501', null, 'equipment: anon cannot SELECT');
+select throws_ok($sql$insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000510', 'aaaaaaaa-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'aaaaaaaa-0000-4000-8000-000000000001')$sql$, '42501', null, 'equipment: anon cannot INSERT');
+select throws_ok($sql$update public.equipment set updated_at = now() where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000'$sql$, '42501', null, 'equipment: anon cannot UPDATE');
+select throws_ok($sql$delete from public.equipment where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000'$sql$, '42501', null, 'equipment: anon cannot DELETE');
 reset role;
 select set_config('request.jwt.claims', '', true);
 
@@ -80,6 +92,8 @@ select is_empty($sql$select 1 from public.pr_records$sql$, 'pr_records: authenti
 select is_empty($sql$select 1 from public.bodyweight_entries$sql$, 'bodyweight_entries: authenticated without sub sees nothing');
 select is_empty($sql$select 1 from public.exercise_notes$sql$, 'exercise_notes: authenticated without sub sees nothing');
 select is_empty($sql$select 1 from public.sync_metadata$sql$, 'sync_metadata: authenticated without sub sees nothing');
+select is_empty($sql$select 1 from public.arsenal$sql$, 'arsenal: authenticated without sub sees nothing');
+select is_empty($sql$select 1 from public.equipment$sql$, 'equipment: authenticated without sub sees nothing');
 reset role;
 select set_config('request.jwt.claims', '', true);
 

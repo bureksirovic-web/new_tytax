@@ -158,8 +158,17 @@ enabled = true
 site_url = "http://localhost:3100"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
-# A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:3100/auth/callback", "http://localhost:3105/auth/callback", "http://127.0.0.1:3100/auth/callback"]
+# URLs auth may redirect to after sign-in (gobwas/glob, '.' separator; `**` also matches the
+# `?next=` query the app appends). The app's emailRedirectTo is
+# `${NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback?next=...`; the PKCE verifier
+# cookie lives on the origin that asked for the link, so the redirect must return to that same
+# host (127.0.0.1 and localhost are different cookie hosts). Ports: 3100 integration/CI, 3105 G5.
+additional_redirect_urls = [
+  "http://localhost:3100/auth/callback**",
+  "http://127.0.0.1:3100/auth/callback**",
+  "http://localhost:3105/auth/callback**",
+  "http://127.0.0.1:3105/auth/callback**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

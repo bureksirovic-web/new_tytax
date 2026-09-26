@@ -22,3 +22,10 @@ insert into public.workout_logs (id, profile_id, family_member_id, session_name,
    jsonb_build_array(repeat('x', 262144)));
 insert into public.exercise_notes (id, profile_id, exercise_id, content) values
   ('aaaaaaaa-0000-4000-8000-000000000007', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', repeat('c', 10001));
+-- A PR row and a program written under 001 (003 adds kg/set_id/is_baseline/
+-- preset_id/extra to them; existing rows must get the defaults).
+insert into public.programs (id, profile_id, name, split_type, frequency) values
+  ('aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000000', 'PPL', 'ppl', 6);
+insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_type, value, achieved_at, workout_log_id) values
+  ('aaaaaaaa-0000-4000-8000-000000000005', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'Bench press', 'e1rm', 100, now(),
+   'aaaaaaaa-0000-4000-8000-000000000004');

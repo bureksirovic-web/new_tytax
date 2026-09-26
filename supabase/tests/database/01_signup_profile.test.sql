@@ -1,5 +1,5 @@
 -- Profile-on-signup trigger: one profiles row per auth user with a derived display_name.
--- Generated for TYTAX v2 migration 002; run with: npx -y supabase@2.118.0 test db
+-- Generated for TYTAX v2 migrations 002-004; run with: npx -y supabase@2.118.0 test db
 begin;
 create extension if not exists pgtap with schema extensions;
 

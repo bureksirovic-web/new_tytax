@@ -1,9 +1,9 @@
 -- CHECK size caps reject oversized payloads.
--- Generated for TYTAX v2 migration 002; run with: npx -y supabase@2.118.0 test db
+-- Generated for TYTAX v2 migrations 002-004; run with: npx -y supabase@2.118.0 test db
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(64);
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role, instance_id) values
   ('aaaaaaaa-0000-4000-8000-000000000000', 'alice@example.test', '{"display_name":"Alice A"}'::jsonb, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
@@ -17,6 +17,8 @@ insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_ty
 insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000006', 'aaaaaaaa-0000-4000-8000-000000000000', '2026-09-01', 80, 'aaaaaaaa-0000-4000-8000-000000000001');
 insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000007', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'aaaaaaaa-0000-4000-8000-000000000001');
 insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('aaaaaaaa-0000-4000-8000-000000000008', 'aaaaaaaa-0000-4000-8000-000000000000', 'workout_logs', 'device-a-0008');
+insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000010', 'aaaaaaaa-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'aaaaaaaa-0000-4000-8000-000000000001');
 insert into public.family_members (id, profile_id, name) values ('bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000000', 'Kid of b');
 insert into public.equipment_profiles (id, profile_id, name, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000002', 'bbbbbbbb-0000-4000-8000-000000000000', 'Home gym', 'bbbbbbbb-0000-4000-8000-000000000001');
 insert into public.programs (id, profile_id, name, split_type, frequency, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000003', 'bbbbbbbb-0000-4000-8000-000000000000', 'PPL', 'ppl', 6, 'bbbbbbbb-0000-4000-8000-000000000001');
@@ -25,6 +27,8 @@ insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_ty
 insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000006', 'bbbbbbbb-0000-4000-8000-000000000000', '2026-09-01', 80, 'bbbbbbbb-0000-4000-8000-000000000001');
 insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000007', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'bbbbbbbb-0000-4000-8000-000000000001');
 insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('bbbbbbbb-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-000000000000', 'workout_logs', 'device-b-0008');
+insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000009', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000010', 'bbbbbbbb-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'bbbbbbbb-0000-4000-8000-000000000001');
 
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'bbbbbbbb-0000-4000-8000-000000000000', 'role', 'authenticated')::text, true);
@@ -38,10 +42,60 @@ select throws_ok($sql$update public.profiles set display_name = repeat('d', 101)
 select throws_ok($sql$update public.family_members set name = repeat('m', 101) where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23514', null, 'size cap rejects family_members.name > 100 chars');
 select throws_ok($sql$update public.programs set name = repeat('p', 101) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.name > 100 chars');
 select throws_ok($sql$update public.equipment_profiles set name = repeat('e', 101) where id = 'bbbbbbbb-0000-4000-8000-000000000002'$sql$, '23514', null, 'size cap rejects equipment_profiles.name > 100 chars');
+select throws_ok($sql$update public.family_members set avatar_color = repeat('c', 65) where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23514', null, 'size cap rejects family_members.avatar_color > 64 chars');
+select throws_ok($sql$update public.workout_logs set program_session_id = repeat('s', 201) where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, '23514', null, 'size cap rejects workout_logs.program_session_id > 200 chars');
+select throws_ok($sql$update public.programs set preset_id = repeat('p', 201) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.preset_id > 200 chars');
+select throws_ok($sql$update public.pr_records set set_id = repeat('s', 201) where id = 'bbbbbbbb-0000-4000-8000-000000000005'$sql$, '23514', null, 'size cap rejects pr_records.set_id > 200 chars');
+select throws_ok($sql$update public.arsenal set exercise_id = repeat('e', 201) where id = 'bbbbbbbb-0000-4000-8000-000000000009'$sql$, '23514', null, 'size cap rejects arsenal.exercise_id > 200 chars');
+select throws_ok($sql$update public.equipment set station_ids = (select array_agg(repeat('s', 100)) from generate_series(1, 400)) where id = 'bbbbbbbb-0000-4000-8000-000000000010'$sql$, '23514', null, 'size cap rejects equipment.station_ids > 32 KiB');
+select throws_ok($sql$update public.equipment set kettlebells_kg = (select array_agg(12.5::real) from generate_series(1, 8000)) where id = 'bbbbbbbb-0000-4000-8000-000000000010'$sql$, '23514', null, 'size cap rejects equipment.kettlebells_kg > 32 KiB');
+select throws_ok($sql$update public.family_members set gender = repeat('g', 33) where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23514', null, 'size cap rejects family_members.gender > 32 chars');
+select throws_ok($sql$update public.family_members set experience_level = repeat('e', 33) where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23514', null, 'size cap rejects family_members.experience_level > 32 chars');
+select throws_ok($sql$update public.profiles set gender = repeat('g', 33) where id = 'bbbbbbbb-0000-4000-8000-000000000000'$sql$, '23514', null, 'size cap rejects profiles.gender > 32 chars');
+select throws_ok($sql$update public.profiles set experience_level = repeat('e', 33) where id = 'bbbbbbbb-0000-4000-8000-000000000000'$sql$, '23514', null, 'size cap rejects profiles.experience_level > 32 chars');
+select throws_ok($sql$update public.programs set split_type = repeat('s', 65) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.split_type > 64 chars');
+select throws_ok($sql$update public.programs set periodization_type = repeat('p', 65) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.periodization_type > 64 chars');
+select throws_ok($sql$update public.programs set session_order = (select array_agg(repeat('s', 100)) from generate_series(1, 400)) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.session_order > 32 KiB');
+select throws_ok($sql$update public.programs set modalities_used = (select array_agg(repeat('m', 100)) from generate_series(1, 100)) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.modalities_used > 8 KiB');
+select throws_ok($sql$update public.workout_logs set modalities_used = (select array_agg(repeat('m', 100)) from generate_series(1, 100)) where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, '23514', null, 'size cap rejects workout_logs.modalities_used > 8 KiB');
 select throws_ok($sql$insert into public.workout_logs (id, profile_id, session_name, date, started_at, exercises) values ('bbbbbbbb-0000-4000-8000-000000000600', 'bbbbbbbb-0000-4000-8000-000000000000', 'Huge', '2026-09-03', now(), jsonb_build_array(repeat('x', 262144)))$sql$, '23514', null, 'size cap rejects oversized insert of workout_logs.exercises');
+select throws_ok($sql$update public.family_members set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23514', null, 'size cap rejects family_members.extra > 64 KiB');
+select throws_ok($sql$update public.family_members set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23514', null, 'size cap rejects family_members.extra that is not a JSON object');
+select throws_ok($sql$update public.workout_logs set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, '23514', null, 'size cap rejects workout_logs.extra > 64 KiB');
+select throws_ok($sql$update public.workout_logs set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, '23514', null, 'size cap rejects workout_logs.extra that is not a JSON object');
+select throws_ok($sql$update public.programs set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.extra > 64 KiB');
+select throws_ok($sql$update public.programs set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23514', null, 'size cap rejects programs.extra that is not a JSON object');
+select throws_ok($sql$update public.pr_records set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000005'$sql$, '23514', null, 'size cap rejects pr_records.extra > 64 KiB');
+select throws_ok($sql$update public.pr_records set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000005'$sql$, '23514', null, 'size cap rejects pr_records.extra that is not a JSON object');
+select throws_ok($sql$update public.bodyweight_entries set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000006'$sql$, '23514', null, 'size cap rejects bodyweight_entries.extra > 64 KiB');
+select throws_ok($sql$update public.bodyweight_entries set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000006'$sql$, '23514', null, 'size cap rejects bodyweight_entries.extra that is not a JSON object');
+select throws_ok($sql$update public.exercise_notes set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000007'$sql$, '23514', null, 'size cap rejects exercise_notes.extra > 64 KiB');
+select throws_ok($sql$update public.exercise_notes set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000007'$sql$, '23514', null, 'size cap rejects exercise_notes.extra that is not a JSON object');
+select throws_ok($sql$update public.arsenal set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000009'$sql$, '23514', null, 'size cap rejects arsenal.extra > 64 KiB');
+select throws_ok($sql$update public.arsenal set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000009'$sql$, '23514', null, 'size cap rejects arsenal.extra that is not a JSON object');
+select throws_ok($sql$update public.equipment set extra = jsonb_build_object('k', repeat('x', 65536)) where id = 'bbbbbbbb-0000-4000-8000-000000000010'$sql$, '23514', null, 'size cap rejects equipment.extra > 64 KiB');
+select throws_ok($sql$update public.equipment set extra = '[1]'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000010'$sql$, '23514', null, 'size cap rejects equipment.extra that is not a JSON object');
+select throws_ok($sql$update public.family_members set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '23502', null, 'family_members.extra cannot be null');
+select lives_ok($sql$update public.family_members set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, 'family_members.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.workout_logs set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, '23502', null, 'workout_logs.extra cannot be null');
+select lives_ok($sql$update public.workout_logs set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, 'workout_logs.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.programs set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '23502', null, 'programs.extra cannot be null');
+select lives_ok($sql$update public.programs set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, 'programs.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.pr_records set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000005'$sql$, '23502', null, 'pr_records.extra cannot be null');
+select lives_ok($sql$update public.pr_records set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000005'$sql$, 'pr_records.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.bodyweight_entries set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000006'$sql$, '23502', null, 'bodyweight_entries.extra cannot be null');
+select lives_ok($sql$update public.bodyweight_entries set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000006'$sql$, 'bodyweight_entries.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.exercise_notes set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000007'$sql$, '23502', null, 'exercise_notes.extra cannot be null');
+select lives_ok($sql$update public.exercise_notes set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000007'$sql$, 'exercise_notes.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.arsenal set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000009'$sql$, '23502', null, 'arsenal.extra cannot be null');
+select lives_ok($sql$update public.arsenal set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000009'$sql$, 'arsenal.extra just under the 64 KiB cap is accepted');
+select throws_ok($sql$update public.equipment set extra = null where id = 'bbbbbbbb-0000-4000-8000-000000000010'$sql$, '23502', null, 'equipment.extra cannot be null');
+select lives_ok($sql$update public.equipment set extra = jsonb_build_object('k', repeat('x', 65000)) where id = 'bbbbbbbb-0000-4000-8000-000000000010'$sql$, 'equipment.extra just under the 64 KiB cap is accepted');
 select lives_ok($sql$update public.workout_logs set exercises = jsonb_build_array(repeat('x', 200000)), notes = repeat('n', 10000) where id = 'bbbbbbbb-0000-4000-8000-000000000004'$sql$, 'payloads at/under the caps are accepted');
 select lives_ok($sql$update public.family_members set settings = '{"units":"metric","restDefaultSec":120,"language":"hr","oled":true,"barWeightKg":7.5}'::jsonb where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, 'family member settings json accepted');
+select lives_ok($sql$update public.programs set split_type = 'push_pull_legs', periodization_type = 'undulating', session_order = array['Push', 'Pull', 'Legs'], modalities_used = array['tytax', 'kettlebell'] where id = 'bbbbbbbb-0000-4000-8000-000000000003'$sql$, '004 caps accept real program values');
+select lives_ok($sql$update public.family_members set gender = 'female', experience_level = 'intermediate' where id = 'bbbbbbbb-0000-4000-8000-000000000001'$sql$, '004 caps accept real profile values');
 select is_empty($sql$select conrelid::regclass::text || '.' || conname from pg_constraint where connamespace = 'public'::regnamespace and contype = 'c' and not convalidated$sql$, 'every size cap is VALIDATED on a clean database (NOT VALID only when old data violates it)');
-select is((select count(*) from pg_constraint where connamespace = 'public'::regnamespace and contype = 'c' and conname ~ '_(len|size)$'), 15::bigint, 'all 15 size caps exist');
+select is((select count(*) from pg_constraint where connamespace = 'public'::regnamespace and contype = 'c' and conname ~ '_(len|size)$'), 38::bigint, 'all 38 size caps exist');
 select * from finish();
 rollback;

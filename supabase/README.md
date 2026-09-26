@@ -8,7 +8,7 @@ works fully without it. Nothing here touches a cloud project.
 ```bash
 npx -y supabase@2.118.0 start      # first run pulls Docker images (minutes)
 npx -y supabase@2.118.0 status     # URLs + local anon/service keys
-npx -y supabase@2.118.0 db reset   # drop + re-apply migrations 001, 002 from scratch
+npx -y supabase@2.118.0 db reset   # drop + re-apply migrations 001-004 from scratch
 npx -y supabase@2.118.0 test db    # pgTAP suites in tests/database/
 npx -y supabase@2.118.0 stop       # stop (data kept); add --no-backup to wipe
 ```
@@ -64,6 +64,30 @@ App env for local sync: `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54421` and
   - size caps (validated when existing data allows it; see below);
   - closed default privileges for future tables and functions in `public`.
   Its header comment is the sync contract.
+- `003_v2_sync_tables.sql` is idempotent and aligns the server with
+  `docs/v2/sync-schema.md` (the wire format's single source of truth):
+  - the "(003)" columns (`family_members.avatar_color/active_program_id`,
+    `workout_logs.program_session_id/is_deload`, `programs.preset_id`,
+    `pr_records.kg/set_id/is_baseline`);
+  - `extra jsonb not null default '{}'` on every wire table (must be a JSON
+    object, <= 64 KiB); unknown client fields round-trip through it;
+  - `profile_id default auth.uid()` on every owned table;
+  - new tables `arsenal` and `equipment` with the full 002 treatment
+    (trigger, RLS, no DELETE, cursor index, caps, `family_member_id NOT NULL`
+    with a composite deferrable FK);
+  - `family_members.active_program_id` composite deferrable FK to own programs;
+  - `undelete_row` accepts `arsenal` and `equipment`.
+- `004_v2_quotas.sql` is idempotent and bounds what one account can store:
+  - caps on the client-writable columns 003 left open (`gender`,
+    `experience_level`, `split_type`, `periodization_type`, `session_order`,
+    `modalities_used`);
+  - statement-level triggers on every client-writable data table: at most
+    200 rows per INSERT/UPDATE statement, and per account at most 100,000 rows
+    and 64 MiB (`pg_column_size`), tracked in the server-internal
+    `public.sync_usage` (RLS on, no grants). Over a limit the statement rolls
+    back with SQLSTATE `PT413` (HTTP 413). Change the limits on a deployed
+    project by replacing `public.sync_quota()`.
+  - Not in the repo: a request-body limit at the hosted project's API gateway.
 - Upgrading a populated 001 database: over-long user text (names, notes,
   content) is truncated to the caps. Cross-account references are set to
   null. A cap that old data still violates, such as a >256 KiB jsonb blob,
@@ -135,7 +159,9 @@ They cover:
 - composite FK denial (23503), including `profiles.active_*` and deferred batches;
 - server timestamps: past and future client values are ignored, tombstones
   advance `updated_at`, tombstones are sticky, and `undelete_row` restores;
-- size caps (23514);
+- size caps (23514), including `extra` (object, <= 64 KiB);
+- `extra` round-trip (`{"futureField":1}` upserted and read back) and the
+  `profile_id` default (`07`);
 - that anon gets nothing, including on future tables and functions.
 
 Mutation guards: dropping the profiles trigger fails `01`. A trigger that lets
@@ -145,5 +171,7 @@ a future client `updated_at` win, or keeps `updated_at` on a tombstone, fails
 Upgrade test (not part of `test db`): `supabase/upgrade_test/run.sh` makes a
 scratch database inside the local db container and loads the auth schema
 shape. It then applies 001 plus dirty data (over-long text, a >256 KiB blob,
-cross-account refs), applies 002 twice, and runs pgTAP assertions. The scratch
-database is dropped afterwards. `MIGRATION_002=<file>` tests another revision.
+cross-account refs), applies 002 twice, and runs pgTAP assertions
+(`assert_upgraded.test.sql`). It then applies 003 twice and runs
+`assert_003.test.sql`. The scratch database is dropped afterwards.
+`MIGRATION_002=<file>` / `MIGRATION_003=<file>` test other revisions.
