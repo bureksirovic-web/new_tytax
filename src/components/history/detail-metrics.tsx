@@ -2,7 +2,8 @@
 import type { Units, WorkoutLog } from '@/contracts/domain';
 import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
-import { averageRir, densityPerMin, durationMinutes } from './log-math';
+import { formatClock } from './duration';
+import { averageRir, densityPerMin, durationMinutes, logHoldSeconds } from './log-math';
 
 function Metric({ value, label, testId }: { value: string; label: string; testId: string }) {
   return (
@@ -19,6 +20,7 @@ function Metric({ value, label, testId }: { value: string; label: string; testId
 export function DetailMetrics({ log, units }: { log: WorkoutLog; units: Units }) {
   const { t, locale } = useT();
   const rir = averageRir(log);
+  const hold = logHoldSeconds(log);
   return (
     <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
       <Metric testId="history-metric-duration" label={t('hist_duration')} value={t('hist_minutes', { n: durationMinutes(log.durationSeconds) })} />
@@ -33,6 +35,7 @@ export function DetailMetrics({ log, units }: { log: WorkoutLog; units: Units })
         label={t('hist_intensity')}
         value={rir === null ? t('hist_none') : t('hist_intensity_value', { n: rir.toFixed(1) })}
       />
+      {hold > 0 ? <Metric testId="history-metric-hold" label={t('hist_hold_time')} value={formatClock(hold)} /> : null}
       <Metric testId="history-metric-sets" label={t('hist_sets')} value={String(log.totalSets)} />
       <Metric testId="history-metric-exercises" label={t('hist_exercises')} value={String(log.exercises.length)} />
       {log.rpe != null ? (

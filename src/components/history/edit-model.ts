@@ -6,6 +6,7 @@ import type { SessionExercise, SetEntry, SetType, Units, WorkoutLog } from '@/co
 import { fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
 import { training } from '@/lib/training';
 import { localDay } from '@/lib/utils';
+import { MAX_DURATION_SECONDS, formatClock, isTimeSet, parseClock } from './duration';
 
 export const MAX_KG = 1000;
 export const MAX_REPS = 100;
@@ -19,6 +20,8 @@ export interface EditSet {
   /** '' = not recorded. */
   rir: string;
   done: boolean;
+  /** mm:ss text for a time-measured set (edited instead of kg/reps); undefined for kg×reps sets. */
+  duration?: string;
   /** The stored set (undefined for sets added in the editor). */
   original?: SetEntry;
 }
@@ -38,11 +41,17 @@ export interface EditDraft {
   exercises: EditExercise[];
 }
 
+export interface SetErrors {
+  kg?: true;
+  reps?: true;
+  duration?: true;
+}
+
 export interface EditErrors {
   date?: true;
   rpe?: true;
   /** Per set id. */
-  sets: Record<string, { kg?: true; reps?: true }>;
+  sets: Record<string, SetErrors>;
 }
 
 function num(n: number): string {
@@ -65,16 +74,18 @@ export function fromLog(log: WorkoutLog, units: Units): EditDraft {
         reps: num(s.reps),
         rir: s.rir != null ? num(s.rir) : '',
         done: s.done,
+        ...(isTimeSet(s) && { duration: formatClock(s.durationSeconds ?? 0) }),
         original: s,
       })),
     })),
   };
 }
 
-/** New set copying the last set's load and reps (done). */
+/** New set copying the last set's load and reps, or its duration for a time set (done). */
 export function newSet(ex: EditExercise, id: string): EditSet {
   const last = ex.sets[ex.sets.length - 1];
-  return { id, type: 'working', kg: last?.kg ?? '0', reps: last?.reps ?? '0', rir: '', done: true };
+  const base: EditSet = { id, type: 'working', kg: last?.kg ?? '0', reps: last?.reps ?? '0', rir: '', done: true };
+  return last?.duration !== undefined ? { ...base, duration: last.duration } : base;
 }
 
 function parseNumber(text: string): number | null {
@@ -94,9 +105,14 @@ export function validate(draft: EditDraft, units: Units, today: string = localDa
   }
   for (const ex of draft.exercises) {
     for (const s of ex.sets) {
+      if (s.duration !== undefined) {
+        const seconds = parseClock(s.duration);
+        if (seconds === null || seconds > MAX_DURATION_SECONDS) errors.sets[s.id] = { duration: true };
+        continue;
+      }
       const kg = parseNumber(s.kg);
       const reps = parseNumber(s.reps);
-      const e: { kg?: true; reps?: true } = {};
+      const e: SetErrors = {};
       if (kg === null || kg < 0 || fromDisplayWeight(kg, units) > MAX_KG) e.kg = true;
       if (reps === null || !Number.isInteger(reps) || reps < 0 || reps > MAX_REPS) e.reps = true;
       if (e.kg || e.reps) errors.sets[s.id] = e;
@@ -109,7 +125,22 @@ export function hasErrors(errors: EditErrors): boolean {
   return Boolean(errors.date || errors.rpe || Object.keys(errors.sets).length > 0);
 }
 
+/** Time set: only duration/RIR/type/done are editable; kg/reps stay (a new set copies its neighbour's), no e1RM. */
+function toTimeSetEntry(s: EditSet & { duration: string }, units: Units): SetEntry {
+  const o = s.original;
+  const durationSeconds = parseClock(s.duration) ?? 0;
+  const rir = s.rir === '' ? undefined : Number(s.rir);
+  const kg = fromDisplayWeight(parseNumber(s.kg) ?? 0, units);
+  const base: SetEntry = o ? { ...o } : { id: s.id, type: s.type, kg, reps: parseNumber(s.reps) ?? 0, done: s.done };
+  const next: SetEntry = { ...base, type: s.type, rir, done: s.done, durationSeconds };
+  delete next.e1rm;
+  if (!next.done || s.type === 'warmup' || o?.durationSeconds !== durationSeconds) delete next.isPR;
+  if (next.done && !next.completedAt) next.completedAt = new Date().toISOString();
+  return next;
+}
+
 function toSetEntry(s: EditSet, units: Units): SetEntry {
+  if (s.duration !== undefined) return toTimeSetEntry({ ...s, duration: s.duration }, units);
   const o = s.original;
   const displayed = parseNumber(s.kg) ?? 0;
   // Unchanged display text keeps the exact stored kg (no lb round-trip drift).

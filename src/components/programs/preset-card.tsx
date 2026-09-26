@@ -13,7 +13,11 @@ interface PresetCardProps {
   onInstall: (activate: boolean) => void;
 }
 
-/** A built-in preset. Default action installs and activates (legacy parity); secondary installs only. */
+/**
+ * A built-in preset. Default action installs and activates (legacy parity); secondary installs only.
+ * e2e hooks (G3-03): the primary control is `install-preset`, install-only is `install-preset-only`,
+ * both carry `data-preset-id`.
+ */
 export function PresetCard({ preset, installed, busy, disabled, onInstall }: PresetCardProps) {
   const { t } = useT();
   const training = preset.sessions.filter((s) => !s.isRest).length;
@@ -30,15 +34,38 @@ export function PresetCard({ preset, installed, busy, disabled, onInstall }: Pre
       <p className="mt-1 text-xs text-fg-2">{preset.modalitiesUsed.map((m) => t(MODALITY_KEYS[m])).join(' · ')}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {installed ? (
-          <Button variant="secondary" size="sm" loading={busy} disabled={disabled} onClick={() => onInstall(false)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={busy}
+            disabled={disabled}
+            onClick={() => onInstall(false)}
+            data-testid="install-preset"
+            data-preset-id={preset.presetId}
+          >
             {t('prog_install_again')}
           </Button>
         ) : (
           <>
-            <Button variant="primary" size="sm" loading={busy} disabled={disabled} onClick={() => onInstall(true)}>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={busy}
+              disabled={disabled}
+              onClick={() => onInstall(true)}
+              data-testid="install-preset"
+              data-preset-id={preset.presetId}
+            >
               {t('prog_install_activate')}
             </Button>
-            <Button variant="secondary" size="sm" disabled={disabled} onClick={() => onInstall(false)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={disabled}
+              onClick={() => onInstall(false)}
+              data-testid="install-preset-only"
+              data-preset-id={preset.presetId}
+            >
               {t('prog_install_only')}
             </Button>
           </>

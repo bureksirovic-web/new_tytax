@@ -2,14 +2,14 @@
 import type { Units } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { TrashIcon } from './icons';
-import { RIR_OPTIONS, type EditSet } from './edit-model';
+import { RIR_OPTIONS, type EditSet, type SetErrors } from './edit-model';
 
 interface Props {
   set: EditSet;
   index: number;
   exerciseName: string;
   units: Units;
-  error?: { kg?: true; reps?: true };
+  error?: SetErrors;
   onChange: (patch: Partial<EditSet>) => void;
   onRemove: () => void;
 }
@@ -28,28 +28,23 @@ export function EditorSetRow({ set, index, exerciseName, units, error, onChange,
   return (
     <fieldset data-testid="history-edit-set" className="grid grid-cols-2 gap-2 border-t border-line py-2 sm:grid-cols-[1fr_1fr_1fr_1.3fr_auto_auto]">
       <legend className="sr-only">{t('hist_edit_set_group', { name: exerciseName, n: index })}</legend>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idp}-kg`} className={label}>{t('hist_edit_weight', { unit: units })}</label>
-        <input
-          id={`${idp}-kg`}
-          inputMode="decimal"
-          value={set.kg}
-          aria-invalid={error?.kg ? true : undefined}
-          onChange={(e) => onChange({ kg: e.target.value })}
-          className={`${field} ${border(error?.kg)}`}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idp}-reps`} className={label}>{t('hist_edit_reps')}</label>
-        <input
-          id={`${idp}-reps`}
-          inputMode="numeric"
-          value={set.reps}
-          aria-invalid={error?.reps ? true : undefined}
-          onChange={(e) => onChange({ reps: e.target.value })}
-          className={`${field} ${border(error?.reps)}`}
-        />
-      </div>
+      {set.duration !== undefined ? (
+        <div className="col-span-2 flex flex-col gap-1">
+          <label htmlFor={`${idp}-duration`} className={label}>{t('hist_edit_duration')}</label>
+          <input
+            id={`${idp}-duration`}
+            data-testid="history-edit-duration"
+            inputMode="numeric"
+            placeholder="00:45"
+            value={set.duration}
+            aria-invalid={error?.duration ? true : undefined}
+            onChange={(e) => onChange({ duration: e.target.value })}
+            className={`${field} ${border(error?.duration)}`}
+          />
+        </div>
+      ) : (
+        <KgRepsFields set={set} idp={idp} units={units} error={error} onChange={onChange} />
+      )}
       <div className="flex flex-col gap-1">
         <label htmlFor={`${idp}-rir`} className={label}>{t('hist_edit_rir')}</label>
         <select id={`${idp}-rir`} value={set.rir} onChange={(e) => onChange({ rir: e.target.value })} className={`${field} border-line`}>
@@ -92,5 +87,38 @@ export function EditorSetRow({ set, index, exerciseName, units, error, onChange,
         <TrashIcon />
       </button>
     </fieldset>
+  );
+}
+
+type KgRepsProps = Pick<Props, 'set' | 'units' | 'error' | 'onChange'> & { idp: string };
+
+/** Load + reps inputs of a kg×reps set. */
+function KgRepsFields({ set, idp, units, error, onChange }: KgRepsProps) {
+  const { t } = useT();
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${idp}-kg`} className={label}>{t('hist_edit_weight', { unit: units })}</label>
+        <input
+          id={`${idp}-kg`}
+          inputMode="decimal"
+          value={set.kg}
+          aria-invalid={error?.kg ? true : undefined}
+          onChange={(e) => onChange({ kg: e.target.value })}
+          className={`${field} ${border(error?.kg)}`}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${idp}-reps`} className={label}>{t('hist_edit_reps')}</label>
+        <input
+          id={`${idp}-reps`}
+          inputMode="numeric"
+          value={set.reps}
+          aria-invalid={error?.reps ? true : undefined}
+          onChange={(e) => onChange({ reps: e.target.value })}
+          className={`${field} ${border(error?.reps)}`}
+        />
+      </div>
+    </>
   );
 }

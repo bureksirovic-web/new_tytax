@@ -5,7 +5,8 @@ import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { training } from '@/lib/training';
 import { StarIcon } from './icons';
-import { countsAsWork, doneWorkingSets, exerciseVolumeKg, setRows } from './log-math';
+import { formatClock, isTimeSet } from './duration';
+import { countsAsWork, doneWorkingSets, exerciseHoldSeconds, exerciseVolumeKg, hasTimeSets, setRows } from './log-math';
 
 interface Props {
   ex: SessionExercise;
@@ -17,10 +18,12 @@ const cell = 'px-2 py-1.5';
 const TONE_WORK = 'text-fg';
 const TONE_REST = 'text-fg-muted';
 
-/** One exercise of a finished log: Set | Load | Reps | RIR | e1RM. */
+/** One exercise of a finished log: Set | Load | Reps | RIR | e1RM; a time set shows mm:ss across Load+Reps. */
 export function ExerciseLog({ ex, units, showUndone }: Props) {
   const { t, locale } = useT();
   const rows = setRows(ex, showUndone);
+  const timed = hasTimeSets(ex);
+  const onlyTimed = timed && ex.sets.every(isTimeSet);
   return (
     <section data-testid="history-exercise" className="mb-3 rounded-xl border border-line bg-card p-4">
       <div className="mb-2 flex items-start justify-between gap-3">
@@ -33,7 +36,14 @@ export function ExerciseLog({ ex, units, showUndone }: Props) {
           </Link>
         </h3>
         <div className="shrink-0 text-right text-xs text-fg-muted">
-          <p data-testid="history-exercise-volume">{formatWeight(exerciseVolumeKg(ex), units, locale)}</p>
+          {onlyTimed ? null : (
+            <p data-testid="history-exercise-volume">{formatWeight(exerciseVolumeKg(ex), units, locale)}</p>
+          )}
+          {timed ? (
+            <p data-testid="history-exercise-hold">
+              {t('hist_hold_value', { time: formatClock(exerciseHoldSeconds(ex)) })}
+            </p>
+          ) : null}
           <p>{t('hist_sets_count', { n: doneWorkingSets(ex) })}</p>
         </div>
       </div>
@@ -41,8 +51,14 @@ export function ExerciseLog({ ex, units, showUndone }: Props) {
         <thead className="text-fg-muted">
           <tr>
             <th scope="col" className={cell}>{t('hist_col_set')}</th>
-            <th scope="col" className={cell}>{t('hist_col_load')}</th>
-            <th scope="col" className={cell}>{t('hist_col_reps')}</th>
+            {onlyTimed ? (
+              <th scope="col" colSpan={2} className={cell}>{t('hist_col_time')}</th>
+            ) : (
+              <>
+                <th scope="col" className={cell}>{t('hist_col_load')}</th>
+                <th scope="col" className={cell}>{t('hist_col_reps')}</th>
+              </>
+            )}
             <th scope="col" className={cell}>{t('hist_col_rir')}</th>
             <th scope="col" className={`${cell} text-right`}>{t('hist_col_e1rm')}</th>
           </tr>
@@ -51,7 +67,8 @@ export function ExerciseLog({ ex, units, showUndone }: Props) {
           {rows.map(({ set, number }) => {
             const work = countsAsWork(set);
             const tone = work ? TONE_WORK : TONE_REST;
-            const e1rm = work ? (set.e1rm ?? training.e1rm(set.kg, set.reps)) : 0;
+            const timeSet = isTimeSet(set);
+            const e1rm = work && !timeSet ? (set.e1rm ?? training.e1rm(set.kg, set.reps)) : 0;
             return (
               <tr
                 key={set.id}
@@ -70,8 +87,17 @@ export function ExerciseLog({ ex, units, showUndone }: Props) {
                   )}
                   {!set.done ? <span className="ml-1 italic">({t('hist_undone_tag')})</span> : null}
                 </th>
-                <td className={`${cell} font-mono`}>{formatWeight(set.kg, units, locale)}</td>
-                <td className={`${cell} font-mono`}>{set.reps}</td>
+                {timeSet ? (
+                  <td colSpan={2} data-testid="history-set-duration" className={`${cell} font-mono`}>
+                    {onlyTimed ? null : <span className="sr-only">{t('hist_col_time')}: </span>}
+                    {formatClock(set.durationSeconds ?? 0)}
+                  </td>
+                ) : (
+                  <>
+                    <td className={`${cell} font-mono`}>{formatWeight(set.kg, units, locale)}</td>
+                    <td className={`${cell} font-mono`}>{set.reps}</td>
+                  </>
+                )}
                 <td className={`${cell} font-mono`}>{set.rir != null ? `@${set.rir}` : t('hist_none')}</td>
                 <td className={`${cell} text-right font-mono`}>
                   <span className="inline-flex items-center gap-1">

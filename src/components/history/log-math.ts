@@ -5,6 +5,7 @@
 import type { SessionExercise, SetEntry, Units, WorkoutLog } from '@/contracts/domain';
 import { formatDate, toDisplayWeight, type Locale } from '@/lib/i18n';
 import { parseLocalDay } from '@/lib/utils';
+import { isTimeSet } from './duration';
 
 export function countsAsWork(s: SetEntry): boolean {
   return s.done && s.type !== 'warmup';
@@ -15,8 +16,22 @@ export function durationMinutes(seconds: number): number {
   return Math.max(1, Math.floor((Number.isFinite(seconds) ? seconds : 0) / 60));
 }
 
+/** kg volume of done working kg×reps sets; time sets never add kg volume. */
 export function exerciseVolumeKg(ex: SessionExercise): number {
-  return ex.sets.reduce((sum, s) => (countsAsWork(s) ? sum + s.kg * s.reps : sum), 0);
+  return ex.sets.reduce((sum, s) => (countsAsWork(s) && !isTimeSet(s) ? sum + s.kg * s.reps : sum), 0);
+}
+
+/** Seconds held over done working time sets. */
+export function exerciseHoldSeconds(ex: SessionExercise): number {
+  return ex.sets.reduce((sum, s) => (countsAsWork(s) && isTimeSet(s) ? sum + (s.durationSeconds ?? 0) : sum), 0);
+}
+
+export function logHoldSeconds(log: Pick<WorkoutLog, 'exercises'>): number {
+  return log.exercises.reduce((sum, ex) => sum + exerciseHoldSeconds(ex), 0);
+}
+
+export function hasTimeSets(ex: SessionExercise): boolean {
+  return ex.sets.some(isTimeSet);
 }
 
 export function doneWorkingSets(ex: SessionExercise): number {

@@ -9,6 +9,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { DetailMetrics } from './detail-metrics';
 import { ExerciseLog } from './exercise-log';
 import { PencilIcon, TrashIcon } from './icons';
+import { RepeatWorkout } from './repeat-workout';
 import { durationMinutes, formatLogDate, formatStartTime, splitExercises } from './log-math';
 import { logDisplayName } from './log-name';
 import { MuscleImpact } from './muscle-impact';
@@ -91,6 +92,7 @@ export function HistoryDetail({ log, units, programName }: Props) {
             <TrashIcon />
             {t('hist_delete')}
           </button>
+          <RepeatWorkout log={log} />
         </div>
         {failed ? (
           <p role="alert" className="mt-2 text-sm text-fg-2">
