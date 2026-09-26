@@ -1,0 +1,3052 @@
+{
+  "MUSCLE_GROUPS": [
+    {
+      "key": "CHEST",
+      "name": "Chest (Pectoralis Major/Minor)",
+      "details": {
+        "subregions": [
+          "Upper (clavicular)",
+          "Mid (sternal)",
+          "Lower (costal)"
+        ],
+        "functions": [
+          "Horizontal adduction",
+          "Shoulder flexion (upper bias)",
+          "Shoulder extension from flexion (lower bias)"
+        ],
+        "common_patterns": [
+          "Horizontal Press",
+          "Cable Fly (single-arm or dual)"
+        ]
+      }
+    },
+    {
+      "key": "BACK_VERTICAL",
+      "name": "Back - Vertical Pull (Lats Focus)",
+      "details": {
+        "subregions": [
+          "Lats",
+          "Teres major",
+          "Scapular depressors"
+        ],
+        "functions": [
+          "Shoulder adduction/extension",
+          "Scapular depression",
+          "Elbow flexion synergy"
+        ],
+        "common_patterns": [
+          "Lat Pulldown variations",
+          "Straight-arm pulldown / pullover"
+        ]
+      }
+    },
+    {
+      "key": "BACK_HORIZONTAL",
+      "name": "Back - Horizontal Pull (Mid-Back Focus)",
+      "details": {
+        "subregions": [
+          "Rhomboids",
+          "Mid traps",
+          "Rear delts"
+        ],
+        "functions": [
+          "Scapular retraction",
+          "Horizontal pulling",
+          "Postural control"
+        ],
+        "common_patterns": [
+          "Seated rows",
+          "Smith rows",
+          "One-arm rows"
+        ]
+      }
+    },
+    {
+      "key": "SHOULDERS",
+      "name": "Shoulders (Deltoids + Scapular Control)",
+      "details": {
+        "subregions": [
+          "Anterior delts",
+          "Lateral delts",
+          "Posterior delts",
+          "Rotator cuff (stability)"
+        ],
+        "functions": [
+          "Vertical pressing",
+          "Abduction",
+          "External rotation/stability"
+        ],
+        "common_patterns": [
+          "Smith press",
+          "Cable raises",
+          "Face pulls / rear delt work"
+        ]
+      }
+    },
+    {
+      "key": "BICEPS",
+      "name": "Biceps & Elbow Flexors",
+      "details": {
+        "subregions": [
+          "Biceps brachii",
+          "Brachialis",
+          "Brachioradialis"
+        ],
+        "functions": [
+          "Elbow flexion",
+          "Supination (biceps)",
+          "Grip synergy"
+        ],
+        "common_patterns": [
+          "Cable curls (low/high)",
+          "Hammer / reverse variations"
+        ]
+      }
+    },
+    {
+      "key": "TRICEPS",
+      "name": "Triceps & Elbow Extensors",
+      "details": {
+        "subregions": [
+          "Long head",
+          "Lateral head",
+          "Medial head"
+        ],
+        "functions": [
+          "Elbow extension",
+          "Shoulder extension stability (long head)"
+        ],
+        "common_patterns": [
+          "Pushdowns",
+          "Overhead extensions",
+          "Press variations (close-grip/JM)"
+        ]
+      }
+    },
+    {
+      "key": "FOREARMS_GRIP",
+      "name": "Forearms & Grip",
+      "details": {
+        "subregions": [
+          "Wrist flexors",
+          "Wrist extensors",
+          "Pronators/supinators"
+        ],
+        "functions": [
+          "Grip endurance",
+          "Wrist control",
+          "Elbow/hand stability"
+        ],
+        "common_patterns": [
+          "Cable wrist work",
+          "Static holds",
+          "Reverse curls"
+        ]
+      }
+    },
+    {
+      "key": "QUADS",
+      "name": "Quads (Knee Extension Dominant)",
+      "details": {
+        "subregions": [
+          "Vastus lateralis/medialis/intermedius",
+          "Rectus femoris"
+        ],
+        "functions": [
+          "Knee extension",
+          "Squat/leg press drive"
+        ],
+        "common_patterns": [
+          "Smith squat variations",
+          "Leg press variants",
+          "Leg extensions"
+        ]
+      }
+    },
+    {
+      "key": "HAMSTRINGS",
+      "name": "Hamstrings (Knee Flexion + Hip Hinge)",
+      "details": {
+        "subregions": [
+          "Biceps femoris",
+          "Semitendinosus",
+          "Semimembranosus"
+        ],
+        "functions": [
+          "Knee flexion",
+          "Hip extension synergy",
+          "Posterior-chain tension"
+        ],
+        "common_patterns": [
+          "RDL/hinge",
+          "Leg curls (seat/cable)",
+          "Pull-through"
+        ]
+      }
+    },
+    {
+      "key": "GLUTES",
+      "name": "Glutes (Hip Extension / Shape & Power)",
+      "details": {
+        "subregions": [
+          "Glute max",
+          "Glute med/min (stability)"
+        ],
+        "functions": [
+          "Hip extension",
+          "Pelvic control",
+          "Abduction synergy"
+        ],
+        "common_patterns": [
+          "Hip thrust/bridge",
+          "Glute-biased squats/lunges",
+          "Kickbacks"
+        ]
+      }
+    },
+    {
+      "key": "CALVES",
+      "name": "Calves (Plantarflexors)",
+      "details": {
+        "subregions": [
+          "Gastrocnemius",
+          "Soleus"
+        ],
+        "functions": [
+          "Plantarflexion",
+          "Ankle stiffness",
+          "Gait/hiking support"
+        ],
+        "common_patterns": [
+          "Standing/seated raises",
+          "Leg-press calf press",
+          "Single-leg work"
+        ]
+      }
+    },
+    {
+      "key": "CORE",
+      "name": "Core (Trunk Strength & Stability)",
+      "details": {
+        "subregions": [
+          "Abs (anti-extension)",
+          "Obliques (anti-rotation)",
+          "Spinal erectors (posterior support)"
+        ],
+        "functions": [
+          "Bracing",
+          "Anti-rotation",
+          "Pelvic control"
+        ],
+        "common_patterns": [
+          "Cable crunch",
+          "Pallof press",
+          "Woodchops/rotations",
+          "Loaded carries/holds"
+        ]
+      }
+    }
+  ],
+  "MASTER_EXERCISES": [
+    {
+      "name": "TYTAX T1 | Smith Flat Bench Press",
+      "station": "Smith Machine",
+      "muscle_group": "CHEST",
+      "pattern": "Horizontal Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Chest (sternal pec)",
+          "s": 95
+        },
+        {
+          "m": "Triceps",
+          "s": 65
+        },
+        {
+          "m": "Front Delts",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Incline Bench Press",
+      "station": "Smith Machine",
+      "muscle_group": "CHEST",
+      "pattern": "Horizontal Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Upper Chest (clavicular pec)",
+          "s": 95
+        },
+        {
+          "m": "Front Delts",
+          "s": 65
+        },
+        {
+          "m": "Triceps",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Decline Bench Press",
+      "station": "Smith Machine",
+      "muscle_group": "CHEST",
+      "pattern": "Horizontal Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Lower Chest (costal pec)",
+          "s": 94
+        },
+        {
+          "m": "Triceps",
+          "s": 65
+        },
+        {
+          "m": "Front Delts",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Spoto Press (pause on chest)",
+      "station": "Smith Machine",
+      "muscle_group": "CHEST",
+      "pattern": "Horizontal Press",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Chest (sternal pec)",
+          "s": 93
+        },
+        {
+          "m": "Triceps",
+          "s": 60
+        },
+        {
+          "m": "Front Delts",
+          "s": 30
+        }
+      ],
+      "note": "Great for control; use lighter load"
+    },
+    {
+      "name": "TYTAX T1 | Smith Floor Press",
+      "station": "Smith Machine",
+      "muscle_group": "CHEST",
+      "pattern": "Horizontal Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 92
+        },
+        {
+          "m": "Chest (sternal pec)",
+          "s": 75
+        },
+        {
+          "m": "Front Delts",
+          "s": 25
+        }
+      ],
+      "note": "Shorter ROM; shoulder-friendly"
+    },
+    {
+      "name": "TYTAX T1 | Smith Close-Grip Bench Press",
+      "station": "Smith Machine",
+      "muscle_group": "CHEST",
+      "pattern": "Horizontal Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Chest (sternal pec)",
+          "s": 60
+        },
+        {
+          "m": "Front Delts",
+          "s": 25
+        }
+      ],
+      "note": "Chest still involved, but triceps usually limit"
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Single-Arm Standing Chest Press",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CHEST",
+      "pattern": "Cable Press",
+      "unilateral": true,
+      "sets": 3,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Chest (sternal pec)",
+          "s": 93
+        },
+        {
+          "m": "Triceps",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Standing Chest Press",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "CHEST",
+      "pattern": "Cable Press",
+      "unilateral": true,
+      "sets": 3,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Chest (sternal pec)",
+          "s": 93
+        },
+        {
+          "m": "Triceps",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley High-to-Low Single-Arm Cable Fly",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CHEST",
+      "pattern": "Cable Fly",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Lower Chest bias",
+          "s": 92
+        },
+        {
+          "m": "Front Delts",
+          "s": 55
+        },
+        {
+          "m": "Biceps (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Low-to-High Single-Arm Cable Fly",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "CHEST",
+      "pattern": "Cable Fly",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Upper Chest bias",
+          "s": 92
+        },
+        {
+          "m": "Front Delts",
+          "s": 55
+        },
+        {
+          "m": "Biceps (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Wide-Grip Lat Pulldown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Vertical Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 95
+        },
+        {
+          "m": "Mid/Lower Traps + Rhomboids",
+          "s": 60
+        },
+        {
+          "m": "Biceps",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Close-Grip Lat Pulldown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Vertical Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 95
+        },
+        {
+          "m": "Mid/Lower Traps + Rhomboids",
+          "s": 58
+        },
+        {
+          "m": "Biceps",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Underhand Lat Pulldown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Vertical Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 93
+        },
+        {
+          "m": "Biceps",
+          "s": 75
+        },
+        {
+          "m": "Mid/Lower Traps + Rhomboids",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Neutral-Grip Lat Pulldown (V-handle)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Vertical Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 95
+        },
+        {
+          "m": "Mid/Lower Traps + Rhomboids",
+          "s": 55
+        },
+        {
+          "m": "Biceps",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Single-Arm Kneeling Lat Pulldown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Vertical Pull",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 94
+        },
+        {
+          "m": "Mid/Lower Traps + Rhomboids",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Straight-Arm Lat Pulldown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Pullover / Shoulder Extension",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 94
+        },
+        {
+          "m": "Serratus/Scapular depressors",
+          "s": 55
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Lat Pullover (slight elbow bend)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Pullover / Shoulder Extension",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 92
+        },
+        {
+          "m": "Serratus/Scapular control",
+          "s": 55
+        },
+        {
+          "m": "Biceps (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Rope Pulldown (elbows-in)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Vertical Pull",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 92
+        },
+        {
+          "m": "Rear Delts",
+          "s": 55
+        },
+        {
+          "m": "Biceps",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Inverted Row (overhand, feet elevated option)",
+      "station": "Smith Machine",
+      "muscle_group": "BACK_VERTICAL",
+      "pattern": "Bodyweight Pull (horizontal)",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-15",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 92
+        },
+        {
+          "m": "Lats",
+          "s": 65
+        },
+        {
+          "m": "Biceps",
+          "s": 40
+        }
+      ],
+      "note": "Counts as pull pattern; adjust body angle for difficulty"
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Seated Cable Row (bench)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 95
+        },
+        {
+          "m": "Lats",
+          "s": 70
+        },
+        {
+          "m": "Biceps",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Wide-Grip Seated Cable Row",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 94
+        },
+        {
+          "m": "Rear Delts",
+          "s": 65
+        },
+        {
+          "m": "Biceps",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Underhand Seated Cable Row",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 92
+        },
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 70
+        },
+        {
+          "m": "Biceps",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley One-Arm Seated Cable Row",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 93
+        },
+        {
+          "m": "Lats",
+          "s": 65
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Standing One-Arm Cable Row",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Lats",
+          "s": 92
+        },
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 65
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley High Cable Row (to chest, elbows out)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Upper/Mid Back (rhomboids/mid traps)",
+          "s": 93
+        },
+        {
+          "m": "Rear Delts",
+          "s": 70
+        },
+        {
+          "m": "Biceps",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Bent-Over Row",
+      "station": "Smith Machine",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 93
+        },
+        {
+          "m": "Lats",
+          "s": 70
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Pendlay-Style Row (from dead stop)",
+      "station": "Smith Machine",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 92
+        },
+        {
+          "m": "Lats",
+          "s": 70
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 40
+        }
+      ],
+      "note": "Use lighter load; strict form"
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Chest-Supported Row (bench incline)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 94
+        },
+        {
+          "m": "Lats",
+          "s": 65
+        },
+        {
+          "m": "Biceps",
+          "s": 35
+        }
+      ],
+      "note": "Bench support reduces low-back fatigue"
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Rope Row (elbows high for rear delts)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BACK_HORIZONTAL",
+      "pattern": "Horizontal Pull",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Rear Delts",
+          "s": 92
+        },
+        {
+          "m": "Mid Back (rhomboids/mid traps)",
+          "s": 65
+        },
+        {
+          "m": "Biceps",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Seated Shoulder Press",
+      "station": "Smith Machine",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Vertical Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Delts (anterior/medial)",
+          "s": 95
+        },
+        {
+          "m": "Triceps",
+          "s": 65
+        },
+        {
+          "m": "Upper Traps/Scapular stabilizers",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Standing Overhead Press",
+      "station": "Smith Machine",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Vertical Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Delts (anterior/medial)",
+          "s": 94
+        },
+        {
+          "m": "Triceps",
+          "s": 65
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Lateral Raise",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Lateral Raise",
+      "unilateral": true,
+      "sets": 3,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Side Delts",
+          "s": 95
+        },
+        {
+          "m": "Supraspinatus",
+          "s": 55
+        },
+        {
+          "m": "Upper Traps",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Lean-Away Lateral Raise",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Lateral Raise",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Side Delts",
+          "s": 96
+        },
+        {
+          "m": "Supraspinatus",
+          "s": 55
+        },
+        {
+          "m": "Upper Traps",
+          "s": 20
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Front Raise",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Front Raise",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Front Delts",
+          "s": 95
+        },
+        {
+          "m": "Upper Chest",
+          "s": 55
+        },
+        {
+          "m": "Serratus/Scapular stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Face Pull (rope)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Scapular / Rear Delt",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Rear Delts",
+          "s": 93
+        },
+        {
+          "m": "Mid/Lower Traps",
+          "s": 70
+        },
+        {
+          "m": "Rotator Cuff (external rotators)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Rear Delt Fly (single-arm)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Rear Delt Isolation",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Rear Delts",
+          "s": 92
+        },
+        {
+          "m": "Mid Traps + Rhomboids",
+          "s": 65
+        },
+        {
+          "m": "Rotator Cuff",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Y-Raise (scapular plane)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Lower Trap / Scapular Control",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Lower Traps",
+          "s": 92
+        },
+        {
+          "m": "Side Delts",
+          "s": 60
+        },
+        {
+          "m": "Rotator Cuff",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley External Rotation (elbow tucked)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Rotator Cuff",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Rotator Cuff (external rotators)",
+          "s": 92
+        },
+        {
+          "m": "Rear Delts",
+          "s": 55
+        },
+        {
+          "m": "Mid Traps (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Upright Row (range-limited)",
+      "station": "Smith Machine",
+      "muscle_group": "SHOULDERS",
+      "pattern": "Upright Row",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Side Delts",
+          "s": 90
+        },
+        {
+          "m": "Upper Traps",
+          "s": 70
+        },
+        {
+          "m": "Biceps",
+          "s": 25
+        }
+      ],
+      "note": "Keep elbows below shoulder height if shoulder sensitive"
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Standing Cable Curl (straight bar)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 95
+        },
+        {
+          "m": "Brachialis",
+          "s": 65
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Cable Curl",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Curl",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 95
+        },
+        {
+          "m": "Brachialis",
+          "s": 60
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Rope Hammer Curl",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Hammer Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Brachialis/Brachioradialis",
+          "s": 95
+        },
+        {
+          "m": "Biceps",
+          "s": 65
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Reverse Curl (straight bar)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Reverse Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Brachioradialis",
+          "s": 92
+        },
+        {
+          "m": "Biceps",
+          "s": 55
+        },
+        {
+          "m": "Wrist Extensors",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley High Cable Curl (D-handles)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "BICEPS",
+      "pattern": "High Cable Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 95
+        },
+        {
+          "m": "Brachialis",
+          "s": 60
+        },
+        {
+          "m": "Rear Delts (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Seated Cable Curl (bench)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 95
+        },
+        {
+          "m": "Brachialis",
+          "s": 60
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Preacher Curl (bench support)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Preacher Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 96
+        },
+        {
+          "m": "Brachialis",
+          "s": 55
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Bayesian Curl (cable behind body)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "BICEPS",
+      "pattern": "Bayesian Curl",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Biceps (long head bias)",
+          "s": 96
+        },
+        {
+          "m": "Brachialis",
+          "s": 55
+        },
+        {
+          "m": "Front Delts (stability)",
+          "s": 20
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Drag Curl",
+      "station": "Smith Machine",
+      "muscle_group": "BICEPS",
+      "pattern": "Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 92
+        },
+        {
+          "m": "Brachialis",
+          "s": 60
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Inverted Row (underhand grip, biceps bias)",
+      "station": "Smith Machine",
+      "muscle_group": "BICEPS",
+      "pattern": "Bodyweight Pull",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Biceps",
+          "s": 90
+        },
+        {
+          "m": "Lats",
+          "s": 65
+        },
+        {
+          "m": "Mid Back",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Triceps Pushdown (V-bar)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Pushdown",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Anconeus",
+          "s": 55
+        },
+        {
+          "m": "Lats (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Triceps Pushdown (straight bar)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Pushdown",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Anconeus",
+          "s": 55
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Rope Triceps Pushdown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Pushdown",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Anconeus",
+          "s": 55
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Single-Arm Triceps Pushdown",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Pushdown",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Overhead Triceps Extension (rope)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Overhead Extension",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Triceps (long head)",
+          "s": 95
+        },
+        {
+          "m": "Shoulder stabilizers",
+          "s": 55
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Single-Arm Overhead Triceps Extension",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Overhead Extension",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Triceps (long head)",
+          "s": 95
+        },
+        {
+          "m": "Shoulder stabilizers",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Lying Cable Triceps Extension (skullcrusher)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Elbow Extension",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Triceps (long head)",
+          "s": 95
+        },
+        {
+          "m": "Forearms/Grip",
+          "s": 55
+        },
+        {
+          "m": "Shoulder stabilizers",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Triceps Kickback",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "TRICEPS",
+      "pattern": "Kickback",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 92
+        },
+        {
+          "m": "Rear Delts (stability)",
+          "s": 55
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Close-Grip Bench Press (triceps bias)",
+      "station": "Smith Machine",
+      "muscle_group": "TRICEPS",
+      "pattern": "Press (triceps bias)",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Chest (sternal pec)",
+          "s": 60
+        },
+        {
+          "m": "Front Delts",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith JM Press",
+      "station": "Smith Machine",
+      "muscle_group": "TRICEPS",
+      "pattern": "Press (triceps bias)",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Triceps",
+          "s": 95
+        },
+        {
+          "m": "Chest",
+          "s": 55
+        },
+        {
+          "m": "Front Delts",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Wrist Curl (straight bar)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Wrist Flexion",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Wrist Flexors",
+          "s": 95
+        },
+        {
+          "m": "Grip",
+          "s": 60
+        },
+        {
+          "m": "Brachialis (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Reverse Wrist Curl (straight bar)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Wrist Extension",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Wrist Extensors",
+          "s": 95
+        },
+        {
+          "m": "Grip",
+          "s": 55
+        },
+        {
+          "m": "Brachioradialis",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Wrist Curl",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Wrist Flexion",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Wrist Flexors",
+          "s": 95
+        },
+        {
+          "m": "Grip",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 20
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Single-Arm Reverse Wrist Curl",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Wrist Extension",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Wrist Extensors",
+          "s": 95
+        },
+        {
+          "m": "Grip",
+          "s": 55
+        },
+        {
+          "m": "Core (anti-rotation)",
+          "s": 20
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Pronations (handle)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Pronation",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Pronators",
+          "s": 92
+        },
+        {
+          "m": "Grip",
+          "s": 55
+        },
+        {
+          "m": "Wrist Extensors (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Supinations (handle)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Supination",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/side",
+      "impact": [
+        {
+          "m": "Supinators/Biceps synergy",
+          "s": 90
+        },
+        {
+          "m": "Biceps",
+          "s": 55
+        },
+        {
+          "m": "Grip",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Bar Static Hold (double overhand)",
+      "station": "Smith Machine",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Isometric Hold",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "20-40s",
+      "impact": [
+        {
+          "m": "Grip",
+          "s": 95
+        },
+        {
+          "m": "Forearm Flexors",
+          "s": 70
+        },
+        {
+          "m": "Upper Traps (support)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Bar Static Hold (mixed grip)",
+      "station": "Smith Machine",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Isometric Hold",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "20-40s",
+      "impact": [
+        {
+          "m": "Grip",
+          "s": 95
+        },
+        {
+          "m": "Forearm Flexors",
+          "s": 70
+        },
+        {
+          "m": "Biceps (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Cable Reverse Curl (forearm emphasis)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "FOREARMS_GRIP",
+      "pattern": "Reverse Curl",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Brachioradialis",
+          "s": 95
+        },
+        {
+          "m": "Wrist Extensors",
+          "s": 55
+        },
+        {
+          "m": "Biceps",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Back Squat",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Squat",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 95
+        },
+        {
+          "m": "Glutes",
+          "s": 70
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Front Squat (cross-arm)",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Squat",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 96
+        },
+        {
+          "m": "Upper Back (posture)",
+          "s": 60
+        },
+        {
+          "m": "Glutes",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Hack Squat (feet forward)",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Squat",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 96
+        },
+        {
+          "m": "Glutes",
+          "s": 60
+        },
+        {
+          "m": "Calves (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Split Squat",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Lunge/Split Squat",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 93
+        },
+        {
+          "m": "Glutes",
+          "s": 70
+        },
+        {
+          "m": "Adductors (stability)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Bulgarian Split Squat",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Lunge/Split Squat",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 93
+        },
+        {
+          "m": "Glutes",
+          "s": 70
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Reverse Lunge",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Lunge",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 92
+        },
+        {
+          "m": "Glutes",
+          "s": 72
+        },
+        {
+          "m": "Adductors (stability)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Step-Up (bench/platform)",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Step-Up",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 92
+        },
+        {
+          "m": "Glutes",
+          "s": 70
+        },
+        {
+          "m": "Calves (stability)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Lying Leg Press (bench setup)",
+      "station": "Smith Machine",
+      "muscle_group": "QUADS",
+      "pattern": "Leg Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 95
+        },
+        {
+          "m": "Glutes",
+          "s": 65
+        },
+        {
+          "m": "Hamstrings",
+          "s": 35
+        }
+      ],
+      "note": "Likely requires a dedicated leg-press plate/attachment. If you don't have it, remove this exercise."
+    },
+    {
+      "name": "TYTAX T1 | Seated Leg Extension",
+      "station": "Leg Extension Seat",
+      "muscle_group": "QUADS",
+      "pattern": "Knee Extension",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "10-20",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 96
+        },
+        {
+          "m": "Hip Flexors (rectus femoris synergy)",
+          "s": 50
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Seated Single-Leg Leg Extension",
+      "station": "Leg Extension Seat",
+      "muscle_group": "QUADS",
+      "pattern": "Knee Extension",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-20/leg",
+      "impact": [
+        {
+          "m": "Quads",
+          "s": 96
+        },
+        {
+          "m": "Hip Flexors (stability)",
+          "s": 55
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Seated Leg Curl",
+      "station": "Leg Curl Seat",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Knee Flexion",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "10-20",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 96
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 55
+        },
+        {
+          "m": "Glutes (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Seated Single-Leg Leg Curl",
+      "station": "Leg Curl Seat",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Knee Flexion",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-20/leg",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 96
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 55
+        },
+        {
+          "m": "Glutes (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Romanian Deadlift (RDL)",
+      "station": "Smith Machine",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Hinge/RDL",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 95
+        },
+        {
+          "m": "Glutes",
+          "s": 75
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Stiff-Leg Deadlift",
+      "station": "Smith Machine",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Hinge/RDL",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "6-10",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 95
+        },
+        {
+          "m": "Glutes",
+          "s": 70
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Good Morning (light/strict)",
+      "station": "Smith Machine",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Hinge",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 95
+        },
+        {
+          "m": "Spinal Erectors",
+          "s": 75
+        },
+        {
+          "m": "Glutes",
+          "s": 35
+        }
+      ],
+      "note": "Advanced/technique-sensitive. If your lower back is the limiting factor, treat spinal erectors as the primary limiter and keep loads modest."
+    },
+    {
+      "name": "TYTAX T1 | Smith Single-Leg RDL",
+      "station": "Smith Machine",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Hinge/RDL",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 93
+        },
+        {
+          "m": "Glutes",
+          "s": 75
+        },
+        {
+          "m": "Core (balance/bracing)",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Cable Pull-Through",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Hinge",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 92
+        },
+        {
+          "m": "Hamstrings",
+          "s": 70
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Standing Hamstring Curl (ankle strap)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Knee Flexion",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/leg",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 94
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 55
+        },
+        {
+          "m": "Glutes (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Kneeling Hamstring Curl (ankle strap)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Knee Flexion",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/leg",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 95
+        },
+        {
+          "m": "Glutes (stability)",
+          "s": 55
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Seated Leg Curl (2s squeeze + slow eccentric)",
+      "station": "Leg Curl Seat",
+      "muscle_group": "HAMSTRINGS",
+      "pattern": "Knee Flexion",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Hamstrings",
+          "s": 95
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 55
+        },
+        {
+          "m": "Glutes (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Hip Thrust",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Hip Thrust",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 97
+        },
+        {
+          "m": "Hamstrings",
+          "s": 65
+        },
+        {
+          "m": "Quads (stability)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Glute Bridge",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Glute Bridge",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 95
+        },
+        {
+          "m": "Hamstrings",
+          "s": 60
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Single-Leg Hip Thrust",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Hip Thrust",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 95
+        },
+        {
+          "m": "Hamstrings",
+          "s": 60
+        },
+        {
+          "m": "Core (pelvic control)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Sumo Squat (glute bias)",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Squat (glute bias)",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "8-12",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 93
+        },
+        {
+          "m": "Adductors",
+          "s": 70
+        },
+        {
+          "m": "Quads",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Reverse Lunge (long stride glute bias)",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Lunge (glute bias)",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 93
+        },
+        {
+          "m": "Quads",
+          "s": 65
+        },
+        {
+          "m": "Adductors (stability)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Bulgarian Split Squat (forward lean glute bias)",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Split Squat (glute bias)",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 94
+        },
+        {
+          "m": "Quads",
+          "s": 60
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Cable Glute Kickback (ankle strap)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "GLUTES",
+      "pattern": "Hip Extension Isolation",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "12-20/leg",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 95
+        },
+        {
+          "m": "Hamstrings",
+          "s": 50
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Cable Pull-Through (glute squeeze)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "GLUTES",
+      "pattern": "Hinge",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 92
+        },
+        {
+          "m": "Hamstrings",
+          "s": 70
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Deadlift (hip-dominant glute focus)",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Deadlift/Hinge",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "5-8",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 95
+        },
+        {
+          "m": "Hamstrings",
+          "s": 75
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Step-Up (high step glute bias)",
+      "station": "Smith Machine",
+      "muscle_group": "GLUTES",
+      "pattern": "Step-Up",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12/leg",
+      "impact": [
+        {
+          "m": "Glutes",
+          "s": 92
+        },
+        {
+          "m": "Quads",
+          "s": 65
+        },
+        {
+          "m": "Calves (stability)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Standing Calf Raise",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 95
+        },
+        {
+          "m": "Soleus",
+          "s": 65
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Seated Calf Raise (bench setup)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "12-25",
+      "impact": [
+        {
+          "m": "Soleus",
+          "s": 95
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 60
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Donkey Calf Raise (hip hinge support)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "12-25",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 94
+        },
+        {
+          "m": "Soleus",
+          "s": 60
+        },
+        {
+          "m": "Core (bracing)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Vertical Calf Press (leg press setup)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Press",
+      "unilateral": false,
+      "sets": 3,
+      "reps": "12-25",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 95
+        },
+        {
+          "m": "Soleus",
+          "s": 65
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 30
+        }
+      ],
+      "note": "Likely requires a dedicated leg-press plate/attachment. If you don't have it, remove this exercise."
+    },
+    {
+      "name": "TYTAX T1 | Smith Single-Leg Standing Calf Raise",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-20/leg",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 94
+        },
+        {
+          "m": "Soleus",
+          "s": 60
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Standing Calf Raise (toes-in)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 93
+        },
+        {
+          "m": "Soleus",
+          "s": 60
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Standing Calf Raise (toes-out)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-20",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 93
+        },
+        {
+          "m": "Soleus",
+          "s": 60
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Seated Calf Raise (slow eccentric 3s)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Soleus",
+          "s": 94
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 55
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Standing Calf Raise (2s top hold)",
+      "station": "Smith Machine",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "8-12 (2s hold)",
+      "impact": [
+        {
+          "m": "Gastrocnemius",
+          "s": 94
+        },
+        {
+          "m": "Soleus",
+          "s": 60
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Calf Raise (belt/strap)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "CALVES",
+      "pattern": "Calf Raise",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "12-25",
+      "impact": [
+        {
+          "m": "Soleus",
+          "s": 92
+        },
+        {
+          "m": "Gastrocnemius",
+          "s": 60
+        },
+        {
+          "m": "Foot/Ankle Stabilizers",
+          "s": 30
+        }
+      ],
+      "note": "Optional if you add a belt/strap"
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Kneeling Cable Crunch",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CORE",
+      "pattern": "Trunk Flexion",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-20",
+      "impact": [
+        {
+          "m": "Abs (rectus abdominis)",
+          "s": 95
+        },
+        {
+          "m": "Hip Flexors",
+          "s": 50
+        },
+        {
+          "m": "Obliques",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Standing Cable Crunch",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CORE",
+      "pattern": "Trunk Flexion",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-20",
+      "impact": [
+        {
+          "m": "Abs (rectus abdominis)",
+          "s": 93
+        },
+        {
+          "m": "Obliques",
+          "s": 55
+        },
+        {
+          "m": "Hip Flexors",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Pallof Press (anti-rotation hold)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CORE",
+      "pattern": "Anti-Rotation",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12 (2s hold)/side",
+      "impact": [
+        {
+          "m": "Obliques (anti-rotation)",
+          "s": 95
+        },
+        {
+          "m": "Abs (bracing)",
+          "s": 70
+        },
+        {
+          "m": "Glute Med/Min (pelvic control)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Pallof Press (anti-rotation hold)",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "CORE",
+      "pattern": "Anti-Rotation",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "8-12 (2s hold)/side",
+      "impact": [
+        {
+          "m": "Obliques (anti-rotation)",
+          "s": 95
+        },
+        {
+          "m": "Abs (bracing)",
+          "s": 70
+        },
+        {
+          "m": "Glute Med/Min (pelvic control)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley High-to-Low Woodchop",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CORE",
+      "pattern": "Rotation/Chop",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Obliques",
+          "s": 95
+        },
+        {
+          "m": "Abs",
+          "s": 70
+        },
+        {
+          "m": "Glutes/Hip rotators (stability)",
+          "s": 30
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Low-to-High Woodchop",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "CORE",
+      "pattern": "Rotation/Chop",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-15/side",
+      "impact": [
+        {
+          "m": "Obliques",
+          "s": 95
+        },
+        {
+          "m": "Abs",
+          "s": 65
+        },
+        {
+          "m": "Side Delts (stability)",
+          "s": 25
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Lower Pulley Cable Side Bend",
+      "station": "Back Lower Pulley (Station with lower pulley)",
+      "muscle_group": "CORE",
+      "pattern": "Lateral Flexion",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-20/side",
+      "impact": [
+        {
+          "m": "Obliques",
+          "s": 95
+        },
+        {
+          "m": "Quadratus Lumborum (QL)",
+          "s": 70
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Side Bend",
+      "station": "Smith Machine",
+      "muscle_group": "CORE",
+      "pattern": "Lateral Flexion",
+      "unilateral": true,
+      "sets": 2,
+      "reps": "10-20/side",
+      "impact": [
+        {
+          "m": "Obliques",
+          "s": 95
+        },
+        {
+          "m": "Quadratus Lumborum (QL)",
+          "s": 70
+        },
+        {
+          "m": "Spinal Erectors (stability)",
+          "s": 35
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Smith Romanian Deadlift Iso-Hold (mid-shin, light)",
+      "station": "Smith Machine",
+      "muscle_group": "CORE",
+      "pattern": "Isometric Hinge/Brace",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "15-30s hold",
+      "impact": [
+        {
+          "m": "Spinal Erectors (isometric)",
+          "s": 92
+        },
+        {
+          "m": "Hamstrings",
+          "s": 65
+        },
+        {
+          "m": "Glutes",
+          "s": 40
+        }
+      ]
+    },
+    {
+      "name": "TYTAX T1 | Upper Pulley Anti-Extension Pressdown (straight arms)",
+      "station": "Back Upper Pulley (either back station)",
+      "muscle_group": "CORE",
+      "pattern": "Anti-Extension",
+      "unilateral": false,
+      "sets": 2,
+      "reps": "10-15",
+      "impact": [
+        {
+          "m": "Abs (anti-extension)",
+          "s": 92
+        },
+        {
+          "m": "Lats (stability)",
+          "s": 55
+        },
+        {
+          "m": "Serratus/Scapular control",
+          "s": 30
+        }
+      ],
+      "note": "Think: 'cable rollout' but standing"
+    }
+  ],
+  "STATIONS": [
+    {
+      "key": "SMITH",
+      "name": "Smith Machine",
+      "notes": "High stability, fixed bar path. Great for beginners and consistent tension."
+    },
+    {
+      "key": "BACK_UPPER",
+      "name": "Back Upper Pulley (either back station)",
+      "notes": "Constant tension. Use for pulldowns, face pulls, pushdowns, crunches."
+    },
+    {
+      "key": "BACK_LOWER",
+      "name": "Back Lower Pulley (station with lower pulley)",
+      "notes": "Constant tension. Use for rows, curls, pull-throughs, wrist work."
+    },
+    {
+      "key": "LEG_EXTENSION",
+      "name": "Seated Leg Extension",
+      "notes": "Knee extension isolation."
+    },
+    {
+      "key": "LEG_CURL",
+      "name": "Seated Leg Curl",
+      "notes": "Knee flexion isolation."
+    }
+  ],
+  "RECOMMENDED_ATTACHMENTS": [
+    {
+      "name": "Pair of single D-handles",
+      "priority": "High",
+      "why": "Unlocks single-arm presses/rows/curls/raises; best for symmetry and shoulder comfort."
+    },
+    {
+      "name": "Triceps rope",
+      "priority": "High",
+      "why": "Best for pushdowns, face pulls, overhead extensions."
+    },
+    {
+      "name": "Short straight bar (cable bar)",
+      "priority": "High",
+      "why": "Curls, pushdowns, wrist curls, straight-arm pulldowns."
+    },
+    {
+      "name": "V-handle / close-grip row handle",
+      "priority": "High",
+      "why": "Neutral-grip pulldowns and close rows."
+    },
+    {
+      "name": "Ankle strap",
+      "priority": "High",
+      "why": "Glute kickbacks, hip abduction/adduction, standing ham curls."
+    },
+    {
+      "name": "Ab strap (cable crunch strap)",
+      "priority": "Medium",
+      "why": "More comfortable heavy cable crunches than holding a bar."
+    },
+    {
+      "name": "Lat bar (you already have)",
+      "priority": "Owned",
+      "why": "Wide/standard pulldown and straight-arm pulldown patterns."
+    },
+    {
+      "name": "EZ/angled lat bar (you already have)",
+      "priority": "Owned",
+      "why": "Comfort grip variations; good for underhand/angled pulldowns."
+    },
+    {
+      "name": "Dip belt or strong assistance band",
+      "priority": "Optional",
+      "why": "If you want assisted pull-ups using the Smith bar setup."
+    }
+  ]
+}

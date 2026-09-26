@@ -10,8 +10,8 @@ beforeEach(() => {
 
 describe('loadCatalog', () => {
   it('loads each chunk with its full exercise count', async () => {
-    // 1420 = entries in src/data/tytax/exercises.json (header of src/data/tytax/exercises.ts)
-    expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1420);
+    // 1409 = 1436 source entries − 27 promo/delivery videos (docs/v2/station-unresolved.md)
+    expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1409);
     // 82 = objects with an `id: 'bw_…'` key in src/data/bodyweight/exercises.ts
     expect((await loadCatalog(['bodyweight'])).exercises).toHaveLength(82);
     // 75 = objects with an `id: 'kb_…'` key in src/data/kettlebell/exercises.ts
@@ -20,8 +20,8 @@ describe('loadCatalog', () => {
 
   it('defaults to every chunk, in canonical order', async () => {
     const all = await loadCatalog();
-    // 1420 + 82 + 75 = 1577
-    expect(all.exercises).toHaveLength(1577);
+    // 1409 + 82 + 75 = 1566
+    expect(all.exercises).toHaveLength(1566);
     expect(all.chunks).toEqual(['tytax', 'bodyweight', 'kettlebell']);
     expect(all.exercises[0].modality).toBe('tytax');
     expect(all.exercises.at(-1)?.modality).toBe('kettlebell');
@@ -44,10 +44,12 @@ describe('loadCatalog', () => {
 
   it('only the tytax chunk carries stations and attachments', async () => {
     const t = await loadCatalog(['tytax']);
-    // 6 stations in src/data/tytax/stations.ts, 9 attachments in attachments.ts
-    expect(t.stations).toHaveLength(6);
+    // 7 stations = 5 tytax_library.json STATIONS + app-level FRAME and FREE_WEIGHT; 9 RECOMMENDED_ATTACHMENTS (src/data/tytax/library.json)
+    expect(t.stations).toHaveLength(7);
     expect(t.attachments).toHaveLength(9);
-    expect(t.stations.find((s) => s.id === 'smith')?.name).toBe('Smith Machine');
+    expect(t.stations.find((s) => s.id === 'SMITH')?.name).toBe('Smith Machine');
+    expect(t.stations.slice(-2).map((s) => s.name)).toEqual(['Frame', 'Free weights']);
+    expect(t.attachments.map((a) => a.id)).toContain('TRICEPS_ROPE');
     const bw = await loadCatalog(['bodyweight']);
     expect(bw.stations).toHaveLength(0);
     expect(bw.attachments).toHaveLength(0);
@@ -61,6 +63,13 @@ describe('loadCatalog', () => {
     expect(all.getByLegacyName('smith FLAT bench press')?.id).toBe(SMITH_FLAT);
     expect(all.getByLegacyName('Two-Hand Swing')?.id).toBe('kb_swing_two-hand-swing');
     expect(all.getByLegacyName('does not exist')).toBeUndefined();
+    // master-list form and the original app's cleanName form both resolve
+    expect(all.getByLegacyName('TYTAX T1 | Smith Flat Bench Press')?.id).toBe(SMITH_FLAT);
+    expect(all.getByLegacyName('TYTAX® T1-X | Smith Flat Bench Press')?.id).toBe(SMITH_FLAT);
+    // reviewed alias (scripts/data/aliases.json): INITIAL_PLAN Upper C #3
+    expect(all.getByLegacyName('TYTAX T1 | Lower Pulley Single-Arm Seated Cable Row')?.name).toBe('Lower Pulley One-Arm Seated Cable Row');
+    // display-name override keeps the source name as a legacy key
+    expect(all.getByLegacyName('NEvUVCFF8x8')?.name).toBe('Triceps Elbow Extension (T1-X #1590)');
   });
 });
 
@@ -103,8 +112,8 @@ describe('search', () => {
     const kb = await search({ modality: 'kettlebell' });
     // 75 kettlebell entries (see chunk count above)
     expect(kb).toHaveLength(75);
-    // 1577 = all chunks
-    expect(await search({ modality: 'all' })).toHaveLength(1577);
+    // 1566 = all chunks
+    expect(await search({ modality: 'all' })).toHaveLength(1566);
     expect(await search({ modality: 'custom' })).toHaveLength(0);
   });
 
@@ -123,13 +132,19 @@ describe('search', () => {
   });
 
   it('filters by station and attachment', async () => {
-    const legExt = await search({ stationId: 'leg-extension' });
-    // 2 entries have station 'Leg Extension' in exercises.json
+    const legExt = await search({ stationId: 'LEG_EXTENSION' });
+    // 2 from the source's 'Leg Extension Seat' + 2 cable leg extensions (name-rule:leg-extension)
     expect(legExt.map((e) => e.id).sort()).toEqual([
       'tytax_leg-extension_seated-leg-extension',
       'tytax_leg-extension_seated-single-leg-leg-extension',
+      'tytax_tytax_seated-alternating-cable-leg-extension',
+      'tytax_tytax_seated-cable-leg-extension',
     ]);
-    const rope = await search({ attachmentId: 'rope', text: 'face pull' });
+    // 36 = the free-weight bucket of docs/v2/station-unresolved.md before F1 (dumbbell/barbell/EZ-bar names, name-rule:free-weight)
+    expect(await search({ stationId: 'FREE_WEIGHT' })).toHaveLength(36);
+    // 28 = 25 pull-up/dip/hanging/roman-chair/hyperextension names (name-rule:frame) + 3 bench bodyweight (name-rule:frame-bench)
+    expect(await search({ stationId: 'FRAME' })).toHaveLength(28);
+    const rope = await search({ attachmentId: 'TRICEPS_ROPE', text: 'face pull' });
     expect(rope.length).toBeGreaterThan(0);
     expect(rope.every((e) => e.modality === 'tytax')).toBe(true);
     expect(await search({ stationId: 'no-such-station' })).toHaveLength(0);

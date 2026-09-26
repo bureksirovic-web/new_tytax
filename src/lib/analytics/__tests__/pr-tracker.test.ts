@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { E1RM_MAX_REPS, E1RM_PR_MAX_REPS } from '@/lib/training';
 import { getE1RMProgression, getBestLifts } from '../pr-tracker';
 import { makeLog, type FixtureSet } from './fixtures';
 
@@ -105,5 +106,36 @@ describe('getBestLifts', () => {
     expect(result['ex1'].date).toBe('2024-01-01');
     // deleted 150×5 ignored → 100 kg stands
     expect(result['ex1'].weight).toBe(100);
+  });
+});
+
+describe('e1RM rep cap (E1RM_MAX_REPS = 12)', () => {
+  it('exports the cap and keeps the PR alias', () => {
+    expect(E1RM_MAX_REPS).toBe(12);
+    expect(E1RM_PR_MAX_REPS).toBe(E1RM_MAX_REPS);
+  });
+
+  it('getBestLifts skips sets above 12 reps', () => {
+    const result = getBestLifts([log('2024-01-01', [{ ref: 'ex1', sets: [{ kg: 16, reps: 35 }, { kg: 30, reps: 8 }] }])]);
+    // 16×35 would be 16*36/2 = 288 but is skipped (35 > 12); 30×8 → 30*36/29 = 1080/29 = 37.2414 (unrounded)
+    expect(result['ex1']).toMatchObject({ weight: 30, reps: 8 });
+    expect(result['ex1'].e1rm).toBeCloseTo(1080 / 29, 10);
+    expect(Math.round(result['ex1'].e1rm * 100) / 100).toBe(37.24);
+  });
+
+  it('a log with only a high-rep set gives no best lift and no progression point', () => {
+    const logs = [log('2024-01-01', [{ ref: 'ex1', sets: [{ kg: 16, reps: 35 }] }])];
+    expect(getBestLifts(logs)['ex1']).toBeUndefined();
+    expect(getE1RMProgression(logs, 'ex1')).toEqual([]);
+  });
+
+  it('getE1RMProgression keeps 12-rep sets and drops 13-rep sets', () => {
+    const logs = [
+      log('2024-01-01', [{ ref: 'ex1', sets: [{ kg: 50, reps: 12 }] }]),
+      log('2024-01-02', [{ ref: 'ex1', sets: [{ kg: 60, reps: 13 }, { kg: 16, reps: 35 }] }]),
+    ];
+    const result = getE1RMProgression(logs, 'ex1');
+    // 50×12 → 50*36/25 = 72 counts (12 ≤ 12); day 2 has only 13 and 35 reps → no point
+    expect(result.map((p) => [p.date, p.e1rm])).toEqual([['2024-01-01', 72]]);
   });
 });

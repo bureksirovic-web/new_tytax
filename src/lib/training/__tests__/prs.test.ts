@@ -66,13 +66,31 @@ describe('detectPRs', () => {
     expect(prs.find((p) => p.exerciseId === 'curl' && p.prType === 'e1rm')?.value).toBe(26.67);
   });
 
-  it('ignores zero-weight and zero-rep sets and prototype-named ids', () => {
-    expect(detectPRs([exercise('press', [set(0, 10), set(50, 0)])], {})).toEqual([]);
+  it('ignores zero-rep sets; a 0 kg set only yields a reps PR; prototype-named ids are safe', () => {
+    expect(detectPRs([exercise('press', [set(50, 0)])], {})).toEqual([]);
+    // 0 kg × 10: e1rm 0 and weight 0 are not PRs; reps 10 is a (baseline) reps PR
+    expect(detectPRs([exercise('press', [set(0, 10)])], {}).map((p) => [p.prType, p.value, p.isBaseline])).toEqual([['reps', 10, true]]);
     const prs = detectPRs([exercise('constructor', [set(10, 1)])], {});
     // 1 rep → e1rm = kg = 10; baseline because no stored best
     expect(prs.map((p) => [p.prType, p.value, p.isBaseline])).toEqual([
       ['e1rm', 10, true],
       ['weight', 10, true],
     ]);
+  });
+
+  it('e1RM PRs come only from sets of at most 12 reps', () => {
+    // 16 kg × 35: Brzycki 16×36/2 = 288 would be absurd → no e1rm candidate; weight 16 > 12 → weight PR
+    const high = detectPRs([exercise('press', [set(16, 35)])], { press: { e1rm: 40, weight: 12 } });
+    expect(high.map((p) => [p.prType, p.value])).toEqual([['weight', 16]]);
+    // 100 × 12 → Brzycki 100×36/25 = 144 → counted
+    const twelve = detectPRs([exercise('press', [set(100, 12)])], { press: { e1rm: 140, weight: 100 } });
+    expect(twelve.map((p) => [p.prType, p.value])).toEqual([['e1rm', 144]]);
+  });
+
+  it('bodyweight reps PRs beat the stored best reps strictly', () => {
+    const prs = detectPRs([exercise('press', [set(0, 12), set(0, 15)])], { press: { reps: 14 } });
+    // best set 15 reps > 14 → one non-baseline reps PR
+    expect(prs.map((p) => [p.prType, p.value, p.previousBest, p.isBaseline])).toEqual([['reps', 15, 14, false]]);
+    expect(detectPRs([exercise('press', [set(0, 14)])], { press: { reps: 14 } })).toEqual([]);
   });
 });

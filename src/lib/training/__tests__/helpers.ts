@@ -67,3 +67,22 @@ export function logEndingAt(
 export function sets(n: number, kg = 50, reps = 10): SeedExerciseInput['sets'] {
   return Array.from({ length: n }, () => ({ kg, reps }));
 }
+
+/**
+ * A copy of `log` whose sets, counted in order across all exercises, get
+ * `durationSeconds` from `seconds` (undefined leaves a set as is): the seed
+ * builder has no duration field, so time sets (F2) are added afterwards.
+ */
+export function withDurations(log: WorkoutLog, seconds: ReadonlyArray<number | undefined>): WorkoutLog {
+  let i = 0;
+  return {
+    ...log,
+    exercises: log.exercises.map((ex) => ({
+      ...ex,
+      sets: ex.sets.map((s) => {
+        const d = seconds[i++];
+        return d === undefined ? s : { ...s, durationSeconds: d };
+      }),
+    })),
+  };
+}

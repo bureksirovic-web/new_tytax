@@ -4,7 +4,6 @@
 import type { Exercise } from '@/contracts/domain';
 import type { CatalogQuery } from '@/contracts/exercise-catalog';
 import { standardizeMuscle } from '@/lib/constants';
-import { EXERCISE_ATTACHMENT_MAP } from '@/data/tytax/attachments';
 
 /** Lowercase, NFD-decompose and strip combining marks: "Čučanj" → "cucanj". */
 export function normalizeText(s: string): string {
@@ -48,16 +47,9 @@ export function matchesMuscle(e: Exercise, muscle: string): boolean {
   );
 }
 
-/**
- * Attachment match. Exercises with explicit `attachmentIds` use them; TYTAX
- * entries without them fall back to the name rules in `EXERCISE_ATTACHMENT_MAP`
- * until the catalog build fills `attachmentIds`.
- */
+/** Attachment match on the catalog build's `attachmentIds` (tytax_library.json attachment ids). */
 export function matchesAttachment(e: Exercise, attachmentId: string): boolean {
-  if (e.attachmentIds) return e.attachmentIds.includes(attachmentId);
-  if (e.modality !== 'tytax') return false;
-  const name = e.name.toLowerCase();
-  return Object.entries(EXERCISE_ATTACHMENT_MAP).some(([frag, id]) => id === attachmentId && name.includes(frag));
+  return e.attachmentIds?.includes(attachmentId) ?? false;
 }
 
 /**

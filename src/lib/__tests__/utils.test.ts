@@ -11,6 +11,7 @@ import {
   localDay,
   parseLocalDay,
   LB_PER_KG,
+  generateId,
 } from '../utils';
 
 describe('slugify', () => {
@@ -133,5 +134,21 @@ describe('localDay / parseLocalDay', () => {
     expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2024, 2, 5, 0]);
     expect(localDay(d)).toBe('2024-03-05');
     expect(Number.isNaN(parseLocalDay('05.03.2024').getTime())).toBe(true);
+  });
+});
+
+describe('generateId outside a secure context', () => {
+  it('falls back to getRandomValues when crypto.randomUUID is missing', () => {
+    const original = globalThis.crypto.randomUUID;
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { value: undefined, configurable: true });
+    try {
+      const id = generateId();
+      // uuid v4: 8-4-4-4-12 hex, version nibble 4, variant 8/9/a/b
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(generateId()).not.toBe(id);
+    } finally {
+      Object.defineProperty(globalThis.crypto, 'randomUUID', { value: original, configurable: true });
+    }
+    expect(typeof globalThis.crypto.randomUUID).toBe('function');
   });
 });

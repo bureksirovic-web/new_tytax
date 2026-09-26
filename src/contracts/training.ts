@@ -57,6 +57,12 @@ export interface PrefillOptions {
   targetSets?: number;
   /** Rep target text from the program slot, e.g. "8-12" (informational). */
   repTarget?: string;
+  /**
+   * Weights that exist for this exercise (e.g. the profile's kettlebells,
+   * `EquipmentInventory.kettlebellsKg`). When given, the next weight snaps up
+   * to the lightest one ≥ last + increment. Added after Wave 0 (request G1-02).
+   */
+  availableKg?: readonly number[];
 }
 
 export type PrefillBasis = 'none' | 'rir3plus' | 'rir2' | 'hold';
@@ -70,9 +76,11 @@ export interface PrefillResult {
   /** Suggested working weight in kg (0 when no history). */
   suggestedKg: number;
   /**
-   * Why: last session's lowest recorded RIR over its done working sets was
-   * ≥3 → +2.5 kg (`rir3plus`), exactly 2 → +1.25 kg (`rir2`), otherwise or
-   * unrecorded → same kg (`hold`); no history → `none`.
+   * Why: last session's lowest recorded RIR over its done sets of type
+   * `working` (drop/failure excluded) was ≥3 → +2.5 kg (`rir3plus`), exactly
+   * 2 → +1.25 kg (`rir2`), otherwise or unrecorded → same kg (`hold`); no
+   * history → `none`. Bodyweight sets (0 kg) progress on ghost reps only;
+   * kettlebells hold unless `availableKg` names the next bell.
    */
   basis: PrefillBasis;
   /** The log the prefill came from. */
@@ -105,7 +113,8 @@ export interface PRCandidate {
 /**
  * PRs in a workout, at most one per (exerciseId, prType): the best done
  * working set, compared with `bests[exerciseId][prType]`. Produces `e1rm`
- * and `weight` PRs. Strictly greater than the previous best only.
+ * (sets of ≤ 12 reps only), `weight`, and `reps` (sets at 0 kg, i.e.
+ * bodyweight). Strictly greater than the previous best only.
  */
 export type DetectPRsFn = (exercises: readonly SessionExercise[], bests: ExistingBests) => PRCandidate[];
 
@@ -157,7 +166,11 @@ export interface RecoverySummary {
 /** Real 48-hour window measured from `now` (timestamps, not calendar strings). */
 export type RecoveryStatusFn = (logs: readonly WorkoutLog[], lookup: ExerciseLookup, now: Date) => RecoverySummary;
 
-/** Acute:chronic workload per muscle over done working sets; soft-deleted logs excluded. */
+/**
+ * Acute:chronic workload per muscle over done working sets; soft-deleted logs
+ * excluded. Chronic = mean weekly load over the weeks of history actually
+ * available (1–4), so a new user is not marked `fried` after one session.
+ */
 export type AcwrFn = (logs: readonly WorkoutLog[], lookup: ExerciseLookup, now: Date) => ACWRResult[];
 
 export interface DeloadOptions {
