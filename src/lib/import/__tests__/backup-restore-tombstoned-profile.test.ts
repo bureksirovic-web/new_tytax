@@ -22,7 +22,7 @@ describe('restoreBackupJson: locally deleted profile', () => {
     const stamp = T0.toISOString();
     t.backup.bodyweightEntries = [{ id: 'bw-other-device', profileId: t.p.id, date: '2026-03-01', valueKg: 70, createdAt: stamp, updatedAt: stamp }];
     const res = await restoreBackupJson(t.repo, JSON.stringify(t.backup));
-    expect(res).toEqual({ inserted: 0, updated: 0, skipped: 2, warnings: [] });
+    expect(res).toEqual({ inserted: 0, updated: 0, skipped: 2, warnings: [], existingProfileIds: [] });
     expect((await t.db.profiles.get(t.p.id))?.deletedAt).toBeDefined();
     expect(await t.db.bodyweightEntries.get('bw-other-device')).toBeUndefined();
     expect(await t.repo.outbox.count()).toBe(t.queued);

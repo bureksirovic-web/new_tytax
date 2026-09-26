@@ -51,15 +51,18 @@ describe('finishWorkout atomicity', () => {
   it('an outbox write failure after the log and PRs were queued rolls everything back', async () => {
     const s = await setup();
     const add = s.db.syncQueue.add.bind(s.db.syncQueue);
+    const bulkAdd = vi.spyOn(s.db.syncQueue, 'bulkAdd');
     let calls = 0;
     vi.spyOn(s.db.syncQueue, 'add').mockImplementation((row) => {
       calls += 1;
-      // 1 = log, 2–3 = PRs, 4 = program advance
-      if (calls === 4) throw new Error('outbox broke');
+      // add: 1 = log, 2 = program advance; the 2 PRs go in one bulkAdd between them.
+      if (calls === 2) throw new Error('outbox broke');
       return add(row);
     });
     await expect(s.repo.finishWorkout(s.d)).rejects.toThrow('outbox broke');
-    expect(calls).toBe(4);
+    expect(calls).toBe(2);
+    expect(bulkAdd).toHaveBeenCalledTimes(1);
+    expect(bulkAdd.mock.calls[0][0]).toHaveLength(2);
     await expectNothingWritten(s);
   });
 

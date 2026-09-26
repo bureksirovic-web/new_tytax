@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { isRepoError, type Repository } from '@/contracts';
 import { freshRepo } from '@/lib/db/__tests__/helpers';
 import { importLegacy, isImportError, mapLegacyUser, parseLegacyBackup } from '..';
-import { MULTI_USER_DUMP } from '../__fixtures__/expected';
+import { ALL_FIXTURES, MULTI_USER_DUMP } from '../__fixtures__/expected';
 import { loadFixtureText } from '../__fixtures__/load';
 import { countingResolver, snapshot, syntheticResolver } from '../service/__fixtures__/testing';
 
@@ -25,6 +25,26 @@ async function importAllNew(repo: Repository) {
 }
 
 describe('legacy-import service: AC10 exact counts per profile', () => {
+  // Every fixture format, the legacy "Backup" export (app-backup.json) included.
+  it.each(ALL_FIXTURES.map((f) => [f.file, f] as const))('%s imports into new profiles with the expected counts', async (_file, fixture) => {
+    const { repo } = freshRepo();
+    const result = await importLegacy(repo, loadFixtureText(fixture.file), {
+      users: Object.keys(fixture.users).map((username) => ({ username, target: { createProfileName: username } })),
+      resolver: syntheticResolver(),
+      now: () => FIRST,
+    });
+    expect(result.perUser.map((u) => u.username)).toEqual(Object.keys(fixture.users));
+    for (const r of result.perUser) {
+      const exp = fixture.users[r.username];
+      expect(await repo.logs.count(r.profileId)).toBe(exp.logs);
+      expect(await repo.programs.list(r.profileId)).toHaveLength(expectedPrograms(exp));
+      expect(await repo.bodyweight.list(r.profileId)).toHaveLength(exp.bodyweight);
+      const sets = (await repo.logs.list(r.profileId)).flatMap((l) => l.exercises.flatMap((e) => e.sets));
+      expect(sets).toHaveLength(exp.sets);
+      expect(sets.filter((s) => s.type === 'warmup')).toHaveLength(exp.warmupSets);
+    }
+  });
+
   it('imports the multi-user dump into fresh profiles with the expected counts', async () => {
     const { repo } = freshRepo();
     const result = await importAllNew(repo);

@@ -18,15 +18,18 @@ export interface LegacyUserPreview {
   sets: number;
   bodyweight: number;
   programs: number;
-  /** Names the resolver could not map; imported as custom exercises, never dropped. */
+  /** Names the resolver could not map; imported as custom exercises, never dropped. At most 200, most frequent first kept (./cap). */
   unresolved: UnresolvedExercise[];
+  /** Distinct unresolved names before the cap. */
+  unresolvedCount: number;
+  /** At most 200 plus one summary per omitted code (./cap). */
   warnings: ServiceWarning[];
 }
 
 export interface LegacyImportPreview {
   format: LegacyFormat;
   users: LegacyUserPreview[];
-  /** File-level parser warnings (per-user mapper warnings live on each user). */
+  /** File-level parser warnings (per-user mapper warnings live on each user); capped like the per-user list. */
   warnings: ServiceWarning[];
 }
 
@@ -70,8 +73,11 @@ export interface LegacyUserResult {
 
 export interface LegacyImportResult {
   perUser: LegacyUserResult[];
-  /** Summed over the imported users, sorted by legacyName. */
+  /** Summed over the imported users, sorted by legacyName; at most 200 (the most frequent). */
   unresolved: UnresolvedExercise[];
+  /** Distinct unresolved names before the cap. */
+  unresolvedCount: number;
+  /** At most 200 plus one summary per omitted code (./cap). */
   warnings: ServiceWarning[];
 }
 
@@ -81,5 +87,15 @@ export interface RestoreResult {
   /** Rows kept because the local copy was newer (LWW on updatedAt). */
   skipped: number;
   /** Non-fatal parse findings and repairs from parseBackupV3. */
+  warnings: ImportWarning[];
+  /** Backup profile ids that already existed on this device; their rows were merged (LWW). */
+  existingProfileIds: string[];
+}
+
+/** `inspectBackupJson`: what a restore would touch, before it runs. */
+export interface BackupInspection {
+  profiles: { id: string; name: string; existsLocally: boolean }[];
+  /** Records in the file, all tables. */
+  rows: number;
   warnings: ImportWarning[];
 }

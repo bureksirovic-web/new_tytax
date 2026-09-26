@@ -26,6 +26,7 @@ import { parseLegacyBackup } from '../parse-legacy';
 import type { LegacyImportBundle, LegacyUserData } from '../types';
 import { assertValidBackup } from './backup';
 import { defaultResolver, tagWarnings } from './preview';
+import { capUnresolved, capWarnings } from './cap';
 import { planPRs } from './prs';
 import type { ImportCounts, ImportLegacyOptions, ImportTarget, LegacyImportResult, LegacyUserResult } from './types';
 
@@ -136,16 +137,17 @@ export async function importLegacy(repo: Repository, input: unknown, opts: Impor
   return repo.transaction(async () => {
     const perUser: LegacyUserResult[] = [];
     const unresolved = new Map<string, number>();
-    const warnings = tagWarnings(bundle.warnings);
+    let warnings = capWarnings(tagWarnings(bundle.warnings));
     for (const selection of selections) {
       const { result, mapped } = await importUser(repo, selection, env);
       perUser.push(result);
       for (const u of mapped.unresolved) unresolved.set(u.legacyName, (unresolved.get(u.legacyName) ?? 0) + u.occurrences);
-      warnings.push(...tagWarnings(mapped.warnings, result.username));
+      // Capped per user before merging: no huge spread into push, no 63 MiB result.
+      warnings = warnings.concat(capWarnings(tagWarnings(mapped.warnings, result.username)));
     }
     const merged = [...unresolved.entries()]
       .map(([legacyName, occurrences]) => ({ legacyName, occurrences }))
       .sort((a, b) => (a.legacyName < b.legacyName ? -1 : a.legacyName > b.legacyName ? 1 : 0));
-    return { perUser, unresolved: merged, warnings };
+    return { perUser, unresolved: capUnresolved(merged), unresolvedCount: merged.length, warnings };
   });
 }

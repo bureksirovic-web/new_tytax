@@ -11,17 +11,22 @@
  * - INVALID_STRUCTURE: schema failure, orphan `profileId`, duplicate id in a table,
  *   or a broken cross-record invariant (see ./invariants).
  *
- * Timestamps come back normalised to UTC `toISOString()` form; derived or pointer
+ * Timestamps come back normalised to UTC `toISOString()` form, and record stamps
+ * more than 24 h in the future are clamped to now (LWW pinning); derived or pointer
  * fields that disagree with the data are repaired with an INVALID_VALUE warning.
  */
 import type { BackupV3 } from '@/contracts';
 import { ImportError } from '../errors';
 import { createContext, safeParseJson, sanitize } from '../safe-json';
 import type { ImportWarning, ParseOptions } from '../types';
+import { clampFutureStamps } from './future-stamps';
 import { enforceInvariants } from './invariants';
 import { BACKUP_V3_FORMAT, BACKUP_V3_VERSION, backupV3Schema, OWNED_TABLES } from './schema';
 
-export type BackupV3ParseOptions = Pick<ParseOptions, 'maxBytes' | 'maxDepth' | 'unsafeKeys'>;
+export type BackupV3ParseOptions = Pick<ParseOptions, 'maxBytes' | 'maxDepth' | 'unsafeKeys'> & {
+  /** Clock for the far-future stamp clamp (./future-stamps). Default: `new Date()`. */
+  now?: Date;
+};
 
 export interface ParsedBackupV3 {
   backup: BackupV3;
@@ -114,6 +119,7 @@ export function parseBackupV3(input: unknown, opts: BackupV3ParseOptions = {}): 
   assertEnvelope(value);
   const backup = validateSchema(value);
   validateReferences(backup);
+  clampFutureStamps(backup, opts.now ?? new Date(), warnings);
   enforceInvariants(backup, warnings);
   return { backup, warnings };
 }

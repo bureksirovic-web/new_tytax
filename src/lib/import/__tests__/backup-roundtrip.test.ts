@@ -63,7 +63,7 @@ describe('backup round-trip', () => {
     const text = await exportBackupJson(src.repo, src.profileId);
     const dst = freshRepo();
     const total = Object.values(await counts(src.repo)).reduce((a, b) => a + b, 0) - 2; // minus the other profile and its bodyweight
-    expect(await restoreBackupJson(dst.repo, text)).toEqual({ inserted: total, updated: 0, skipped: 0, warnings: [] });
+    expect(await restoreBackupJson(dst.repo, text)).toEqual({ inserted: total, updated: 0, skipped: 0, warnings: [], existingProfileIds: [] });
     expect(await snapshot(dst.repo)).toEqual(original);
     expect(await dst.repo.profiles.getActiveId()).toBeNull();
   });
@@ -75,7 +75,7 @@ describe('backup round-trip', () => {
     const first = await restoreBackupJson(dst.repo, text);
     const after = await snapshot(dst.repo);
     const second = await restoreBackupJson(dst.repo, text);
-    expect(second).toEqual({ inserted: 0, updated: 0, skipped: first.inserted, warnings: [] });
+    expect(second).toEqual({ inserted: 0, updated: 0, skipped: first.inserted, warnings: [], existingProfileIds: (await dst.repo.profiles.list()).map((p) => p.id).sort() });
     expect(await snapshot(dst.repo)).toEqual(after);
     expect(after).toEqual(await snapshot(src.repo));
   });

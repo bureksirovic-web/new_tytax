@@ -6,9 +6,25 @@ import type { SyncAdapter, SyncOperation, SyncOperationType, SyncTable } from '@
 import type { TytaxDatabase } from '../dexie';
 import { wrapStorage } from './errors';
 
+/** One outbox entry for `WriteScope.queueMany`. */
+export interface QueuedOp {
+  table: SyncTable;
+  op: SyncOperationType;
+  recordId: string;
+  profileId: string;
+}
+
 /** Handed to every write; queues outbox rows inside the running transaction. */
 export interface WriteScope {
   queue(table: SyncTable, op: SyncOperationType, recordId: string, profileId: string): Promise<void>;
+  /**
+   * Queues many ops with one IndexedDB request. Use it instead of awaiting
+   * `queue` in a loop with no other IndexedDB work between iterations:
+   * with sync off `queue` makes no request, and Dexie drops the transaction
+   * zone after 100 consecutive non-IndexedDB awaits (ZONE_ECHO_LIMIT), so
+   * IndexedDB auto-commits mid-write (PrematureCommitError, no rollback).
+   */
+  queueMany(ops: readonly QueuedOp[]): Promise<void>;
 }
 
 export interface RepoContext {
@@ -61,20 +77,18 @@ export function createContext(opts: ContextOptions): RepoContext {
     async write<T>(fn: (w: WriteScope) => Promise<T>): Promise<T> {
       const db = opts.db();
       let queued = 0;
+      const toRow = (q: QueuedOp, createdAt: string): SyncOperation => ({ id: opts.newId(), ...q, createdAt, retryCount: 0 });
       const scope: WriteScope = {
         async queue(table, op, recordId, profileId) {
           if (!opts.sync().enabled) return;
-          const row: SyncOperation = {
-            id: opts.newId(),
-            table,
-            op,
-            recordId,
-            profileId,
-            createdAt: opts.now().toISOString(),
-            retryCount: 0,
-          };
-          await db.syncQueue.add(row);
+          await db.syncQueue.add(toRow({ table, op, recordId, profileId }, opts.now().toISOString()));
           queued += 1;
+        },
+        async queueMany(ops) {
+          if (ops.length === 0 || !opts.sync().enabled) return;
+          const createdAt = opts.now().toISOString();
+          await db.syncQueue.bulkAdd(ops.map((q) => toRow(q, createdAt)));
+          queued += ops.length;
         },
       };
       // The scope function must be an `async` function: Dexie only keeps the

@@ -19,8 +19,8 @@ describe('escapeCsvCell: formula injection', () => {
     expect(parseCsv(out)).toEqual([["'=HYPERLINK(\"http://x\")"]]);
   });
 
-  it('neutralizes leading LF and quotes it', () => {
-    expect(escapeCsvCell('\n=1')).toBe('"\'\n=1"');
+  it('neutralizes leading LF and quotes it (the segment after the LF too)', () => {
+    expect(escapeCsvCell('\n=1')).toBe('"\'\n\'=1"');
   });
 
   it('leaves dangerous chars alone when not leading', () => {

@@ -119,7 +119,7 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
       updatedAt: stamp,
     }));
     if (records.length > 0) await ctx.db.prRecords.bulkAdd(records);
-    for (const r of records) await w.queue('pr_records', 'upsert', r.id, profileId);
+    await w.queueMany(records.map((r) => ({ table: 'pr_records' as const, op: 'upsert' as const, recordId: r.id, profileId })));
 
     let advancedProgram: FinishResult['advancedProgram'];
     if (program && program.sessions.length > 0) {

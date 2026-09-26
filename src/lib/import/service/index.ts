@@ -13,7 +13,8 @@
  *   ./legacy.ts (rows, settings, active program) and ./prs.ts (PR recompute).
  *
  * - exportBackupJson(repo, profileId?, { pretty? }) -> Promise<string>
- * - restoreBackupJson(repo, text) -> Promise<{ inserted, updated, skipped, warnings }>
+ * - restoreBackupJson(repo, text) -> Promise<{ inserted, updated, skipped, warnings, existingProfileIds }>
+ * - inspectBackupJson(repo, text): read-only pre-flight naming the profiles a restore would merge into
  *   BackupV3 JSON; restore is one transaction, idempotent by id, last-write-
  *   wins on updatedAt, never switches the active profile.
  *
@@ -22,8 +23,9 @@
  */
 export { previewLegacyImport } from './preview';
 export { importLegacy } from './legacy';
-export { exportBackupJson, restoreBackupJson } from './backup';
+export { exportBackupJson, inspectBackupJson, restoreBackupJson } from './backup';
 export type {
+  BackupInspection,
   ImportCounts,
   ImportLegacyOptions,
   ImportTarget,

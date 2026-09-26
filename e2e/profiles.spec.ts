@@ -51,6 +51,63 @@ async function profileIds(page: Page): Promise<string[]> {
   }, MISSING_REPO);
 }
 
+/** One row in each other owned table (bodyweight, program, note, arsenal, equipment) for `id`. */
+async function seedOwnedRows(page: Page, id: string, tag: string): Promise<void> {
+  await page.evaluate(
+    async ({ id: pid, tag: t, bench, missing }) => {
+      const repo = window.__tytaxRepo;
+      if (repo === undefined) throw new Error(missing);
+      await repo.bodyweight.add(pid, { date: '2026-03-01', valueKg: t === 'A' ? 70 : 90 });
+      await repo.notes.set(pid, bench, `note ${t}`);
+      await repo.arsenal.add(pid, bench);
+      await repo.equipment.save(pid, { kettlebellsKg: [t === 'A' ? 12 : 24] });
+      await repo.programs.create(pid, {
+        name: `Plan ${t}`,
+        splitType: 'custom',
+        frequency: 1,
+        periodizationType: 'none',
+        sessionOrder: ['Day 1'],
+        sessions: [{ id: 's1', programId: 'tpl', name: 'Day 1', dayIndex: 0, exercises: [{ exerciseId: bench, exerciseName: 'Bench', modality: 'tytax', sets: 3, reps: '8' }] }],
+        modalitiesUsed: ['tytax'],
+        isPreset: false,
+        currentSessionIndex: 0,
+      });
+    },
+    { id, tag, bench: BENCH_ID, missing: MISSING_REPO },
+  );
+}
+
+/** Live rows per owned table for `id`, read through the repository. */
+async function ownedCounts(page: Page, id: string): Promise<Record<string, number>> {
+  return page.evaluate(
+    async ({ id: pid, missing }) => {
+      const repo = window.__tytaxRepo;
+      if (repo === undefined) throw new Error(missing);
+      const kettlebells = (await repo.equipment.get(pid)).kettlebellsKg.length;
+      return {
+        logs: await repo.logs.count(pid),
+        bodyweight: (await repo.bodyweight.list(pid)).length,
+        programs: (await repo.programs.list(pid)).length,
+        notes: (await repo.notes.list(pid)).length,
+        arsenal: (await repo.arsenal.list(pid)).length,
+        kettlebells,
+      };
+    },
+    { id, missing: MISSING_REPO },
+  );
+}
+
+/** B's full backup (every owned table), minus the export stamp. */
+async function backupOf(page: Page, id: string): Promise<unknown> {
+  return page.evaluate(
+    async ({ id: pid, missing }) => {
+      if (window.__tytaxRepo === undefined) throw new Error(missing);
+      return { ...(await window.__tytaxRepo.exportBackup(pid)), exportedAt: '' };
+    },
+    { id, missing: MISSING_REPO },
+  );
+}
+
 /** Fresh app with exactly two profiles, A (active) and B, each with its own history. */
 async function seedTwoProfiles(page: Page, tytax: TytaxFixture): Promise<{ a: Profile; b: Profile }> {
   await tytax.gotoApp('/history');
@@ -95,6 +152,13 @@ test('deleting a profile wipes only its data and hands over to the other', async
   expect(await tytax.listLogs(a.id)).toHaveLength(A_SESSIONS.length);
   const bBefore = await tytax.listLogs(b.id);
   expect(bBefore).toHaveLength(B_SESSIONS.length);
+  // Every other owned table too, not only workout logs.
+  await seedOwnedRows(page, a.id, 'A');
+  await seedOwnedRows(page, b.id, 'B');
+  const perTable = { bodyweight: 1, programs: 1, notes: 1, arsenal: 1, kettlebells: 1 };
+  expect(await ownedCounts(page, a.id)).toEqual({ logs: A_SESSIONS.length, ...perTable });
+  expect(await ownedCounts(page, b.id)).toEqual({ logs: B_SESSIONS.length, ...perTable });
+  const bBackup = await backupOf(page, b.id);
 
   await removeProfile(page, a.id);
   await page.reload();
@@ -106,8 +170,11 @@ test('deleting a profile wipes only its data and hands over to the other', async
   expect(bAfter.map((l) => [l.id, l.sessionName, l.totalVolumeKg])).toEqual(
     bBefore.map((l) => [l.id, l.sessionName, l.totalVolumeKg]),
   );
-  // 0: A's logs are gone with it.
+  // 0: A's logs are gone with it, and so is every other row A owned.
   expect(await tytax.listLogs(a.id)).toHaveLength(0);
+  expect(await ownedCounts(page, a.id)).toEqual({ logs: 0, bodyweight: 0, programs: 0, notes: 0, arsenal: 0, kettlebells: 0 });
+  // B's rows in every table are byte-for-byte what they were.
+  expect(await backupOf(page, b.id)).toEqual(bBackup);
   expect(await profileIds(page)).toEqual([b.id]);
   // A was active; B is the only profile left, so it becomes active.
   expect((await tytax.snapshot()).activeProfileId).toBe(b.id);

@@ -3,6 +3,7 @@ import { mapLegacyUser } from '../map';
 import type { LegacyNameResolver, MapWarning } from '../map/types';
 import { parseLegacyBackup } from '../parse-legacy';
 import type { ImportWarning } from '../types';
+import { capUnresolved, capWarnings } from './cap';
 import type { LegacyImportPreview, PreviewOptions, ServiceWarning } from './types';
 
 /** Profile id the preview maps under; never written anywhere. */
@@ -39,9 +40,10 @@ export async function previewLegacyImport(input: unknown, opts: PreviewOptions =
       sets: mapped.logs.reduce((n, l) => n + l.exercises.reduce((m, e) => m + e.sets.length, 0), 0),
       bodyweight: mapped.bodyweight.length,
       programs: mapped.programs.length,
-      unresolved: mapped.unresolved,
-      warnings: tagWarnings(mapped.warnings, user.username),
+      unresolved: capUnresolved(mapped.unresolved),
+      unresolvedCount: mapped.unresolved.length,
+      warnings: capWarnings(tagWarnings(mapped.warnings, user.username)),
     };
   });
-  return { format: bundle.format, users, warnings: tagWarnings(bundle.warnings) };
+  return { format: bundle.format, users, warnings: capWarnings(tagWarnings(bundle.warnings)) };
 }

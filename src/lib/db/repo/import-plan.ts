@@ -13,10 +13,14 @@
  * - A row id existing under ANOTHER profile is CONFLICT; `activeProgramId`
  *   must name a program of the same profile (backup or DB); duplicate ids in
  *   one table are VALIDATION.
+ * - Notes and arsenal keep one live row per (profileId, exerciseId) even when
+ *   backup and local ids differ (./natural-key): the losing row is written as
+ *   a tombstone under its own id and counted like any other written row.
  */
 import { RepoError, type BackupV3 } from '@/contracts/repo';
 import type { SyncTable } from '@/contracts/sync';
 import type { RepoContext } from './context';
+import { resolveKeyed } from './natural-key';
 import { dataTable, isDataRow, isObject, sameRow, timeOf, type DataRow, type DataTableName } from './tables';
 
 type BackupKey = Exclude<keyof BackupV3, 'format' | 'version' | 'exportedAt'>;
@@ -91,6 +95,11 @@ async function planTable(ctx: RepoContext, key: BackupKey, name: DataTableName, 
     if (!local) plan.inserted += 1;
     plan.write.push(row);
   });
+  for (const tomb of await resolveKeyed(ctx, name, plan.write)) {
+    const at = plan.write.findIndex((r) => r.id === tomb.id);
+    if (at >= 0) plan.write[at] = tomb;
+    else plan.write.push(tomb);
+  }
   return plan;
 }
 

@@ -12,7 +12,7 @@ import type { BackupV3, Repository } from '@/contracts';
 import { backupV3Schema, formatIssuePath, parseBackupV3, serializeBackupV3, validateReferences } from '../backup-v3';
 import type { BackupV3ParseOptions } from '../backup-v3';
 import { ImportError } from '../errors';
-import type { RestoreResult } from './types';
+import type { BackupInspection, RestoreResult } from './types';
 
 export async function exportBackupJson(repo: Repository, profileId?: string, opts: { pretty?: boolean } = {}): Promise<string> {
   return serializeBackupV3(await repo.exportBackup(profileId), opts);
@@ -37,8 +37,29 @@ function rowCount(b: BackupV3): number {
  */
 export async function restoreBackupJson(repo: Repository, text: string, opts: BackupV3ParseOptions = {}): Promise<RestoreResult> {
   const { backup, warnings } = parseBackupV3(text, opts);
+  const existingProfileIds = await existingIds(repo, backup);
   const { inserted, updated } = await repo.importBackup(backup);
-  return { inserted, updated, skipped: rowCount(backup) - inserted - updated, warnings };
+  return { inserted, updated, skipped: rowCount(backup) - inserted - updated, warnings, existingProfileIds };
+}
+
+async function existingIds(repo: Repository, backup: BackupV3): Promise<string[]> {
+  const ids: string[] = [];
+  for (const p of backup.profiles) if ((await repo.profiles.get(p.id)) !== undefined) ids.push(p.id);
+  return ids;
+}
+
+/**
+ * Read-only pre-flight for the restore UI: parses the file (same checks and
+ * repairs as restoreBackupJson) and names the profiles it contains, flagging
+ * the ones that already exist on this device. A restore merges into those
+ * (LWW), so the UI should confirm before rewriting another family member's
+ * profile. Writes nothing.
+ */
+export async function inspectBackupJson(repo: Repository, text: string, opts: BackupV3ParseOptions = {}): Promise<BackupInspection> {
+  const { backup, warnings } = parseBackupV3(text, opts);
+  const existing = new Set(await existingIds(repo, backup));
+  const profiles = backup.profiles.map((p) => ({ id: p.id, name: p.name, existsLocally: existing.has(p.id) }));
+  return { profiles, rows: rowCount(backup), warnings };
 }
 
 /**

@@ -9,11 +9,17 @@
  *   between profiles; importBackup calls the same case CONFLICT);
  * - the local row is newer, or equally new — except that on an exact tie a
  *   remote tombstone beats a live local row, so deletions converge.
+ * Notes and arsenal also keep one live row per (profileId, exerciseId)
+ * across ids (./natural-key): an applied remote row that loses the key
+ * contest is stored as a tombstone, a local loser is tombstoned in place.
+ * Those tombstones are not queued either: every device derives the same
+ * bytes from the same pair, and a pending local upsert pushes the tombstone.
  */
 import { RepoError } from '@/contracts/repo';
 import type { ApplyRemoteResult, SyncTable } from '@/contracts/sync';
 import { SYNC_TABLES } from '@/contracts/sync';
 import type { RepoContext } from './context';
+import { resolveKeyed } from './natural-key';
 import { SYNC_TO_DEXIE, dataTable, isDataRow, timeOf, type DataRow } from './tables';
 
 const hasString = (row: DataRow, key: string): boolean => typeof row[key] === 'string' && row[key] !== '';
@@ -51,7 +57,9 @@ export async function applyRemote(ctx: RepoContext, table: SyncTable, records: r
         skipped += 1;
         continue;
       }
-      await target.put(remote);
+      const tombs = await resolveKeyed(ctx, SYNC_TO_DEXIE[table], [remote]);
+      await target.put(tombs.find((t) => t.id === remote.id) ?? remote);
+      for (const t of tombs) if (t.id !== remote.id) await target.put(t);
       applied += 1;
     }
     return { applied, skipped };

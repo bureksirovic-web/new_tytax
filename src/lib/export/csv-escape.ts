@@ -17,8 +17,16 @@
  *   cannot tell "-2.5" from "-2+5" safely without a full formula grammar.
  * - Non-finite numbers (NaN, ±Infinity) are exported as empty cells.
  * - After neutralisation, RFC 4180 quoting: the cell is wrapped in double
- *   quotes when it contains a comma, double quote, CR or LF; inner double
- *   quotes are doubled.
+ *   quotes when it contains a comma, semicolon, TAB, double quote, CR or LF;
+ *   inner double quotes are doubled. ';' and TAB matter because Excel in
+ *   hr-HR / de-DE / fr-FR splits a double-clicked .csv on ';': unquoted,
+ *   "Bench;=cmd|..." would open a new cell starting with '=' that the
+ *   leading-character check never saw.
+ * - Quoting alone is not enough: Excel only honours a quote at the START of a
+ *   field, and in a ';' locale a comma-joined row's quoted cell sits mid-field
+ *   (`2026-03-02,60,"Bench;=cmd…`). So inside untrusted text every segment
+ *   that follows ';', TAB, CR or LF and starts with a dangerous character
+ *   gets the same "'" prefix as a dangerous leading character.
  * - null / undefined become an empty cell.
  * - Objects are JSON-encoded (bigint as its decimal string); anything that
  *   cannot be encoded (circular, throwing toJSON) becomes an empty cell, so a
@@ -27,9 +35,16 @@
 
 const DANGEROUS_LEADING = new Set(['=', '+', '-', '@', '\t', '\r', '\n', '＝', '＋', '－', '＠']);
 
-const NEEDS_QUOTING = /[",\r\n]/;
+const NEEDS_QUOTING = /[",;\t\r\n]/;
 
 const LEADING_C0_CONTROL = /^[\u0000-\u001F]/;
+
+/**
+ * A ';' / TAB / CR / LF directly followed by a character that could start a
+ * formula (C0 controls too, minus TAB/CR/LF, which are handled as separators
+ * themselves so "\r\n" stays intact).
+ */
+const DANGEROUS_AFTER_SEPARATOR = /([;\t\r\n])(?=[=+\-@＝＋－＠\u0000-\u0008\u000B\u000C\u000E-\u001F])/g;
 
 function bigintSafe(_key: string, v: unknown): unknown {
   return typeof v === 'bigint' ? v.toString() : v;
@@ -72,6 +87,8 @@ export function isDangerousCellText(text: string): boolean {
 /** Escape one value into a safe, RFC 4180-quoted CSV cell. */
 export function escapeCsvCell(value: unknown): string {
   const { text, trustedNumber } = toCellText(value);
-  const safe = !trustedNumber && isDangerousCellText(text) ? `'${text}` : text;
+  const safe = trustedNumber
+    ? text
+    : (isDangerousCellText(text) ? `'${text}` : text).replace(DANGEROUS_AFTER_SEPARATOR, "$1'");
   return NEEDS_QUOTING.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
