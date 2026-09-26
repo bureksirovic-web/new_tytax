@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useId, useRef } from 'react';
+import { useLocale } from '@/components/providers';
+import { useDialog } from './use-dialog';
 
 interface BottomSheetProps {
   open: boolean;
@@ -7,41 +9,15 @@ interface BottomSheetProps {
   title?: string;
   children: React.ReactNode;
   snapPoints?: ('half' | 'full')[];
+  /** Accessible name when no visible title is rendered. */
+  ariaLabel?: string;
 }
 
-export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
+export function BottomSheet({ open, onClose, title, children, ariaLabel }: BottomSheetProps) {
+  const { t } = useLocale();
   const sheetRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = '';
-    };
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    const focusable = sheet.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    first?.focus();
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
-      }
-    };
-    sheet.addEventListener('keydown', handleTab);
-    return () => sheet.removeEventListener('keydown', handleTab);
-  }, [open]);
+  const titleId = useId();
+  useDialog(open, onClose, sheetRef);
 
   if (!open) return null;
 
@@ -50,28 +26,30 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         ref={sheetRef}
-        className="relative w-full md:max-w-lg rounded-t-2xl md:rounded-xl border-t md:border shadow-2xl max-h-[90dvh] flex flex-col"
-        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : ariaLabel}
+        tabIndex={-1}
+        className="relative flex max-h-[90dvh] w-full flex-col rounded-t-2xl border-t border-line bg-card shadow-2xl focus:outline-none md:max-w-lg md:rounded-xl md:border"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border-color)' }}>
-          <div className="w-10 h-1 bg-gunmetal-600 rounded-full md:hidden mx-auto absolute top-2 left-1/2 -translate-x-1/2" />
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-line px-4 py-3">
+          <div className="absolute left-1/2 top-2 mx-auto h-1 w-10 -translate-x-1/2 rounded-full bg-gunmetal-600 md:hidden" aria-hidden="true" />
           {title ? (
-            <h2 className="text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--highlight)', fontFamily: 'var(--font-display)' }}>
+            <h2 id={titleId} className="font-display text-sm font-semibold uppercase tracking-widest text-highlight">
               {title}
             </h2>
           ) : <div />}
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gunmetal-700 ml-auto"
-            style={{ color: 'var(--text-muted)' }}
-            aria-label="Close"
+            className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-lg text-fg-muted hover:bg-gunmetal-700 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
+            aria-label={t('close')}
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         </div>
-        <div className="overflow-y-auto p-4 flex-1">{children}</div>
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );
