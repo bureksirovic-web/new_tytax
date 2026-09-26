@@ -32,10 +32,26 @@ function addInto(target: Map<string, number>, src: ReadonlyMap<string, number>):
 }
 
 /**
+ * Weeks of training history at `nowMs`: min(4, floor(age / 7 d) + 1), where
+ * age = time since the earliest load-bearing session. Same week (age < 7 d)
+ * → 1; a session exactly 7 d ago → 2; 22 d → 4 (floor 3 + 1). No history → 1.
+ */
+export function historyWeeks(nowMs: number, earliestMs: number): number {
+  if (!Number.isFinite(earliestMs) || earliestMs > nowMs) return 1;
+  return Math.min(4, Math.floor((nowMs - earliestMs) / (7 * DAY_MS)) + 1);
+}
+
+/**
  * Acute:chronic workload per muscle. Load = Σ score/100 over done working
  * sets (see `impactDistribution`), placed at the log's end time.
- * acute = load in (now − 7 d, now]; chronic = load in (now − 28 d, now] / 4
- * (mean weekly load); ratio = acute / chronic (0 when chronic is 0).
+ * acute = load in (now − 7 d, now]; chronic = load in (now − 28 d, now] / W
+ * (mean weekly load), where W = `historyWeeks` = min(4, floor((now −
+ * earliest) / 7 d) + 1) and earliest = end time of the first live log at or
+ * before now that carried load (≥ 1 done working set of an exercise with
+ * impact; an empty or warm-up-only log does not extend history). A new user
+ * is therefore compared with the weeks they actually trained, not with an
+ * empty month (one session → ratio 1, not 4). ratio = acute / chronic (0
+ * when chronic is 0).
  * Only muscles with load in the last 28 days are listed, sorted by acute
  * load desc, then name.
  */
@@ -44,19 +60,30 @@ export const acwr: AcwrFn = (logs, lookup, now) => {
   const acute = new Map<string, number>();
   const previous = new Map<string, number>();
   const chronicSum = new Map<string, number>();
+  let earliest = Infinity;
   for (const log of liveLogs(logs)) {
     const t = logTime(log);
-    if (Number.isNaN(t) || t > nowMs || t <= nowMs - 28 * DAY_MS) continue;
+    if (Number.isNaN(t) || t > nowMs) continue;
+    const inWindow = t > nowMs - 28 * DAY_MS;
+    // Older logs matter only as the start of history; skip their load when they cannot move it.
+    if (!inWindow && t >= earliest) continue;
     const perLog = addLogLoad(log, lookup, new Map());
+    if (perLog.size === 0) continue;
+    if (t < earliest) earliest = t;
+    if (!inWindow) continue;
     addInto(chronicSum, perLog);
     if (t > nowMs - 7 * DAY_MS) addInto(acute, perLog);
     else if (t > nowMs - 14 * DAY_MS) addInto(previous, perLog);
   }
+  const weeks = historyWeeks(nowMs, earliest);
   const out: ACWRResult[] = [];
   for (const [muscle, sum] of chronicSum) {
-    const acuteLoad = clean(acute.get(muscle) ?? 0);
-    const chronicLoad = clean(sum / 4);
-    const ratio = chronicLoad > 0 ? clean(acuteLoad / chronicLoad) : 0;
+    const acuteRaw = acute.get(muscle) ?? 0;
+    const chronicRaw = sum / weeks;
+    const acuteLoad = clean(acuteRaw);
+    const chronicLoad = clean(chronicRaw);
+    // Ratio from the unrounded loads, so an exact 1.5 is not reported as 1.499999.
+    const ratio = chronicRaw > 0 ? clean(acuteRaw / chronicRaw) : 0;
     out.push({
       muscle,
       acuteLoad,

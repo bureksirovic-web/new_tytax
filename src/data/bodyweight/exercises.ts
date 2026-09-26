@@ -300,6 +300,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '20-60s',
+    measure: 'time',
     impact: [
       { muscle: 'Lats', score: 40 },
       { muscle: 'Forearms', score: 60 },
@@ -320,6 +321,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '10-30s',
+    measure: 'time',
     impact: [
       { muscle: 'Lats', score: 55 },
       { muscle: 'Mid/Lower Traps', score: 50 },
@@ -518,6 +520,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '10-30s',
+    measure: 'time',
     impact: [
       { muscle: 'Triceps', score: 55 },
       { muscle: 'Core', score: 50 },
@@ -865,6 +868,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '20-45s',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 85 },
       { muscle: 'Hip Flexors', score: 60 },
@@ -970,6 +974,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '5-20s',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 88 },
       { muscle: 'Hip Flexors', score: 90 },
@@ -1017,6 +1022,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '30-60s',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 78 },
       { muscle: 'Spinal Erectors', score: 40 },
@@ -1036,6 +1042,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 3,
     defaultReps: '20-45s',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 85 },
       { muscle: 'Spinal Erectors', score: 45 },
@@ -1237,6 +1244,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '20-45s/side',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 80 },
       { muscle: 'Glutes', score: 45 },
@@ -1256,6 +1264,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '15-30s/side',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 82 },
       { muscle: 'Adductors', score: 88 },
@@ -1489,6 +1498,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '5-15s/side',
+    measure: 'time',
     impact: [
       { muscle: 'Forearms', score: 95 },
       { muscle: 'Lats', score: 55 },
@@ -1599,6 +1609,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 2,
     defaultReps: '30-60s/side',
+    measure: 'time',
     impact: [
       { muscle: 'Glutes', score: 50 },
       { muscle: 'Hip Flexors', score: 55 },
@@ -1666,6 +1677,7 @@ export const BODYWEIGHT_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '20-30s/side',
+    measure: 'time',
     impact: [
       { muscle: 'Core', score: 82 },
       { muscle: 'Glutes', score: 35 },

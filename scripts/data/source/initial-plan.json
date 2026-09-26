@@ -1,0 +1,59 @@
+{
+  "INITIAL_PLAN": {
+    "Upper A": [
+      "TYTAX T1 | Smith Flat Bench Press",
+      "TYTAX T1 | Upper Pulley Wide-Grip Lat Pulldown",
+      "TYTAX T1 | Lower Pulley Seated Cable Row (bench)",
+      "TYTAX T1 | Smith Seated Shoulder Press",
+      "TYTAX T1 | Lower Pulley Seated Cable Curl (bench)",
+      "TYTAX T1 | Upper Pulley Triceps Pushdown (straight bar)"
+    ],
+    "Lower A": [
+      "TYTAX T1 | Smith Back Squat",
+      "TYTAX T1 | Smith Romanian Deadlift (RDL)",
+      "TYTAX T1 | Smith Hip Thrust",
+      "TYTAX T1 | Smith Standing Calf Raise",
+      "TYTAX T1 | Upper Pulley Kneeling Cable Crunch"
+    ],
+    "Upper B": [
+      "TYTAX T1 | Smith Incline Bench Press",
+      "TYTAX T1 | Upper Pulley Close-Grip Lat Pulldown",
+      "TYTAX T1 | Lower Pulley Wide-Grip Seated Cable Row",
+      "TYTAX T1 | Smith Standing Overhead Press",
+      "TYTAX T1 | Upper Pulley High Cable Curl (D-handles)",
+      "TYTAX T1 | Upper Pulley Rope Triceps Pushdown"
+    ],
+    "Lower B": [
+      "TYTAX T1 | Smith Lying Leg Press (bench setup)",
+      "TYTAX T1 | Smith Stiff-Leg Deadlift",
+      "TYTAX T1 | Smith Glute Bridge",
+      "TYTAX T1 | Smith Seated Calf Raise (bench setup)",
+      "TYTAX T1 | Upper Pulley High-to-Low Woodchop"
+    ],
+    "Upper C": [
+      "TYTAX T1 | Smith Decline Bench Press",
+      "TYTAX T1 | Upper Pulley Underhand Lat Pulldown",
+      "TYTAX T1 | Lower Pulley Single-Arm Seated Cable Row",
+      "TYTAX T1 | Lower Pulley Single-Arm Lateral Raise",
+      "TYTAX T1 | Lower Pulley Standing Cable Curl (straight bar)",
+      "TYTAX T1 | Upper Pulley Single-Arm Triceps Pushdown"
+    ],
+    "Lower C": [
+      "TYTAX T1 | Smith Bulgarian Split Squat",
+      "TYTAX T1 | Smith Single-Leg RDL",
+      "TYTAX T1 | Lower Pulley Cable Glute Kickback (ankle strap)",
+      "TYTAX T1 | Smith Single-Leg Standing Calf Raise",
+      "TYTAX T1 | Upper Pulley Standing Cable Crunch"
+    ],
+    "Rest Day": []
+  },
+  "INITIAL_ORDER": [
+    "Upper A",
+    "Lower A",
+    "Upper B",
+    "Lower B",
+    "Upper C",
+    "Lower C",
+    "Rest Day"
+  ]
+}

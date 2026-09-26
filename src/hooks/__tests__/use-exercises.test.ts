@@ -18,8 +18,8 @@ describe('useExercises', () => {
     const { result } = renderHook(() => useExercises({ modality: 'kettlebell' }));
     expect(result.current.exercises).toHaveLength(0);
     await waitFor(() => expect(result.current.loading).toBe(false));
-    // 1420 + 82 + 75 = 1577 across all chunks
-    expect(result.current.totalCount).toBe(1577);
+    // 1409 + 82 + 75 = 1566 across all chunks (1409 = 1436 source − 27 promo/delivery videos)
+    expect(result.current.totalCount).toBe(1566);
     expect(result.current.exercises).toHaveLength(75);
 
     act(() => result.current.setFilter({ query: 'two-hand swing' }));

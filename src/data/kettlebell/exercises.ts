@@ -1255,6 +1255,7 @@ export const KB_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '40s',
+    measure: 'time',
     impact: [
       { muscle: 'core', score: 80 },
       { muscle: 'obliques', score: 75 },
@@ -1317,6 +1318,7 @@ export const KB_EXERCISES: Exercise[] = [
     isUnilateral: false,
     defaultSets: 4,
     defaultReps: '40s',
+    measure: 'time',
     impact: [
       { muscle: 'forearms', score: 85 },
       { muscle: 'traps', score: 80 },
@@ -1337,6 +1339,7 @@ export const KB_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '40s',
+    measure: 'time',
     impact: [
       { muscle: 'core', score: 85 },
       { muscle: 'obliques', score: 82 },
@@ -1357,6 +1360,7 @@ export const KB_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '40s',
+    measure: 'time',
     impact: [
       { muscle: 'core', score: 80 },
       { muscle: 'shoulders', score: 65 },
@@ -1377,6 +1381,7 @@ export const KB_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '40s',
+    measure: 'time',
     impact: [
       { muscle: 'shoulders', score: 85 },
       { muscle: 'rotator cuff', score: 80 },
@@ -1397,6 +1402,7 @@ export const KB_EXERCISES: Exercise[] = [
     isUnilateral: true,
     defaultSets: 3,
     defaultReps: '40s',
+    measure: 'time',
     impact: [
       { muscle: 'core', score: 85 },
       { muscle: 'obliques', score: 80 },

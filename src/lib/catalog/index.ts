@@ -13,23 +13,17 @@ import {
   type CatalogQuery,
 } from '@/contracts/exercise-catalog';
 import { TYTAX_STATIONS } from '@/data/tytax/stations';
-import { CABLE_ATTACHMENTS_DATA } from '@/data/tytax/attachments';
-import { chunkForId, loadChunk, resetChunkCacheForTests } from './chunks';
+import { TYTAX_ATTACHMENTS } from '@/data/tytax/attachments';
+import { chunkForId, loadChunk, loadLegacyNames, resetChunkCacheForTests } from './chunks';
 import { filterExercises } from './query';
 
 export { normalizeText } from './query';
+export { buildVideoLinks, primaryVideoLink, type VideoLink, type VideoLinkKind } from './video-links';
 export type { Catalog, CatalogApi, CatalogChunkId, CatalogQuery } from '@/contracts/exercise-catalog';
 
-/**
- * Stations/attachments mapped from the current hand-written TYTAX data.
- * A later phase regenerates them from `tytax_library.json`.
- */
-const STATIONS: readonly Station[] = Object.freeze(
-  TYTAX_STATIONS.map((s) => ({ id: s.id, name: s.name, notes: s.description })),
-);
-const ATTACHMENTS: readonly AttachmentDef[] = Object.freeze(
-  CABLE_ATTACHMENTS_DATA.map((a) => ({ id: a.id, name: a.name, why: a.description })),
-);
+/** Stations/attachments generated from `tytax_library.json` by `npm run catalog:build` (small; no exercise data). */
+const STATIONS: readonly Station[] = TYTAX_STATIONS;
+const ATTACHMENTS: readonly AttachmentDef[] = TYTAX_ATTACHMENTS;
 const STATION_NAME_BY_ID: ReadonlyMap<string, string> = new Map(STATIONS.map((s) => [s.id, s.name]));
 
 /** Chunks in canonical order, deduplicated. `undefined` → all. */
@@ -39,21 +33,47 @@ function canonicalChunks(chunks?: readonly CatalogChunkId[]): CatalogChunkId[] {
   return CATALOG_CHUNKS.filter((c) => want.has(c));
 }
 
-function buildCatalog(chunks: readonly CatalogChunkId[], parts: ReadonlyArray<readonly Exercise[]>): Catalog {
+/** The original app's `cleanName`: drops the "TYTAX T1 |" style prefix. */
+function cleanLegacy(name: string): string {
+  return name
+    .replace(/TYTAX(Â®|®)?\s*(T1|T1-X|T3-X|T1-M)(-\d+)?\s*\|\s*/gi, '')
+    .replace(/Instruction\s*\|\s*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function buildCatalog(
+  chunks: readonly CatalogChunkId[],
+  parts: ReadonlyArray<readonly Exercise[]>,
+  legacyNames: Readonly<Record<string, string>>,
+): Catalog {
   const exercises: readonly Exercise[] = Object.freeze(parts.flat());
   const byId = new Map<string, Exercise>();
   const byLegacy = new Map<string, Exercise>();
+  const addLegacy = (key: string | undefined, e: Exercise) => {
+    if (!key) return;
+    for (const k of [key.toLowerCase(), cleanLegacy(key)]) if (k && !byLegacy.has(k)) byLegacy.set(k, e);
+  };
   for (const e of exercises) {
     if (!byId.has(e.id)) byId.set(e.id, e);
-    const key = (e.legacyName ?? e.name).toLowerCase();
-    if (!byLegacy.has(key)) byLegacy.set(key, e);
+  }
+  // Legacy logs use either the master-list form ("TYTAX T1 | X") or the plain name.
+  for (const e of exercises) {
+    addLegacy(e.legacyName, e);
+    addLegacy(e.name, e);
+  }
+  // Generated map: every source name, display-name overrides and reviewed aliases.
+  for (const [name, id] of Object.entries(legacyNames)) {
+    const e = byId.get(id);
+    if (e) addLegacy(name, e);
   }
   const hasTytax = chunks.includes('tytax');
   return Object.freeze({
     chunks: Object.freeze([...chunks]),
     exercises,
     getById: (id: string) => byId.get(id),
-    getByLegacyName: (name: string) => byLegacy.get(name.toLowerCase()),
+    getByLegacyName: (name: string) => byLegacy.get(name.toLowerCase()) ?? byLegacy.get(cleanLegacy(name)),
     stations: hasTytax ? STATIONS : [],
     attachments: hasTytax ? ATTACHMENTS : [],
   });
@@ -67,7 +87,8 @@ export function loadCatalog(chunks?: readonly CatalogChunkId[]): Promise<Catalog
   const key = list.join('+');
   const cached = catalogPromises.get(key);
   if (cached) return cached;
-  const p = Promise.all(list.map((c) => loadChunk(c))).then((parts) => buildCatalog(list, parts));
+  const names = list.includes('tytax') ? loadLegacyNames() : Promise.resolve({});
+  const p = Promise.all([Promise.all(list.map((c) => loadChunk(c))), names]).then(([parts, legacy]) => buildCatalog(list, parts, legacy));
   catalogPromises.set(key, p);
   p.catch(() => {
     if (catalogPromises.get(key) === p) catalogPromises.delete(key);

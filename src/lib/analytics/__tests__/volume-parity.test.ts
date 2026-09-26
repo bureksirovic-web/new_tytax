@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Exercise } from '@/contracts/domain';
 import type { ExerciseLookup } from '@/contracts/training';
-import { computeVolumeParity, getParityLabel, patternOf } from '../volume-parity';
+import { computeVolumeParity, getParityLabel, movementOf, patternOf } from '../volume-parity';
 import { daysBefore, makeLog, type FixtureExercise } from './fixtures';
 
 const NOW = new Date(2026, 8, 20, 12, 0, 0);
@@ -79,6 +79,62 @@ describe('computeVolumeParity', () => {
     expect(patternOf('ex-carry', lookup)).toBe('carry');
     expect(patternOf('ex-core', lookup)).toBe('core');
     expect(patternOf('nope', lookup)).toBe('other');
+  });
+});
+
+describe('movementOf: exercise names refine coarse catalog patterns', () => {
+  it('Shoulders: shrugs and assisted pull-ups are pull', () => {
+    expect(movementOf('Shoulders', 'Standing Smith Shrug')).toBe('pull');
+    expect(movementOf('Shoulders', 'Lying Sled Assisted Pull Up')).toBe('pull');
+    expect(movementOf('Shoulders', 'Standing Cable Upright Row')).toBe('pull');
+    // no name rule matches → pattern rule "shoulders" → push
+    expect(movementOf('Shoulders', 'Seated Overhead Fly')).toBe('push');
+  });
+
+  it('Quads: leg curls and deadlifts are hinge; squats stay quad', () => {
+    expect(movementOf('Quads', 'Lying Leg Curl')).toBe('hinge');
+    expect(movementOf('Quads', 'Smith Deadlift')).toBe('hinge');
+    expect(movementOf('Quads', 'Smith Machine Good Morning')).toBe('hinge');
+    expect(movementOf('Quads', 'Lying Sled Hip Thrust')).toBe('hinge');
+    expect(movementOf('Quads', 'Sled Rear Kick')).toBe('hinge');
+    expect(movementOf('Core', 'Sissy Squat')).toBe('quad');
+  });
+
+  it('Chest: cable curls and rows are pull', () => {
+    expect(movementOf('Chest', 'Standing Cable Curl (Stirrups)')).toBe('pull');
+    expect(movementOf('Chest', 'Cross Cable Row')).toBe('pull');
+    // "Cable Pushdown Lower Chest": pushdown is not pulldown → pattern rule "chest" → push
+    expect(movementOf('Chest', 'Cable Pushdown Lower Chest')).toBe('push');
+  });
+
+  it('Kickback: triceps kickbacks are push, glute kickbacks hinge', () => {
+    expect(movementOf('Kickback', 'Lower Pulley Single-Arm Triceps Kickback')).toBe('push');
+    expect(movementOf('Kickback', 'Smith Glute Kickback')).toBe('hinge');
+    expect(movementOf('Kickback', 'Prone Cable Kickback')).toBe('hinge');
+  });
+
+  it('wrist work is other whichever wrist pattern it carries', () => {
+    expect(movementOf('Wrist Extension', 'Seated Wrist Extension')).toBe('other');
+    expect(movementOf('Wrist Extension', 'Lower Pulley Reverse Wrist Curl (straight bar)')).toBe('other');
+    expect(movementOf('Wrist Flexion', 'Lower Pulley Wrist Curl (straight bar)')).toBe('other');
+  });
+
+  it('names are ignored for specific patterns and optional', () => {
+    // 'Horizontal Pull' is not a coarse bucket → pattern rule → pull, whatever the name says
+    expect(movementOf('Horizontal Pull', 'Triceps Squat')).toBe('pull');
+    // no name → pattern rules only: "shoulders" → push, "quads" → quad
+    expect(movementOf('Shoulders')).toBe('push');
+    expect(movementOf('Quads')).toBe('quad');
+  });
+
+  it('patternOf passes the catalog name', () => {
+    const named: ExerciseLookup = (id) =>
+      id === 'shrug' ? ({ id, name: 'Standing Smith Shrug', pattern: 'Shoulders' } as Pick<Exercise, 'id' | 'name' | 'pattern'> as Exercise) : undefined;
+    expect(patternOf('shrug', named)).toBe('pull');
+    const results = computeVolumeParity([makeLog(TODAY, [{ id: 'shrug', sets: tenByHundred }])], 30, { now: NOW, lookup: named });
+    // 100×10 = 1000 kg of shrugs → all pull (100 %), none push
+    expect(results.find((r) => r.pattern === 'pull')?.percentage).toBe(100);
+    expect(results.find((r) => r.pattern === 'push')?.volume).toBe(0);
   });
 });
 

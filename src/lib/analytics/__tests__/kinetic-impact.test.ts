@@ -62,4 +62,12 @@ describe('computeKineticImpact', () => {
     expect(r.score).toBeGreaterThanOrEqual(0);
     expect(r.score).toBeLessThanOrEqual(100);
   });
+
+  it('returns an i18n explanation key matching the label', () => {
+    // no logs → the no-data key
+    expect(computeKineticImpact([], 28, { now: NOW, lookup }).explanationKey).toBe('ki_no_data');
+    const r = computeKineticImpact(null, 28, { now: NOW, lookup });
+    expect(r.explanationKey).toBe('ki_no_data');
+    expect(r.label).toBe('poor');
+  });
 });

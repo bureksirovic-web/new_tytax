@@ -14,8 +14,13 @@ export interface KineticImpactScore {
     consistencyScore: number; // 0-20 pts: training frequency
     volumeScore: number;    // 0-20 pts: weekly volume vs personal average
   };
+  /** i18n key for the explanation (G4-31 / spec N5): the UI translates it. */
+  explanationKey: KineticExplanationKey;
+  /** @deprecated English text kept for older callers; use `explanationKey`. */
   explanation: string;
 }
+
+export type KineticExplanationKey = 'ki_no_data' | 'ki_no_recent' | 'ki_excellent' | 'ki_good' | 'ki_fair' | 'ki_poor';
 
 export function computeKineticImpact(
   allLogs: readonly WorkoutLog[] | null | undefined,
@@ -34,6 +39,7 @@ export function computeKineticImpact(
         consistencyScore: 0,
         volumeScore: 0
       },
+      explanationKey: 'ki_no_data',
       explanation: 'No workout data available to calculate a score.'
     };
   }
@@ -52,6 +58,7 @@ export function computeKineticImpact(
         consistencyScore: 0,
         volumeScore: 0
       },
+      explanationKey: 'ki_no_recent',
       explanation: 'No recent workout data to calculate a score.'
     };
   }
@@ -166,6 +173,7 @@ export function computeKineticImpact(
       consistencyScore: Math.round(consistencyScore),
       volumeScore: Math.round(volumeScore)
     },
+    explanationKey: `ki_${label}`,
     explanation
   };
 }
