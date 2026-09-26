@@ -114,4 +114,10 @@ describe('acwr', () => {
     ]);
     expect(acwr([], lookup, NOW)).toEqual([]);
   });
+
+  it('an exact ratio of 1.5 is reported as 1.5 (ratio from unrounded loads)', () => {
+    // acute 1 (1 set, 1 d ago); earliest log 15 d ago → floor(15/7)+1 = 3 weeks; chronic (1+1)/3 = 0.6667;
+    // ratio 1/(2/3) = 1.5 exactly → not > 1.5 → recovering (rounding chronic first gave 1.499999)
+    expect(biceps([curls(1, 1), curls(15, 1)])).toMatchObject({ ratio: 1.5, status: 'recovering' });
+  });
 });

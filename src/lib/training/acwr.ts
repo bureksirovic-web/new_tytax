@@ -78,9 +78,12 @@ export const acwr: AcwrFn = (logs, lookup, now) => {
   const weeks = historyWeeks(nowMs, earliest);
   const out: ACWRResult[] = [];
   for (const [muscle, sum] of chronicSum) {
-    const acuteLoad = clean(acute.get(muscle) ?? 0);
-    const chronicLoad = clean(sum / weeks);
-    const ratio = chronicLoad > 0 ? clean(acuteLoad / chronicLoad) : 0;
+    const acuteRaw = acute.get(muscle) ?? 0;
+    const chronicRaw = sum / weeks;
+    const acuteLoad = clean(acuteRaw);
+    const chronicLoad = clean(chronicRaw);
+    // Ratio from the unrounded loads, so an exact 1.5 is not reported as 1.499999.
+    const ratio = chronicRaw > 0 ? clean(acuteRaw / chronicRaw) : 0;
     out.push({
       muscle,
       acuteLoad,

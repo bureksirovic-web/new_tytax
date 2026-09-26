@@ -89,7 +89,8 @@ function blankSet(kg: number): SetEntry {
  * progression hint beyond the source log.
  */
 export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, opts) => {
-  const requested = opts?.targetSets !== undefined ? Math.max(1, Math.floor(opts.targetSets)) : undefined;
+  // A non-finite targetSets (NaN, Infinity) is treated as not given.
+  const requested = opts?.targetSets !== undefined && Number.isFinite(opts.targetSets) ? Math.max(1, Math.floor(opts.targetSets)) : undefined;
   const candidates = liveLogs(history)
     .map((log) => ({ log, ...doneSetsFor(log, exerciseId) }))
     .filter((c) => c.sets.length > 0)

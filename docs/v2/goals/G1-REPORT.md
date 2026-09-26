@@ -184,3 +184,71 @@ Refuted by the reviews (dropped, with the verifier's measurement):
 | Phase B wall clock | not separately estimated | ~1 h (22:52 → 23:50) |
 | Paid tokens (Claude, subagents) | not estimated per goal | ~5.4 M subagent tokens across 5 workflows (build 1.23 M, Wave 0 review 2.20 M, Phase B review 1.73 M, fixes 0.20 M) plus this session |
 | Local lane | first classification pass | 1 DSH/Qwen call, 56 s |
+
+---
+
+# Wave 2 (2026-09-27, coordinator-issued, owner-authorised)
+
+Started 00:25 with `git merge v2-w2-contracts` (additive contract fields only; clean merge `1408f13`).
+Final SHA: see `signals/G1_DONE`.
+
+## Gate (Wave 2, in this worktree)
+Command: `npm ci && npm audit --audit-level=high && npm run lint && npx tsc --noEmit && npm test && npm run build && npm run check-bundle && npm run catalog:build -- --check && PORT=3101 npx playwright test e2e/slice.spec.ts --project=chromium`
+```
+5 vulnerabilities (1 low, 4 moderate)
+5 vulnerabilities (1 low, 4 moderate)
+✖ 52 problems (0 errors, 52 warnings)
+ Test Files  64 passed (64)
+      Tests  529 passed (529)
+✓ Compiled successfully in 727ms
+first-load JS for /dashboard: 204.9 kB gzip (budget 250 kB), 13 files
+check-bundle: OK
+catalog: source 1436, excluded 27, catalog 1409, unresolved 28 (1.9% of 1436), no station by design 53, without station 81 (5.6% of 1436); provenance {"t1x-meta":284,"name-rule":1021,"manual":23}; time-measured 74
+  2 passed (7.9s)
+GATE_EXIT=0
+```
+(npm audit exits 0 at `--audit-level=high`; the remaining 1 low + 4 moderate are below the CI threshold.)
+
+## Items
+| # | Item | Status | Command | Output excerpt |
+|---|---|---|---|---|
+| 1 (S2) | F2 time-measured sets | done | `npx vitest run src/lib/training/__tests__/time-sets.test.ts src/lib/analytics/__tests__/time-sets.test.ts` | `Tests 26 passed (26)` |
+| 1 | …catalog tagging | done | `npm run catalog:build` + data-integrity "time-measured sets" test | `time-measured 74` TYTAX + 12 bodyweight + 6 kettlebell = **92** tagged `measure:'time'`; list: `docs/v2/time-measured.md` |
+| 2 | F3 / G4-41 rankable e1RM | done | same time-sets test file (`rankableE1rm` table) | 100×5 → 112.5; 100×12 → 144; 100×13, 0 kg, 0 reps, time set, warm-up, undone → undefined |
+| 3 | F1 FRAME / FREE_WEIGHT stations | done | `npm test -- data-integrity` | `Tests 16 passed (16)`; unresolved machine moves **28 = 1.9 %** of 1,436 (AC8 5 % clause now asserted for real); without any station **81 = 5.6 %** (53 by design: 37 stretches + 16 free-standing bodyweight) |
+| 4 | New: `orderByStation` | done | `npx vitest run src/lib/workout/__tests__/order-by-station.test.ts` | 8 tests incl. 200 seeded cases: never increases station changes, reaches distinct−1 without supersets, supersets whole |
+| 5 | G4-16 / G4-15 program helpers | done (lib only) | `npx vitest run src/lib/workout src/lib/programs src/lib/catalog/__tests__/video-links.test.ts` | `Test Files 9 passed (9) Tests 61 passed (61)` |
+| 6 | G4-22 video links | done | (in the command above) | `buildVideoLinks` / `primaryVideoLink` in `@/lib/catalog` |
+| 7 | F5 npm audit | done | `npm audit --audit-level=high` | exit 0 (5 vulnerabilities: 1 low, 4 moderate) |
+| extra | G4-31 / N5 kinetic impact codes | done | `npx vitest run src/lib/analytics/__tests__/kinetic-impact.test.ts` | `Tests 6 passed (6)`; `explanationKey` `ki_*` |
+
+### Item notes
+- **F2:** a time set is a `SetEntry` with `durationSeconds > 0` (`isTimeSet`). Time sets count as sets for impact, recovery,
+  ACWR and lagging muscle; they never produce e1RM, weight or reps PRs, and never add kg volume. `holdSeconds(sets)`,
+  `logHoldSeconds(log)` total the hold time of done non-warm-up time sets. Prefill keeps kg progression for weighted holds
+  and never turns seconds into ghost reps (a ghost-duration hint needs a contract field: request G1-W2-01).
+- **F3:** `e1rm()` is unchanged (the contract formula; the 1RM tool may still show high-rep estimates, G3 warns).
+  `rankableE1rm` is the single rule used by `detectPRs` and the analytics best-lifts / e1RM chart.
+- **F1:** FRAME ("pull-up/dip handles, bench on the frame, hanging") and FREE_WEIGHT are app-level stations in
+  `src/data/tytax/library.json` (their `notes` say so; the other five stay the `tytax_library.json` keys). 64 entries were
+  remapped by name rule (`name-rule:free-weight` 36, `name-rule:frame` 25, `name-rule:frame-bench` 3). Of the 1,264 exercises
+  that already had a station, **0** changed. Stretches and free-standing bodyweight moves have no station by design
+  ("NONE"). Frame exercises keep `requiresEquipment` (pull-up bar 16, dip station 4, the machine 8).
+- **orderByStation:** SMITH → BACK_UPPER → BACK_LOWER → LEG_EXTENSION → LEG_CURL → FRAME → FREE_WEIGHT → no station;
+  stable within a station; a superset block moves as one, placed by its first member. If that placement would add a
+  station change (a cross-station superset), the input order is kept, so the result never has more changes than the input.
+- **Program helpers (G4-16/G4-15):** `@/lib/programs/{load,session-kind,equipment,calendar}` are ports of G4's local, tested
+  helpers (same behaviour, same test values). `ProgramSession.kind` is not in the contract (G4-15 not granted);
+  `sessionKind` reads it through a local intersection type, then en/hr name keywords, then split position.
+- **F5:** version-scoped `overrides` in package.json (brace-expansion@^1 1.1.21, brace-expansion@^5 5.0.12, browserslist
+  4.29.1, js-yaml 4.3.2, undici 7.30.0, vite 8.0.16), each inside its dependents' ranges. The lockfile was written with
+  `npx npm@11` because npm 10.9.8 crashes (`edgesOut`); npm 10 `npm ci` installs it. One isolated commit naming F5.
+
+## Requests made (Wave 2)
+- `docs/v2/requests/G1-W2-01-followups.md` (also `signals/G1_W2_FOLLOWUPS.md`): G2 `finish.ts` e1rm via `rankableE1rm` and
+  `computeTotals` skipping time sets; G3 `use-pr.ts` and `workout-selectors.ts` time sets, `orderByStation` usage; G4 station
+  filter (7 stations), swap local program helpers and video links; contract gap `SetEntry.ghostDurationSeconds`.
+- `docs/v2/requests/G1-i18n.md`: + `station_FRAME`, `station_FREE_WEIGHT`, 6 `ki_*` keys (54 keys total).
+- API signatures were shared with the peer sessions up front (`signals/G1_NOTES.md`, "Wave 2 API").
+
+HARDENING_PLACEHOLDER

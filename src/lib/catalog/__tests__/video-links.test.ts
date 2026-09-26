@@ -78,8 +78,8 @@ describe('buildVideoLinks (G4-22)', () => {
     expect(buildVideoLinks({ name: 'Pull-up (wide grip)', modality: 'bodyweight' }).at(-1)?.href).toBe(`${SEARCH}Pull-up`);
     expect(buildVideoLinks({ name: 'Swing', modality: 'kettlebell' }).at(-1)?.href).toBe(`${SEARCH}Swing`);
     expect(buildVideoLinks({ name: 'My Move', modality: 'custom' }).at(-1)?.href).toBe(`${SEARCH}My%20Move`);
-    // a name that is only a parenthetical falls back to the raw name
-    expect(buildVideoLinks({ name: '(stretch)', modality: 'bodyweight' }).at(-1)?.href).toBe(`${SEARCH}(stretch)`);
+    // a name that is only a parenthetical keeps its words, without the brackets (spec: no parenthetical in the query)
+    expect(buildVideoLinks({ name: '(stretch)', modality: 'bodyweight' }).at(-1)?.href).toBe(`${SEARCH}stretch`);
   });
 
   it('primaryVideoLink is the first link, the search when there are no videos', () => {
@@ -92,5 +92,20 @@ describe('buildVideoLinks (G4-22)', () => {
   it('is re-exported from @/lib/catalog', () => {
     expect(fromIndex).toBe(buildVideoLinks);
     expect(primaryFromIndex).toBe(primaryVideoLink);
+  });
+});
+
+describe('search query edge cases (Wave 2 refuter)', () => {
+  const q = (name: string) => decodeURIComponent(buildVideoLinks({ name, videos: [], modality: 'tytax' }).at(-1)!.href.split('search_query=')[1]);
+
+  it('drops an unclosed parenthetical tail', () => {
+    // two catalog names end with "(…" and no ")"
+    expect(q('Prone Incline Sled Wide Row (Angled Grip')).toBe('Prone Incline Sled Wide Row TYTAX');
+    expect(q('Kneeling High Pulley Row (Stirrup')).toBe('Kneeling High Pulley Row TYTAX');
+  });
+
+  it('never re-inserts the prefix or brackets when everything was parenthetical', () => {
+    expect(q('TYTAX T1 | (Video)')).toBe('Video TYTAX');
+    expect(q('(Warm-up) )')).not.toMatch(/[()]/);
   });
 });

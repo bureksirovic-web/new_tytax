@@ -189,3 +189,18 @@ describe('catalog build helpers', () => {
     expect(() => parseMainframe('nothing here')).toThrow(/no array literal/);
   });
 });
+
+describe('Wave 2 refuter regressions', () => {
+  it('a row "with crunch" stays on the lower pulley without an ab strap', () => {
+    const n = info('Bent-Over Cable Reverse Grip Row with Crunch', 'Horizontal Pull', 'BACK_HORIZONTAL');
+    expect(decideStation(n)).toEqual({ stationId: 'BACK_LOWER', ruleId: 'cable-from-below' });
+    expect(decideAttachments(n, 'BACK_LOWER')).toEqual([]);
+    // a plain cable crunch still pulls from above
+    expect(station('Kneeling Cable Crunch')?.stationId).toBe('BACK_UPPER');
+  });
+
+  it('"reverse grip" does not block the supine rule; a reverse FLY is still loaded from above', () => {
+    expect(station('Lying Cable Reverse Grip Pullover')).toEqual({ stationId: 'BACK_LOWER', ruleId: 'cable-supine' });
+    expect(station('Lying Cable Reverse Fly')?.stationId).toBe('BACK_UPPER');
+  });
+});

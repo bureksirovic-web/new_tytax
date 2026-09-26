@@ -36,11 +36,15 @@ const PREFIX = /^\s*(?:TYTAX(?:Â®|®)?(?:\s*T\d(?:-[A-Z])?(?:-\d+)?)?|Instruct
 
 /** The exercise name as a search query: prefixes and parentheticals removed, whitespace collapsed. */
 function searchName(name: string): string {
-  let s = name;
-  while (PREFIX.test(s)) s = s.replace(PREFIX, '');
+  let bare = name;
+  while (PREFIX.test(bare)) bare = bare.replace(PREFIX, '');
+  let s = bare;
   while (/\([^()]*\)/.test(s)) s = s.replace(/\([^()]*\)/g, ' ');
+  // An unclosed "(…" tail (two catalog names end that way) is a parenthetical too.
+  s = s.replace(/\([^()]*$/, ' ').replace(/[()]/g, ' ');
   s = s.replace(/\s+/g, ' ').trim();
-  return s || name.replace(/\s+/g, ' ').trim();
+  // Everything was parenthetical: keep its words, still without the prefix or brackets.
+  return s || bare.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** YouTube search URL for an exercise; TYTAX exercises get " TYTAX" appended unless the name already says it. */

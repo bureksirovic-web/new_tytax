@@ -162,4 +162,12 @@ describe('prefillFromHistory', () => {
     // no bell ≥ 18.5 → stay at 16
     expect(prefillFromHistory('swing', [log], { availableKg: [8, 12, 16] }).suggestedKg).toBe(16);
   });
+
+  it('a non-finite targetSets is treated as not given (no throw)', () => {
+    const log = logEndingAt(NOW, 48, [{ exerciseId: PRESS, sets: [{ kg: 60, reps: 8, rir: 1 }, { kg: 60, reps: 8, rir: 1 }] }]);
+    // NaN → default: as many sets as last time (2), RIR 1 → hold at 60
+    const r = prefillFromHistory(PRESS, [log], { targetSets: Number.NaN });
+    expect(r.sets.map((s) => s.kg)).toEqual([60, 60]);
+    expect(prefillFromHistory(PRESS, [], { targetSets: Number.POSITIVE_INFINITY }).sets).toHaveLength(1);
+  });
 });

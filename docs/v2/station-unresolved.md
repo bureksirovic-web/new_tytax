@@ -249,7 +249,7 @@ rule, so no exercise a machine rule places changes station.
 | `name-rule:cable-supine` | BACK_LOWER | Supine bench flies and pullovers are loaded from the floor pulleys beside or behind the bench. |
 | `name-rule:cable-region-chest` | BACK_LOWER | Upper-chest flies and presses move low-to-high, against the lower pulley. |
 | `name-rule:cable-region-lower-chest` | BACK_UPPER | Lower-chest flies and presses move high-to-low, against the upper pulley. |
-| `name-rule:pull-from-above` | BACK_UPPER | Pulldowns, pushdowns, pressdowns, pullovers, face pulls, cable crunches and chops pull against the upper pulley. |
+| `name-rule:pull-from-above` | BACK_UPPER | Pulldowns, pushdowns, pressdowns, pullovers, face pulls, cable crunches and chops pull against the upper pulley (a row with a crunch stays a row). |
 | `name-rule:cable-fly` | BACK_UPPER | Cable flies and crossovers default to the upper pulleys (low variants are caught by cable-low). |
 | `name-rule:cable-overhead-extension` | BACK_UPPER | Overhead cable triceps extensions face away from the upper pulley. |
 | `name-rule:cable-from-below` | BACK_LOWER | Rows, curls, raises, kickbacks, presses and hip work pull against the lower pulley. |
