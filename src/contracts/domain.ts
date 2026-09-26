@@ -170,6 +170,8 @@ export interface SetEntry {
   ghostReps?: number;
   /** Time-measured sets only (`Exercise.measure === 'time'`): seconds held. Excluded from e1RM and kg volume. */
   durationSeconds?: number;
+  /** Prefill hint for time-measured sets: last session's seconds for this set index. */
+  ghostDurationSeconds?: number;
 }
 
 /**
