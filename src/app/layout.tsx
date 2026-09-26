@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import { Inter, Oswald, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { ServiceWorker } from '@/components/layout/service-worker';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const oswald = Oswald({ subsets: ['latin'], variable: '--font-display' });
@@ -34,13 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="hr" data-theme="tactical" suppressHydrationWarning>
       <body className={`${inter.variable} ${oswald.variable} ${jetBrainsMono.variable}`}>
         <Providers>{children}</Providers>
-        <Script id="sw-register" strategy="afterInteractive">
-          {`
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js').catch(console.error);
-            }
-          `}
-        </Script>
+        <ServiceWorker />
       </body>
     </html>
   );
