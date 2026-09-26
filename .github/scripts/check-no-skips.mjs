@@ -5,6 +5,9 @@
 //   playwright: `PLAYWRIGHT_JSON_OUTPUT_FILE=<file> playwright test --reporter=list,json`
 // Reading the JSON counters (not grepping the log) means a test *named* "…skipped…" cannot
 // trip it, and a run that silently collected zero tests cannot pass it.
+// The in-run no-skips reporters (vitest.no-skips-reporter.ts, e2e/no-skips-reporter.ts) fail
+// every run on a skip, todo or expected-failure test; this post-step adds the "ran > 0" check
+// for the CI jobs that must not pass empty, and re-counts skips from the report.
 import { readFileSync } from 'node:fs';
 
 const [kind, file] = process.argv.slice(2);

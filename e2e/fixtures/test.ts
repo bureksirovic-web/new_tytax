@@ -42,6 +42,15 @@ export const test = base.extend<{ tytax: TytaxFixture; _minExpects: void }>({
     async ({}, use, testInfo) => {
       counter.calls = 0;
       await use();
+      // A fail() annotation makes a failing body "expected", a runtime skip makes it
+      // "skipped" (R07/R10). Resetting expectedStatus is what turns either red:
+      // throwing alone leaves status === expectedStatus. Declaration-time skips
+      // never reach this fixture; e2e/no-skips-reporter.ts fails those runs.
+      if (testInfo.expectedStatus !== 'passed') {
+        const was = testInfo.expectedStatus;
+        testInfo.expectedStatus = 'passed';
+        throw new Error(`Expected status '${was}' (fail/skip/fixme annotation) is banned (PLAN §10.2): fix the test.`);
+      }
       const passed = testInfo.status === 'passed' && testInfo.expectedStatus === 'passed';
       if (passed && counter.calls < MIN_EXPECTS) {
         throw new Error(`Test made ${counter.calls} expect() calls; the rule is >= ${MIN_EXPECTS}`);

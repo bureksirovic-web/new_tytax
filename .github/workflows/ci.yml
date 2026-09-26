@@ -49,7 +49,7 @@ jobs:
 
       - name: Guard - no .only / .skip / .fixme in tests
         run: |
-          pattern='\b(test|it|describe|suite|bench)(\.(describe|serial|parallel|concurrent|sequential))?\.(only|skip|fixme|todo|skipIf|runIf)\b'
+          pattern='\b(test|it|describe|suite|bench)(\.(describe|serial|parallel|concurrent|sequential))?\.(only|skip|fixme|todo|skipIf|runIf|fail|fails)\b'
           hits=""
           if [ -d src ]; then
             hits+=$(grep -rnE --include='*.test.*' "$pattern" src || true)
@@ -185,7 +185,7 @@ jobs:
       # SUPABASE_ANON_KEY | NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
       - name: Sync integration suite (fails on any skip)
         run: |
-          npm run test:sync -- --reporter=verbose --reporter=json --outputFile.json="$RUNNER_TEMP/test-sync.json"
+          npm run test:sync -- --reporter=verbose --reporter=json --reporter=./vitest.no-skips-reporter.ts --outputFile.json="$RUNNER_TEMP/test-sync.json"
           node .github/scripts/check-no-skips.mjs vitest "$RUNNER_TEMP/test-sync.json"
 
       - run: npm run build
@@ -196,7 +196,7 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/sync-e2e.json
         run: |
-          npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium --reporter=list,json
+          npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium --reporter=list,json,./e2e/no-skips-reporter.ts
           node .github/scripts/check-no-skips.mjs playwright "$PLAYWRIGHT_JSON_OUTPUT_FILE"
 
       - name: Upload Playwright report

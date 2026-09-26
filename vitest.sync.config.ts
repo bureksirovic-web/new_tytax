@@ -12,6 +12,8 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.sync.test.ts'],
+    // Fails the run on any skipped / todo / .fails test (R10). A CLI --reporter replaces this list.
+    reporters: ['default', './vitest.no-skips-reporter.ts'],
     // The suite builds on its own state (one account, two devices): no file parallelism.
     fileParallelism: false,
     testTimeout: 30_000,

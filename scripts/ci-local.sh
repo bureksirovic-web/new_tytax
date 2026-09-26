@@ -2,14 +2,14 @@
 # Local mirror of .github/workflows/ci.yml (TYTAX v2).
 # Usage: scripts/ci-local.sh [--only quality|e2e|sync-e2e|security] [--skip-e2e]
 #   --skip-e2e  skips the e2e and sync-e2e jobs.
-# Env: PORT (default 3100), SUPABASE_CLI (default "npx -y supabase@2.118.0").
+# Env: PORT (required for the e2e jobs: 3100 integration, 310<n> per goal),
+#      SUPABASE_CLI (default "npx -y supabase@2.118.0").
 # A local Supabase stack that is already running is reused and left running;
 # one started by this script is stopped at the end.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-export PORT="${PORT:-3100}"
 export NEXT_TELEMETRY_DISABLED=1
 SUPABASE_CLI="${SUPABASE_CLI:-npx -y supabase@2.118.0}"
 
@@ -25,6 +25,11 @@ while [ $# -gt 0 ]; do
   esac
 done
 case "$ONLY" in ""|quality|e2e|sync-e2e|security) ;; *) echo "--only must be quality|e2e|sync-e2e|security" >&2; exit 2 ;; esac
+# Never guess a port (same rule as playwright.config.ts): a default would collide with another run.
+if [ "$SKIP_E2E" -eq 0 ] && { [ -z "$ONLY" ] || [ "$ONLY" = e2e ] || [ "$ONLY" = sync-e2e ]; } && [ -z "${PORT:-}" ]; then
+  echo "Set PORT=310<n> (GOALS.md port table)" >&2; exit 2
+fi
+[ -n "${PORT:-}" ] && export PORT
 
 LOG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/tytax-ci-local.XXXXXX")"
 declare -a NAMES=() RESULTS=()
@@ -58,7 +63,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-GUARD_CMD='pattern="\b(test|it|describe|suite|bench)(\.(describe|serial|parallel|concurrent|sequential))?\.(only|skip|fixme|todo|skipIf|runIf)\b"
+GUARD_CMD='pattern="\b(test|it|describe|suite|bench)(\.(describe|serial|parallel|concurrent|sequential))?\.(only|skip|fixme|todo|skipIf|runIf|fail|fails)\b"
 hits=""
 [ -d src ] && hits+=$(grep -rnE --include="*.test.*" "$pattern" src || true)
 [ -d e2e ] && hits+=$(grep -rnE "$pattern" e2e || true)
@@ -127,12 +132,12 @@ if want sync-e2e && [ "$SKIP_E2E" -eq 0 ]; then
     record "sync-e2e: export env" "SKIP"
   fi
   step "sync-e2e: test:sync (zero skips)" \
-    "npm run test:sync -- --reporter=verbose --reporter=json --outputFile.json='$LOG_DIR/test-sync.json'
+    "npm run test:sync -- --reporter=verbose --reporter=json --reporter=./vitest.no-skips-reporter.ts --outputFile.json='$LOG_DIR/test-sync.json'
      node .github/scripts/check-no-skips.mjs vitest '$LOG_DIR/test-sync.json'"
   step "sync-e2e: build (sync on)"    "npm run build"
   step "sync-e2e: playwright install" "npx playwright install chromium"
   step "sync-e2e: playwright sync+auth (zero skips)" \
-    "PLAYWRIGHT_JSON_OUTPUT_FILE='$LOG_DIR/sync-e2e.json' npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium --reporter=list,json
+    "PLAYWRIGHT_JSON_OUTPUT_FILE='$LOG_DIR/sync-e2e.json' npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium --reporter=list,json,./e2e/no-skips-reporter.ts
      node .github/scripts/check-no-skips.mjs playwright '$LOG_DIR/sync-e2e.json'"
 elif want sync-e2e; then
   record "sync-e2e" "SKIP (--skip-e2e)"
