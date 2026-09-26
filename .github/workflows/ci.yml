@@ -81,7 +81,7 @@ jobs:
           retention-days: 14
 
   e2e:
-    name: e2e (chromium + Pixel 7)
+    name: e2e (chromium + mobile)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -102,9 +102,9 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install --with-deps chromium
       - name: Playwright (desktop chromium + one mobile project)
-        run: npx playwright test --project=chromium --project="Pixel 7"
+        run: npx playwright test --project=chromium --project=mobile
 
       - name: Upload Playwright report
         if: failure()

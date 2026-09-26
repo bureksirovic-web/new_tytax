@@ -84,9 +84,9 @@ if want e2e && [ "$SKIP_E2E" -eq 0 ]; then
     step "e2e: npm ci"                "npm ci"
     step "e2e: build"                 "npm run build"
   fi
-  step "e2e: playwright install"      "npx playwright install chromium webkit"
-  step "e2e: playwright chromium+Pixel 7" \
-    "env -u NEXT_PUBLIC_SYNC_ENABLED npx playwright test --project=chromium --project='Pixel 7'"
+  step "e2e: playwright install"      "npx playwright install chromium"
+  step "e2e: playwright chromium+mobile" \
+    "env -u NEXT_PUBLIC_SYNC_ENABLED npx playwright test --project=chromium --project=mobile"
 elif want e2e; then
   record "e2e" "SKIP (--skip-e2e)"
 fi
