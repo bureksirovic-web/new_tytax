@@ -1,10 +1,17 @@
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import ExercisesPage from './page-client';
 
-export const metadata = {
-  title: 'Exercise Library',
-  description: 'Browse 1,577 exercises across TYTAX, bodyweight, and kettlebell',
+// Static metadata is not localised (server side has no locale); hr is the default language.
+export const metadata: Metadata = {
+  title: 'Vježbe',
 };
 
 export default function Page() {
-  return <ExercisesPage />;
+  // useSearchParams (filter state in the URL) needs a Suspense boundary.
+  return (
+    <Suspense>
+      <ExercisesPage />
+    </Suspense>
+  );
 }

@@ -1,0 +1,7 @@
+# G4-20: catalog should carry `stationId` / `attachmentIds` (station filter misses 1,136 TYTAX exercises)
+
+- **Requester:** G4 (exercises screen). **Target:** G1 (`src/data/tytax/**`, `src/lib/catalog/**`).
+- **What:** no TYTAX exercise in `src/data/tytax/exercises.json` has `stationId` or `attachmentIds` (checked: 0 of 1,420). `matchesStation` falls back to comparing the display `station` with the station *name*: "Smith Machine" (214), "Back Upper Pulley" (29), "Back Lower Pulley" (36), "Leg Extension" (2), "Leg Curl" (3) match, but the 1,136 entries with `station: "Tytax"` never match station id `tytax` whose name is "Tytax (Multi-station)". Attachment filtering relies only on the name-fragment fallback.
+- **Why:** GOALS G4 exercises filter by station/attachment; a station option that matches nothing is a dead filter.
+- **Proposed change:** at catalog build set `stationId` (contract ids `smith`, `back-upper`, `back-lower`, `leg-extension`, `leg-curl`, `tytax`) and `attachmentIds` for every TYTAX entry (`stationProvenance` accordingly); or, minimally, rename station `tytax` to `Tytax` / match `station === 'Tytax'` in `matchesStation`.
+- **G4 workaround (in place):** `src/app/(app)/exercises/_components/use-equipment-options.ts` counts matches per station/attachment via `catalog.search` and hides options with 0 matches, so the "TYTAX multi-station" option currently does not appear. Once ids are filled, it appears with no UI change (label key `ex_station_tytax` exists).
