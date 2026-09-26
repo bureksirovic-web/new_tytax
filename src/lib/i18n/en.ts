@@ -6,6 +6,10 @@ import { historyEn } from './modules/history';
 import { analyticsEn } from './modules/analytics';
 import { settingsEn } from './modules/settings';
 import { requestsEn } from './modules/requests';
+import { g3ToolsEn } from './modules/g3Tools';
+import { g3PickerEn } from './modules/g3Picker';
+import { g3WorkoutEn } from './modules/g3Workout';
+import { g5AuthEn } from './modules/g5Auth';
 import { patternsEn } from './modules/patterns';
 import { patterns2En } from './modules/patterns2';
 
@@ -332,6 +336,10 @@ export const en = {
   ...analyticsEn,
   ...settingsEn,
   ...requestsEn,
+  ...g3ToolsEn,
+  ...g3PickerEn,
+  ...g3WorkoutEn,
+  ...g5AuthEn,
   ...patternsEn,
   ...patterns2En,
 } as const;

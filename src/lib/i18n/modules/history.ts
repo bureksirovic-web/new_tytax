@@ -87,6 +87,17 @@ export const historyEn = {
   hist_muscle_impact: 'Muscle impact',
   hist_muscle_share: '{pct}%',
   hist_muscle_none: 'No catalogued exercises with done working sets.',
+  hist_col_time: 'Time',
+  hist_hold_time: 'Hold time',
+  hist_hold_value: 'Held {time}',
+  hist_edit_duration: 'Time (mm:ss)',
+  hist_repeat: 'Repeat workout',
+  hist_repeat_draft_title: 'Workout in progress',
+  hist_repeat_draft_msg: 'You have an unfinished workout. Replace it with this one, or continue it?',
+  hist_repeat_foreign: 'Another profile has an unfinished workout on this device. Finish or discard it from that profile first.',
+  hist_repeat_continue: 'Continue current',
+  hist_repeat_replace: 'Replace',
+  hist_repeat_failed: 'Could not start the workout. Try again.',
 } as const;
 
 export const historyHr: Record<keyof typeof historyEn, string> = {
@@ -175,4 +186,15 @@ export const historyHr: Record<keyof typeof historyEn, string> = {
   hist_muscle_impact: 'Opterećenje mišića',
   hist_muscle_share: '{pct} %',
   hist_muscle_none: 'Nema odrađenih radnih serija vježbi iz kataloga.',
+  hist_col_time: 'Vrijeme',
+  hist_hold_time: 'Vrijeme držanja',
+  hist_hold_value: 'Držano {time}',
+  hist_edit_duration: 'Vrijeme (mm:ss)',
+  hist_repeat: 'Ponovi trening',
+  hist_repeat_draft_title: 'Trening je u tijeku',
+  hist_repeat_draft_msg: 'Imaš nedovršen trening. Zamijeniti ga ovim ili nastaviti započeti?',
+  hist_repeat_foreign: 'Drugi profil na ovom uređaju ima nedovršen trening. Najprije ga završi ili odbaci na tom profilu.',
+  hist_repeat_continue: 'Nastavi započeti',
+  hist_repeat_replace: 'Zamijeni',
+  hist_repeat_failed: 'Trening se nije mogao pokrenuti. Pokušaj ponovno.',
 };
