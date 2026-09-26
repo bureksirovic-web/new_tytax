@@ -10,6 +10,7 @@ import { requestsHr } from './modules/requests';
 import { g3ToolsHr } from './modules/g3Tools';
 import { g3PickerHr } from './modules/g3Picker';
 import { g3WorkoutHr } from './modules/g3Workout';
+import { g3SessionHr } from './modules/g3Session';
 import { g5AuthHr } from './modules/g5Auth';
 import { patternsHr } from './modules/patterns';
 import { patterns2Hr } from './modules/patterns2';
@@ -338,6 +339,7 @@ export const hr: Record<TranslationKey, string> = {
   ...g3ToolsHr,
   ...g3PickerHr,
   ...g3WorkoutHr,
+  ...g3SessionHr,
   ...g5AuthHr,
   ...patternsHr,
   ...patterns2Hr,

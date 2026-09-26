@@ -16,7 +16,7 @@ def md(path):
 g3=json.load(open(S+'/g3_tables.json'))
 def g3rows(f):
     t=list(g3[f].values())[0]; return [(k,t['en'][k],t['hr'][k]) for k in t['en']]
-TABLE={'finish':'FINISH_STRINGS','muscles':'MUSCLE_STRINGS','picker':'PICKER_STRINGS','sets':'SETS_STRINGS','start':'START_STRINGS','timer':'TIMER_STRINGS','tools':'TOOLS_STRINGS'}
+TABLE={'finish':'FINISH_STRINGS','muscles':'MUSCLE_STRINGS','picker':'PICKER_STRINGS','sets':'SETS_STRINGS','start':'START_STRINGS','timer':'TIMER_STRINGS','tools':'TOOLS_STRINGS','setup':'SETUP_STRINGS','time':'TIME_STRINGS'}
 PATH={'tools':'src/components/tools/tools-strings.ts'}
 def src(f): return PATH.get(f, f'src/components/workout/strings/{f}.ts') + f' ({TABLE[f]})'
 modules={
@@ -24,6 +24,7 @@ modules={
  'g3Tools':("G3's local tables, tools + rest timer (docs/v2/requests/G3-i18n.md).",[(src(f),g3rows(f)) for f in ('tools','timer')]),
  'g3Picker':("G3's local tables, exercise picker/swap + muscle names (docs/v2/requests/G3-i18n.md).",[(src(f),g3rows(f)) for f in ('picker','muscles')]),
  'g3Workout':("G3's local tables, start page, sets/cards, finish/PR (docs/v2/requests/G3-i18n.md).",[(src(f),g3rows(f)) for f in ('start','sets','finish')]),
+ 'g3Session':("G3's local tables, Wave 2 machine setup + time-measured sets.",[(src(f),g3rows(f)) for f in ('setup','time')]),
  'g5Auth':('G5 request table: docs/v2/requests/G5-i18n.md (v2-g5); dotted keys as G5 specified.',[('G5-i18n.md',md(ROOT+'/g5/docs/v2/requests/G5-i18n.md'))]),
 }
 q=lambda s:"'"+s.replace('\\','\\\\').replace("'","\\'")+"'"

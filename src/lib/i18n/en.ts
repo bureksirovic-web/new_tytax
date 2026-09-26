@@ -9,6 +9,7 @@ import { requestsEn } from './modules/requests';
 import { g3ToolsEn } from './modules/g3Tools';
 import { g3PickerEn } from './modules/g3Picker';
 import { g3WorkoutEn } from './modules/g3Workout';
+import { g3SessionEn } from './modules/g3Session';
 import { g5AuthEn } from './modules/g5Auth';
 import { patternsEn } from './modules/patterns';
 import { patterns2En } from './modules/patterns2';
@@ -339,6 +340,7 @@ export const en = {
   ...g3ToolsEn,
   ...g3PickerEn,
   ...g3WorkoutEn,
+  ...g3SessionEn,
   ...g5AuthEn,
   ...patternsEn,
   ...patterns2En,
