@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
+
+import type { Page } from 'playwright-core';
 
 /**
  * AC15 / AC18: after one online visit the service worker has precached the
