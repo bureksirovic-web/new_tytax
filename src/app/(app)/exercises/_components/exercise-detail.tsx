@@ -10,6 +10,7 @@ import { ExerciseHeader } from './exercise-header';
 import { ExerciseHistory } from './exercise-history';
 import { ExerciseNotes } from './exercise-notes';
 import { ImpactList } from './impact-list';
+import { MachineSetupEditor } from './machine-setup';
 import { parseLibraryParams, serializeLibraryParams } from './library-params';
 import { useArsenal } from './use-arsenal';
 import { useExercise } from './use-exercise';
@@ -76,8 +77,17 @@ export function ExerciseDetail({ id, from }: { id: string; from?: string | null 
       <AddToWorkoutButton exercise={exercise} />
       <VideoList exercise={exercise} />
       <ImpactList impact={exercise.impact} />
-      <ExerciseHistory exerciseId={exercise.id} profileId={profileId} units={units} profileLoading={profileLoading} />
+      <ExerciseHistory
+        exerciseId={exercise.id}
+        profileId={profileId}
+        units={units}
+        profileLoading={profileLoading}
+        measure={exercise.measure}
+      />
       <ExerciseExtras exercise={exercise} units={units} />
+      {(exercise.modality === 'tytax' || exercise.modality === 'custom') && (
+        <MachineSetupEditor exerciseId={exercise.id} exerciseName={exercise.name} profileId={profileId} />
+      )}
       <ExerciseNotes exerciseId={exercise.id} exerciseName={exercise.name} profileId={profileId} />
     </article>
   );

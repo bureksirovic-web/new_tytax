@@ -54,6 +54,9 @@ const STATION_KEYS: Record<string, TranslationKey> = {
   'leg-extension': 'ex_station_leg_extension',
   'leg-curl': 'ex_station_leg_curl',
   tytax: 'ex_station_tytax',
+  // Wave 2 (G1 F1): translated names for the FRAME / FREE_WEIGHT stations; the chip list itself comes from the catalog.
+  frame: 'ex_station_frame',
+  'free-weight': 'ex_station_free_weight',
 };
 
 const ATTACHMENT_KEYS: Record<string, TranslationKey> = {

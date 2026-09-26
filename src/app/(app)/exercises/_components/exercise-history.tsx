@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import type { Units } from '@/contracts/domain';
+import type { ExerciseMeasure, Units } from '@/contracts/domain';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRepoQuery } from '@/hooks/use-repo';
@@ -8,8 +8,9 @@ import { formatDate, formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { parseLocalDay } from '@/lib/utils';
 import { E1rmChart } from './e1rm-chart';
+import { formatDuration } from './format-duration';
 import { HistoryLogItem } from './history-log-item';
-import { bestPoint, e1rmSeries } from './history-stats';
+import { bestHold, bestPoint, e1rmSeries } from './history-stats';
 import { SectionCard } from './section-card';
 
 const PAGE = 10;
@@ -20,10 +21,12 @@ interface ExerciseHistoryProps {
   units: Units;
   /** True while the active profile is still loading (show a skeleton, not "no history"). */
   profileLoading?: boolean;
+  /** 'time': durations instead of kg×reps, longest hold instead of e1RM, no e1RM chart. */
+  measure?: ExerciseMeasure;
 }
 
 /** This profile's logs containing the exercise (newest first), summary tiles and the e1RM chart. */
-export function ExerciseHistory({ exerciseId, profileId, units, profileLoading = false }: ExerciseHistoryProps) {
+export function ExerciseHistory({ exerciseId, profileId, units, profileLoading = false, measure }: ExerciseHistoryProps) {
   const { t, locale } = useT();
   const { data } = useRepoQuery(
     (repo) => (profileId ? repo.logs.historyFor(profileId, exerciseId) : Promise.resolve([])),
@@ -34,8 +37,11 @@ export function ExerciseHistory({ exerciseId, profileId, units, profileLoading =
   const visible = shown.exerciseId === exerciseId ? shown.n : PAGE;
 
   const live = (logs ?? []).filter((l) => !l.deletedAt);
-  const points = e1rmSeries(live, exerciseId);
+  const timed = measure === 'time';
+  const points = timed ? [] : e1rmSeries(live, exerciseId);
   const best = bestPoint(points);
+  const hold = timed ? bestHold(live, exerciseId) : undefined;
+  const bestDate = timed ? hold?.date : best?.date;
 
   return (
     <>
@@ -48,13 +54,13 @@ export function ExerciseHistory({ exerciseId, profileId, units, profileLoading =
           <div className="flex flex-col gap-3">
             <dl className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-bg-2 p-3">
-                <dt className="text-xs text-fg-muted">{t('ex_history_best')}</dt>
-                <dd className="font-mono text-lg text-highlight" data-testid="exercise-best-e1rm">
-                  {best ? formatWeight(best.e1rm, units, locale) : '–'}
+                <dt className="text-xs text-fg-muted">{t(timed ? 'ex_history_best_hold' : 'ex_history_best')}</dt>
+                <dd className="font-mono text-lg text-highlight" data-testid={timed ? 'exercise-best-hold' : 'exercise-best-e1rm'}>
+                  {timed ? (hold ? formatDuration(t, hold.seconds) : '–') : best ? formatWeight(best.e1rm, units, locale) : '–'}
                 </dd>
-                {best && (
+                {bestDate && (
                   <dd className="text-xs text-fg-muted">
-                    {t('ex_history_best_on', { date: formatDate(parseLocalDay(best.date), locale) })}
+                    {t('ex_history_best_on', { date: formatDate(parseLocalDay(bestDate), locale) })}
                   </dd>
                 )}
               </div>
@@ -65,7 +71,7 @@ export function ExerciseHistory({ exerciseId, profileId, units, profileLoading =
             </dl>
             <ul className="flex flex-col gap-2">
               {live.slice(0, visible).map((log) => (
-                <HistoryLogItem key={log.id} log={log} exerciseId={exerciseId} units={units} />
+                <HistoryLogItem key={log.id} log={log} exerciseId={exerciseId} units={units} timed={timed} />
               ))}
             </ul>
             {live.length > visible && (
@@ -78,7 +84,11 @@ export function ExerciseHistory({ exerciseId, profileId, units, profileLoading =
       </SectionCard>
       {logs && live.length > 0 && (
         <SectionCard title={t('ex_chart_e1rm')} id="ex-e1rm">
-          <E1rmChart points={points} units={units} />
+          {timed ? (
+            <p className="text-sm text-fg-muted" data-testid="exercise-e1rm-na">{t('ex_chart_time_na')}</p>
+          ) : (
+            <E1rmChart points={points} units={units} />
+          )}
         </SectionCard>
       )}
     </>

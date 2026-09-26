@@ -3,6 +3,7 @@ import { FilterChips } from '@/components/ui/filter-chips';
 import type { MuscleGroup } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { FilterSelect } from './filter-select';
+import { StationChips } from './station-chips';
 import {
   MODALITY_OPTIONS,
   MUSCLE_GROUP_OPTIONS,
@@ -11,11 +12,11 @@ import {
   labelOr,
   modalityKey,
   muscleGroupKey,
-  stationKey,
   type LibraryModality,
 } from './labels';
 import { tytaxFiltersApply, type LibraryFilter } from './library-params';
 import type { EquipmentOptions } from './use-equipment-options';
+import { useStationFacets } from './use-station-facets';
 
 interface LibraryFiltersProps {
   filter: LibraryFilter;
@@ -25,7 +26,7 @@ interface LibraryFiltersProps {
 
 type ModalityChip = LibraryModality | 'all';
 
-/** Modality chips + muscle group / station / attachment selects (all combinable). */
+/** Modality chips, station chips (URL `st`) + muscle group / attachment selects (all combinable). */
 export function LibraryFilters({ filter, setFilter, equipment }: LibraryFiltersProps) {
   const { t } = useT();
   const modalityOptions: Array<{ value: ModalityChip; label: string }> = [
@@ -33,6 +34,12 @@ export function LibraryFilters({ filter, setFilter, equipment }: LibraryFiltersP
     ...MODALITY_OPTIONS.map((m) => ({ value: m, label: t(modalityKey(m)) })),
   ];
   const showTytax = tytaxFiltersApply(filter);
+  const stations = showTytax && equipment && equipment.stations.length > 0 ? equipment.stations : undefined;
+  const counts = useStationFacets(stations, {
+    text: filter.q.trim() || undefined,
+    muscleGroup: filter.muscleGroup,
+    attachmentId: filter.attachmentId,
+  });
 
   return (
     <fieldset className="flex flex-col gap-3">
@@ -47,7 +54,10 @@ export function LibraryFilters({ filter, setFilter, equipment }: LibraryFiltersP
           setFilter({ modality: next && next !== 'all' ? next : undefined });
         }}
       />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {stations && (
+        <StationChips stations={stations} counts={counts} value={filter.stationId} onChange={(v) => setFilter({ stationId: v })} />
+      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FilterSelect
           label={t('ex_filter_muscle')}
           allLabel={t('ex_filter_all')}
@@ -56,16 +66,6 @@ export function LibraryFilters({ filter, setFilter, equipment }: LibraryFiltersP
           options={MUSCLE_GROUP_OPTIONS.map((g) => ({ value: g, label: t(muscleGroupKey(g)) }))}
           onChange={(v) => setFilter({ muscleGroup: isMuscleGroup(v) ? (v as MuscleGroup) : undefined })}
         />
-        {showTytax && equipment && equipment.stations.length > 0 && (
-          <FilterSelect
-            label={t('ex_filter_station')}
-            allLabel={t('ex_filter_all')}
-            testId="exercise-filter-station"
-            value={filter.stationId}
-            options={equipment.stations.map((s) => ({ value: s.id, label: `${labelOr(t, stationKey(s.id), s.name)} (${s.count})` }))}
-            onChange={(v) => setFilter({ stationId: v })}
-          />
-        )}
         {showTytax && equipment && equipment.attachments.length > 0 && (
           <FilterSelect
             label={t('ex_filter_attachment')}
