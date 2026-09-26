@@ -13,6 +13,8 @@ export {
   usePinnedExercises,
   readPins,
   savePins,
+  migrateStoredPins,
+  muscleVolumeKg,
   readStoredPins,
   sanitizePins,
   pinsStorageKey,

@@ -1,14 +1,13 @@
 /**
  * Movement-pattern balance: volume share per pattern over done working sets
- * of live logs, against a balanced target. The catalog's `pattern` strings
+ * (kg × reps; time-measured sets excluded) of live logs, against a balanced target. The catalog's `pattern` strings
  * are free text ('Leg Press', 'Hip Extension', 'Cable Fly', 'Quads' …), so
  * they are classified by ordered rules (first match wins) and anything left
  * falls back to the exercise's `muscleGroup`.
  */
 import type { MuscleGroup, WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup } from '@/contracts/training';
-import { isDoneWorkingSet } from '@/lib/training';
-import { liveLogs } from './analytics-math';
+import { isKgSet, liveLogs } from './analytics-math';
 
 export type MovementPattern = 'push' | 'pull' | 'quad' | 'hinge' | 'carry' | 'core' | 'other';
 
@@ -63,7 +62,7 @@ export function movementParity(logs: readonly WorkoutLog[], lookup: ExerciseLook
   for (const log of liveLogs(logs)) {
     if (log.date < fromDay) continue;
     for (const ex of log.exercises) {
-      const v = ex.sets.filter(isDoneWorkingSet).reduce((sum, s) => sum + s.kg * s.reps, 0);
+      const v = ex.sets.filter(isKgSet).reduce((sum, s) => sum + s.kg * s.reps, 0);
       if (v <= 0) continue;
       const p = patternOf(ex.exerciseId, lookup);
       vol.set(p, (vol.get(p) ?? 0) + v);

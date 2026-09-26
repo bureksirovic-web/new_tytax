@@ -4,10 +4,11 @@
  * this file only windows, groups and labels. Logs are any order; soft-deleted
  * logs and non-counting sets (warm-ups, undone) are always ignored.
  */
-import type { WorkoutLog } from '@/contracts/domain';
+import type { SetEntry, WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup, LaggingResult } from '@/contracts/training';
 import { ACWR_FRESH_BELOW, ACWR_FRIED_ABOVE, isDoneWorkingSet, training } from '@/lib/training';
 import { daysBetween, localDay, logTimeMs, mondayOf, shiftDay } from './analytics-dates';
+import { muscleVolumeKg } from './muscle-volume';
 
 export function liveLogs(logs: readonly WorkoutLog[]): WorkoutLog[] {
   return logs.filter((l) => !l.deletedAt);
@@ -18,10 +19,18 @@ export function newestFirst(logs: readonly WorkoutLog[]): WorkoutLog[] {
   return [...logs].sort((a, b) => logTimeMs(b) - logTimeMs(a) || b.date.localeCompare(a.date));
 }
 
-/** Σ kg × reps over done working sets. */
+/**
+ * A done working set measured in kg × reps. Time-measured sets (holds, carries,
+ * stretches: `durationSeconds` recorded) never enter e1RM or kg volume.
+ */
+export function isKgSet(s: SetEntry): boolean {
+  return isDoneWorkingSet(s) && typeof s.durationSeconds !== 'number';
+}
+
+/** Σ kg × reps over done working kg sets. */
 export function logVolumeKg(log: WorkoutLog): number {
   let v = 0;
-  for (const ex of log.exercises) for (const s of ex.sets) if (isDoneWorkingSet(s)) v += s.kg * s.reps;
+  for (const ex of log.exercises) for (const s of ex.sets) if (isKgSet(s)) v += s.kg * s.reps;
   return v;
 }
 
@@ -33,6 +42,8 @@ export const DISTRIBUTION_WINDOWS: readonly DistributionWindow[] = ['20s', '7d',
 export interface MuscleShare {
   muscle: string;
   share: number;
+  /** Impact-weighted kg volume of the same window (0 when only time-measured sets hit it). */
+  volumeKg: number;
 }
 
 export interface DistributionResult {
@@ -40,9 +51,19 @@ export interface DistributionResult {
   lagging: LaggingResult | null;
 }
 
+/** '7d'/'30d' = live logs whose local day is within the last 7/30 days including today; '20s' = the 20 newest. */
+export function windowLogs(logs: readonly WorkoutLog[], window: DistributionWindow, now: Date): WorkoutLog[] {
+  const live = liveLogs(logs);
+  if (window === '20s') return newestFirst(live).slice(0, 20);
+  const today = localDay(now);
+  const from = shiftDay(today, -((window === '7d' ? 7 : 30) - 1));
+  return live.filter((l) => l.date >= from && l.date <= today);
+}
+
 /**
- * Impact share per muscle: '7d'/'30d' = logs whose local day is within the
- * last 7/30 days including today; '20s' = the 20 newest live sessions.
+ * Impact share per muscle (set-based stimulus, `training.impactDistribution`)
+ * plus its kg volume (`muscleVolumeKg`), both over `windowLogs` with the
+ * catalog lookup, so program logs without a snapshot count too.
  */
 export function muscleDistribution(
   logs: readonly WorkoutLog[],
@@ -50,17 +71,11 @@ export function muscleDistribution(
   window: DistributionWindow,
   now: Date,
 ): DistributionResult {
-  const live = liveLogs(logs);
-  let dist: Record<string, number>;
-  if (window === '20s') {
-    dist = training.impactDistribution(newestFirst(live).slice(0, 20), lookup);
-  } else {
-    const days = window === '7d' ? 7 : 30;
-    const today = localDay(now);
-    dist = training.impactDistribution(live, lookup, { from: shiftDay(today, -(days - 1)), to: today });
-  }
+  const inWindow = windowLogs(logs, window, now);
+  const dist = training.impactDistribution(inWindow, lookup);
+  const volume = muscleVolumeKg(inWindow, lookup);
   const shares = Object.entries(dist)
-    .map(([muscle, share]) => ({ muscle, share }))
+    .map(([muscle, share]) => ({ muscle, share, volumeKg: volume[muscle] ?? 0 }))
     .sort((a, b) => b.share - a.share || a.muscle.localeCompare(b.muscle));
   return { shares, lagging: training.laggingMuscle(dist) };
 }

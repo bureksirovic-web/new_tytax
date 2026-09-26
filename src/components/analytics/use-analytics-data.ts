@@ -8,8 +8,10 @@ import { useCatalog } from '@/hooks/use-exercises';
 import { localDay } from './analytics-dates';
 
 export {
-  MAX_PINNED, pinsStorageKey, readPins, readStoredPins, sanitizePins, savePins, usePinnedExercises, type SettingsWithPins,
+  MAX_PINNED, migrateStoredPins, pinsStorageKey, readPins, readStoredPins, sanitizePins, savePins, usePinnedExercises,
+  type PinMigration, type SettingsWithPins,
 } from './pinned-storage';
+export { muscleVolumeKg } from './muscle-volume';
 
 /** Local calendar day (`'YYYY-MM-DD'`) `days` days before `now`. */
 export function localDayDaysAgo(days: number, now: Date = new Date()): string {

@@ -1,20 +1,20 @@
 'use client';
-/** Pinned exercises for analytics: per-profile store (settings array when present, else localStorage). */
-import { useMemo, useSyncExternalStore } from 'react';
+/** Pinned exercises (analytics + dashboard): `ProfileSettings.pinnedExerciseIds`, localStorage only as fallback. */
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ProfileSettings } from '@/contracts/domain';
 import { isRepoError, type Repository } from '@/contracts/repo';
-import { useActiveProfile } from '@/hooks/use-repo';
+import { useActiveProfile, useRepo } from '@/hooks/use-repo';
 
 export const MAX_PINNED = 4;
 
 /**
- * Pins are stored per profile. The contract field `settings.pinnedExerciseIds`
- * is only requested (docs/v2/requests/G4-30-pinned-exercises.md) and the
- * repository may reject unknown settings keys, so the interim store is
- * localStorage under `pinsStorageKey(profileId)`. When a profile's settings
- * already carry a `pinnedExerciseIds` array (the future contract) that wins.
+ * Pins live in the contract field `settings.pinnedExerciseIds` (G4-30). A
+ * repository that still rejects the key (`RepoError('VALIDATION')`, G2's Wave 1
+ * settings whitelist) makes localStorage under `pinsStorageKey(profileId)` the
+ * fallback store. Pins found there are copied into settings once the repository
+ * accepts them, then the local key is removed. Kept as an alias for callers.
  */
-export type SettingsWithPins = ProfileSettings & { pinnedExerciseIds?: string[] };
+export type SettingsWithPins = ProfileSettings;
 
 const PINS_KEY_PREFIX = 'tytax.analytics.pinned.';
 
@@ -54,42 +54,85 @@ function parseStored(raw: string | null): string[] {
   }
 }
 
-/** Pins kept in localStorage for `profileId` (validated; [] when absent, corrupt or unavailable). */
+/** Pins kept in the localStorage fallback for `profileId` (validated; [] when absent, corrupt or unavailable). */
 export function readStoredPins(profileId: string): string[] {
   return parseStored(readStoredRaw(profileId));
 }
 
 const pinListeners = new Set<() => void>();
+const notifyAll = () => pinListeners.forEach((notify) => notify());
 
 function writeStoredPins(profileId: string, ids: readonly string[]): void {
   try {
     storage()?.setItem(pinsStorageKey(profileId), JSON.stringify(ids));
   } catch {
-    // quota / blocked storage: pins then live only as long as settings can hold them
+    // quota / blocked storage: nothing else can hold them on this repository
   }
-  pinListeners.forEach((notify) => notify());
+  notifyAll();
 }
 
-/** Settings array (future contract) when present, else localStorage for `profileId`, else []. */
+function clearStoredPins(profileId: string): void {
+  if (readStoredRaw(profileId) === null) return;
+  try {
+    storage()?.removeItem(pinsStorageKey(profileId));
+  } catch {
+    // blocked storage: settings win on read anyway
+  }
+  notifyAll();
+}
+
+function settingsPins(settings: ProfileSettings | undefined): string[] | undefined {
+  const ids = settings?.pinnedExerciseIds;
+  return Array.isArray(ids) ? sanitizePins(ids) : undefined;
+}
+
+/** `settings.pinnedExerciseIds` when it is an array (even empty), else the localStorage fallback, else []. */
 export function readPins(settings: ProfileSettings | undefined, profileId?: string): string[] {
-  const fromSettings = (settings as SettingsWithPins | undefined)?.pinnedExerciseIds;
-  if (Array.isArray(fromSettings)) return sanitizePins(fromSettings);
-  return profileId ? readStoredPins(profileId) : [];
+  return settingsPins(settings) ?? (profileId ? readStoredPins(profileId) : []);
 }
 
 /**
- * Writes localStorage always; also offers the ids to settings, where a
- * VALIDATION rejection (unknown key before G4-30 lands) is expected and ignored.
+ * Saves to settings. On a VALIDATION rejection (repository without the key)
+ * the pins go to localStorage instead; any other repository error surfaces.
+ * After an accepted save the local fallback key is removed.
  */
 export async function savePins(repo: Repository, profileId: string, ids: readonly string[]): Promise<void> {
   const unique = sanitizePins(ids);
-  writeStoredPins(profileId, unique);
   try {
-    await repo.profiles.updateSettings(profileId, { pinnedExerciseIds: unique } as Partial<SettingsWithPins>);
+    await repo.profiles.updateSettings(profileId, { pinnedExerciseIds: unique });
   } catch (e) {
     if (!isRepoError(e, 'VALIDATION')) throw e;
+    writeStoredPins(profileId, unique);
+    return;
   }
+  clearStoredPins(profileId);
 }
+
+export type PinMigration = 'migrated' | 'kept' | 'none';
+
+/**
+ * One-time move of localStorage pins into settings. 'none': nothing stored, or
+ * settings already hold an array (the stale local key is then removed).
+ * 'kept': the repository refused (pins stay local). Never throws.
+ */
+export async function migrateStoredPins(repo: Repository, profileId: string, settings: ProfileSettings | undefined): Promise<PinMigration> {
+  if (settingsPins(settings)) {
+    clearStoredPins(profileId);
+    return 'none';
+  }
+  const stored = readStoredPins(profileId);
+  if (stored.length === 0) return 'none';
+  try {
+    await repo.profiles.updateSettings(profileId, { pinnedExerciseIds: stored });
+  } catch {
+    return 'kept';
+  }
+  clearStoredPins(profileId);
+  return 'migrated';
+}
+
+/** profileId → stored value already offered to settings, so a refusing repository is asked once per value. */
+const migrationTried = new Map<string, string | null>();
 
 function subscribePins(notify: () => void): () => void {
   pinListeners.add(notify);
@@ -104,15 +147,22 @@ function subscribePins(notify: () => void): () => void {
 }
 
 export function usePinnedExercises(): { pins: string[]; profileId: string | undefined } {
+  const repo = useRepo();
   const { profile, profileId } = useActiveProfile();
   const stored = useSyncExternalStore(
     subscribePins,
     () => (profileId ? readStoredRaw(profileId) : null),
     () => null,
   );
-  const pins = useMemo(() => {
-    const fromSettings = (profile?.settings as SettingsWithPins | undefined)?.pinnedExerciseIds;
-    return Array.isArray(fromSettings) ? sanitizePins(fromSettings) : parseStored(stored);
-  }, [profile?.settings, stored]);
+  const settings = profile?.settings;
+  const pins = useMemo(() => settingsPins(settings) ?? parseStored(stored), [settings, stored]);
+
+  useEffect(() => {
+    if (!profileId || !settings || stored === null) return;
+    if (migrationTried.has(profileId) && migrationTried.get(profileId) === stored) return;
+    migrationTried.set(profileId, stored);
+    void migrateStoredPins(repo, profileId, settings);
+  }, [repo, profileId, settings, stored]);
+
   return { pins, profileId };
 }

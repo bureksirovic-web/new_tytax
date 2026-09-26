@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
         <>
           <PinnedMetrics logs={logs} exercises={exercises} nameOf={nameOf} units={units} />
           <AcwrCard logs={logs} lookup={lookup} now={now} />
-          <MuscleDistribution logs={logs} lookup={lookup} now={now} />
+          <MuscleDistribution logs={logs} lookup={lookup} now={now} units={units} />
           <TrainingHeatmap logs={logs} now={now} units={units} />
           <ExerciseInspector logs={logs} exercises={exercises} units={units} inCatalog={inCatalog} />
           <WeeklyVolumeCard logs={logs} units={units} now={now} />

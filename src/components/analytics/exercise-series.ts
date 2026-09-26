@@ -1,12 +1,12 @@
 /**
  * Per-exercise derivations: e1RM / top-set / volume series, best lifts,
  * pinned-metric summaries and movement-pattern balance. Only done working
- * sets of live logs count (warm-ups and undone sets never do).
+ * kg sets of live logs count (warm-ups, undone and time-measured sets never do).
  */
 import type { WorkoutLog } from '@/contracts/domain';
-import { isDoneWorkingSet, training } from '@/lib/training';
+import { training } from '@/lib/training';
 import { logTimeMs } from './analytics-dates';
-import { liveLogs } from './analytics-math';
+import { isKgSet, liveLogs } from './analytics-math';
 
 export interface SessionPoint {
   logId: string;
@@ -30,7 +30,7 @@ export function exerciseSeries(logs: readonly WorkoutLog[], exerciseId: string):
     for (const ex of log.exercises) {
       if (ex.exerciseId !== exerciseId) continue;
       for (const s of ex.sets) {
-        if (!isDoneWorkingSet(s)) continue;
+        if (!isKgSet(s)) continue;
         point ??= { logId: log.id, date: log.date, e1rm: 0, topKg: 0, volumeKg: 0, bestKg: 0, bestReps: 0, t: logTimeMs(log) };
         const e = training.e1rm(s.kg, s.reps);
         if (e > point.e1rm) Object.assign(point, { e1rm: e, bestKg: s.kg, bestReps: s.reps });
@@ -58,7 +58,7 @@ export function trainedExercises(logs: readonly WorkoutLog[], nameOf: (id: strin
   const names = new Map<string, string>();
   for (const log of liveLogs(logs)) {
     for (const ex of log.exercises) {
-      if (names.has(ex.exerciseId) || !ex.sets.some(isDoneWorkingSet)) continue;
+      if (names.has(ex.exerciseId) || !ex.sets.some(isKgSet)) continue;
       names.set(ex.exerciseId, nameOf(ex.exerciseId, ex.exerciseName));
     }
   }
@@ -79,7 +79,7 @@ export function bestLifts(logs: readonly WorkoutLog[]): BestLift[] {
   for (const log of liveLogs(logs)) {
     for (const ex of log.exercises) {
       for (const s of ex.sets) {
-        if (!isDoneWorkingSet(s)) continue;
+        if (!isKgSet(s)) continue;
         const e = training.e1rm(s.kg, s.reps);
         const cur = best.get(ex.exerciseId);
         if (!cur || e > cur.e1rm) best.set(ex.exerciseId, { exerciseId: ex.exerciseId, e1rm: e, kg: s.kg, reps: s.reps, date: log.date });

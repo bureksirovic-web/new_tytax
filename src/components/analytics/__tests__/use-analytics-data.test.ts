@@ -15,11 +15,8 @@ vi.mock('@/lib/db', async (importOriginal) => {
   return { ...actual, getRepository: () => holder.repo };
 });
 
-const {
-  useAnalyticsData, useExerciseHistory, usePinnedExercises, localDayDaysAgo, readPins, readStoredPins, pinsStorageKey, savePins, MAX_PINNED,
-} = await import(
-  '../use-analytics-data'
-);
+const { useAnalyticsData, useExerciseHistory, usePinnedExercises, localDayDaysAgo, readPins, readStoredPins, pinsStorageKey, savePins, MAX_PINNED } =
+  await import('../use-analytics-data');
 
 const SWING = 'kb_swing_two-hand-swing';
 
@@ -80,10 +77,12 @@ describe('pinned exercises', () => {
     const other = await repo.profiles.create({ name: 'Other' });
     await savePins(repo, me.id, ['a', 'b', 'a', 'c', 'd', 'e']);
     expect(MAX_PINNED).toBe(4);
-    // read back through a fresh repository fetch (settings array when the repo kept it, else localStorage)
+    // read back through a fresh repository fetch
     expect(readPins((await repo.profiles.get(me.id))!.settings, me.id)).toEqual(['a', 'b', 'c', 'd']);
-    // the interim store holds them whether or not the repository accepted the settings key
-    expect(readStoredPins(me.id)).toEqual(['a', 'b', 'c', 'd']);
+    // exactly one store holds them: settings when the repository keeps the key, else the localStorage fallback
+    const kept = (await repo.profiles.get(me.id))!.settings.pinnedExerciseIds;
+    expect(kept ?? readStoredPins(me.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(localStorage.getItem(pinsStorageKey(me.id)) === null).toBe(kept !== undefined);
     expect(readPins((await repo.profiles.get(other.id))!.settings, other.id)).toEqual([]);
     expect(readStoredPins(other.id)).toEqual([]);
     // other settings survive

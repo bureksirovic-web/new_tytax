@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import type { WorkoutLog } from '@/contracts/domain';
+import type { Units, WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup } from '@/contracts/training';
 import { Card, CardHeader, FilterChips } from '@/components/ui';
 import { SectionTitle } from './section-title';
+import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { DISTRIBUTION_WINDOWS, muscleDistribution, type DistributionWindow } from './analytics-math';
 import { exercisesHrefForMuscle, muscleLabel, num, WINDOW_KEYS } from './labels';
@@ -13,11 +14,13 @@ interface Props {
   logs: readonly WorkoutLog[];
   lookup: ExerciseLookup;
   now: Date;
+  /** Display unit for the per-muscle volume (default kg). */
+  units?: Units;
 }
 
 const TOP_N = 5;
 
-export function MuscleDistribution({ logs, lookup, now }: Props) {
+export function MuscleDistribution({ logs, lookup, now, units = 'kg' }: Props) {
   const { t, locale } = useT();
   const [range, setRange] = useState<DistributionWindow>('20s');
   const [showAll, setShowAll] = useState(false);
@@ -50,7 +53,11 @@ export function MuscleDistribution({ logs, lookup, now }: Props) {
                 <li key={m.muscle}>
                   <div className="mb-0.5 flex justify-between gap-2 text-xs">
                     <span className="font-medium text-fg">{muscleLabel(t, m.muscle)}</span>
-                    <span className="text-fg-2">{t('ana_share', { pct: pct(m.share) })}</span>
+                    <span className="text-fg-2">
+                      {m.volumeKg > 0
+                        ? t('ana_share_volume', { pct: pct(m.share), volume: formatWeight(m.volumeKg, units, locale) })
+                        : t('ana_share', { pct: pct(m.share) })}
+                    </span>
                   </div>
                   <svg className="h-1.5 w-full" aria-hidden="true">
                     <rect width="100%" height="100%" rx={3} className="fill-line" />

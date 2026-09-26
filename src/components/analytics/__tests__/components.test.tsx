@@ -90,8 +90,9 @@ describe('MuscleDistribution', () => {
     expect(within(list()).getByText('Quads')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '7 days' }));
     expect(within(list()).queryByText('Quads')).toBeNull();
-    // Chest 2 of 3 sets-weight → 66.7 %
-    expect(within(list()).getByText('66.7% of load')).toBeInTheDocument();
+    // Chest 2 of 3 sets-weight → 66.7 %; kg volume 2 × 100 × 5 = 1000 kg × 1 (Triceps × .5 = 500 kg)
+    expect(within(list()).getByText('66.7% of load · 1,000 kg volume')).toBeInTheDocument();
+    expect(within(list()).getByText('33.3% of load · 500 kg volume')).toBeInTheDocument();
     expect(screen.getByText('Lagging muscle: Quads')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Show exercises' })).toHaveAttribute('href', '/exercises?mg=QUADS');
   });

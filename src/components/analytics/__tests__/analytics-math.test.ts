@@ -35,10 +35,11 @@ describe('muscleDistribution', () => {
   it('7 days: only the bench log; warm-ups and deleted logs never count', () => {
     const { shares, lagging } = muscleDistribution(logs, lookup, '7d', NOW);
     // 2 working sets × (Chest 1, Triceps .5, Front Delts .5) = 2 / 1 / 1 of 4
+    // kg volume: 2 × 100 kg × 5 = 1000 kg (warm-up excluded) → Chest 1000, Front Delts 500, Triceps 500
     expect(shares).toEqual([
-      { muscle: 'Chest', share: 0.5 },
-      { muscle: 'Front Delts', share: 0.25 },
-      { muscle: 'Triceps', share: 0.25 },
+      { muscle: 'Chest', share: 0.5, volumeKg: 1000 },
+      { muscle: 'Front Delts', share: 0.25, volumeKg: 500 },
+      { muscle: 'Triceps', share: 0.25, volumeKg: 500 },
     ]);
     // Quads has target .12 and actual 0: the largest positive gap
     expect(lagging).toMatchObject({ muscle: 'Quads', actualShare: 0, targetShare: 0.12 });
