@@ -33,7 +33,7 @@ test('every listed route is linked from the navigation', async ({ page, isMobile
     await expect(page.getByRole('dialog')).toBeVisible();
   }
   const hrefs = await page
-    .locator('nav a[href], [role="dialog"] a[href]')
+    .locator('[data-app-nav] a[href]')
     .evaluateAll((els) => els.map((el) => el.getAttribute('href') ?? ''));
   const linkedPaths = new Set(hrefs.map(pathOf));
 
@@ -49,7 +49,7 @@ test('no navigation link is dead', async ({ page, isMobile }) => {
     await expect(page.getByRole('dialog')).toBeVisible();
   }
   const hrefs = await page
-    .locator('nav a[href], [role="dialog"] a[href]')
+    .locator('[data-app-nav] a[href]')
     .evaluateAll((els) => [...new Set(els.map((el) => el.getAttribute('href') ?? ''))]);
   const allowed = new Set([...APP_ROUTES.map((r) => r.path), ...EXTRA_NAV_HREFS.map(pathOf)]);
 

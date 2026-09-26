@@ -81,7 +81,7 @@ export function MoreDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             <span aria-hidden="true">✕</span>
           </button>
         </div>
-        <nav aria-labelledby={titleId} className="flex-1 overflow-y-auto p-4 safe-bottom">
+        <nav data-app-nav="more" aria-labelledby={titleId} className="flex-1 overflow-y-auto p-4 safe-bottom">
           <ul className="space-y-1">
             {MORE_ITEMS.map((item) => {
               const active = isNavActive(pathname, item.href);

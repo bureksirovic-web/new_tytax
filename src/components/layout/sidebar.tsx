@@ -18,7 +18,7 @@ export function Sidebar() {
           {t('layout_tagline')}
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto py-3" aria-label={t('layout_main_nav')}>
+      <nav data-app-nav="sidebar" className="flex-1 overflow-y-auto py-3" aria-label={t('layout_main_nav')}>
         {NAV_SECTIONS.map((section) => {
           const headingId = `sidebar-section-${section.label}`;
           return (

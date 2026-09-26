@@ -32,9 +32,9 @@ test('create, switch and delete profiles from settings; data stays isolated', as
   const markoId = (await markoRow.getAttribute('data-testid'))!.replace('settings-profile-row-', '');
   expect(markoId).not.toBe(ana.id);
 
-  // Switch to Marko: his history is empty.
-  await page.getByTestId(`settings-profile-switch-${markoId}`).click();
+  // Creating a profile from Settings switches to it: Marko's history is empty.
   await expect.poll(async () => (await tytax.snapshot()).activeProfileId).toBe(markoId);
+  await expect(page.getByTestId(`settings-profile-switch-${ana.id}`)).toBeVisible();
   await tytax.gotoApp('/history');
   await expect(page.getByTestId('page-heading-history')).toBeVisible();
   await expect(page.getByTestId('history-item')).toHaveCount(0);

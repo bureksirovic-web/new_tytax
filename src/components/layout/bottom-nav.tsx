@@ -21,7 +21,7 @@ export function BottomNav() {
 
   return (
     <>
-      <nav
+      <nav data-app-nav="bottom"
         className="fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-bg safe-bottom md:hidden"
         aria-label={t('layout_main_nav')}
       >
