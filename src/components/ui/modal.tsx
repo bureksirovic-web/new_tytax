@@ -1,4 +1,5 @@
 'use client';
+import { CloseIcon } from './icons';
 import { useId, useRef } from 'react';
 import { useLocale } from '@/components/providers';
 import { useDialog } from './use-dialog';
@@ -46,7 +47,7 @@ export function Modal({ open, onClose, title, children, size = 'md', ariaLabel }
               className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-gunmetal-700 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
               aria-label={t('close')}
             >
-              <span aria-hidden="true">✕</span>
+              <CloseIcon />
             </button>
           </div>
         )}

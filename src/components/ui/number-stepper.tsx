@@ -1,7 +1,8 @@
-'use client';
-import { useRef, useEffect } from 'react';
-import { useLocale } from '@/components/providers';
-import { interpolate } from '@/lib/i18n';
+"use client";
+import { MinusIcon, PlusIcon } from "./icons";
+import { useRef, useEffect } from "react";
+import { useLocale } from "@/components/providers";
+import { interpolate } from "@/lib/i18n";
 
 const defaultFormat = (v: number) => String(v);
 
@@ -19,7 +20,7 @@ interface NumberStepperProps {
 }
 
 const btnBase =
-  'flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-bg-2 font-bold transition-colors hover:bg-card-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400';
+  "flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-bg-2 font-bold transition-colors hover:bg-card-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400";
 
 export function NumberStepper({
   value,
@@ -29,7 +30,7 @@ export function NumberStepper({
   min = 0,
   max = 999,
   format = defaultFormat,
-  className = '',
+  className = "",
   ariaLabel,
 }: NumberStepperProps) {
   const { t } = useLocale();
@@ -43,7 +44,10 @@ export function NumberStepper({
 
   const change = (delta: number) => {
     const { value: v, onChange: emit, min: lo, max: hi } = latest.current;
-    const next = Math.max(lo, Math.min(hi, Math.round((v + delta) * 100) / 100));
+    const next = Math.max(
+      lo,
+      Math.min(hi, Math.round((v + delta) * 100) / 100),
+    );
     latest.current = { ...latest.current, value: next };
     emit(next);
   };
@@ -64,31 +68,45 @@ export function NumberStepper({
 
   useEffect(() => stopHold, []);
 
-  const stepButton = (delta: number, key: 'ui_decrease_by' | 'ui_increase_by', glyph: string, small: boolean) => (
-    <button
-      type="button"
-      onClick={() => change(delta)}
-      onMouseDown={() => startHold(delta)}
-      onMouseUp={stopHold}
-      onMouseLeave={stopHold}
-      onTouchStart={() => startHold(delta)}
-      onTouchEnd={stopHold}
-      className={`${btnBase} ${small ? 'text-xs text-fg-muted' : 'text-sm text-fg-2'}`}
-      aria-label={interpolate(t(key), { value: Math.abs(delta) })}
-    >
-      <span aria-hidden="true">{glyph}</span>
-    </button>
-  );
+  const stepButton = (delta: number, small: boolean) => {
+    const key = delta > 0 ? "ui_increase_by" : "ui_decrease_by";
+    return (
+      <button
+        type="button"
+        onClick={() => change(delta)}
+        onMouseDown={() => startHold(delta)}
+        onMouseUp={stopHold}
+        onMouseLeave={stopHold}
+        onTouchStart={() => startHold(delta)}
+        onTouchEnd={stopHold}
+        className={`${btnBase} ${small ? "text-xs text-fg-muted" : "text-sm text-fg-2"}`}
+        aria-label={interpolate(t(key), { value: Math.abs(delta) })}
+      >
+        {delta > 0 ? (
+          <PlusIcon className={small ? "h-3 w-3" : "h-4 w-4"} />
+        ) : (
+          <MinusIcon className={small ? "h-3 w-3" : "h-4 w-4"} />
+        )}
+      </button>
+    );
+  };
 
   return (
-    <div className={`flex items-center gap-1 ${className}`} role="group" aria-label={ariaLabel}>
-      {smallStep ? stepButton(-smallStep, 'ui_decrease_by', '-', true) : null}
-      {stepButton(-step, 'ui_decrease_by', '−', false)}
-      <span className="min-w-[52px] text-center font-mono text-base font-bold tabular-nums text-fg" aria-live="polite">
+    <div
+      className={`flex items-center gap-1 ${className}`}
+      role="group"
+      aria-label={ariaLabel}
+    >
+      {smallStep ? stepButton(-smallStep, true) : null}
+      {stepButton(-step, false)}
+      <span
+        className="min-w-[52px] text-center font-mono text-base font-bold tabular-nums text-fg"
+        aria-live="polite"
+      >
         {format(value)}
       </span>
-      {stepButton(step, 'ui_increase_by', '+', false)}
-      {smallStep ? stepButton(smallStep, 'ui_increase_by', '+', true) : null}
+      {stepButton(step, false)}
+      {smallStep ? stepButton(smallStep, true) : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import { CloseIcon } from './icons';
 import { useEffect } from 'react';
 import { useLocale } from '@/components/providers';
 import { useUIStore } from '@/stores/ui-store';
@@ -33,7 +34,7 @@ function ToastItem({ id, message, type }: { id: string; message: string; type: '
         className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-lg text-xs text-gunmetal-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
         aria-label={t('dismiss')}
       >
-        <span aria-hidden="true">✕</span>
+        <CloseIcon />
       </button>
     </div>
   );

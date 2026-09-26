@@ -1,4 +1,5 @@
 'use client';
+import { CloseIcon } from '@/components/ui/icons';
 import { useEffect, useId, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -78,7 +79,7 @@ export function MoreDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             aria-label={t('close')}
             className={`ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-lg text-fg-muted hover:bg-gunmetal-700 hover:text-fg ${FOCUS_RING}`}
           >
-            <span aria-hidden="true">✕</span>
+            <CloseIcon />
           </button>
         </div>
         <nav data-app-nav="more" aria-labelledby={titleId} className="flex-1 overflow-y-auto p-4 safe-bottom">

@@ -1,4 +1,5 @@
 'use client';
+import { CloseIcon, SearchIcon } from './icons';
 import { useRef, useEffect } from 'react';
 import { useLocale } from '@/components/providers';
 
@@ -18,9 +19,7 @@ export function SearchBar({ value, onChange, placeholder, autoFocus, className =
 
   return (
     <div className={`relative ${className}`}>
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-fg-muted" aria-hidden="true">
-        ⌕
-      </span>
+      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted" />
       <input
         ref={inputRef}
         type="search"
@@ -39,7 +38,7 @@ export function SearchBar({ value, onChange, placeholder, autoFocus, className =
           className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg text-sm text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
           aria-label={t('clear_search')}
         >
-          <span aria-hidden="true">✕</span>
+          <CloseIcon />
         </button>
       )}
     </div>
