@@ -92,6 +92,8 @@ export interface Exercise {
   /** "8-12" or "10-15/side". */
   defaultReps: string;
   impact: MuscleImpact[];
+  /** How a set of this exercise is measured. Undefined means 'reps'. (Wave 2, F2) */
+  measure?: ExerciseMeasure;
   /** "3-1-2-0". */
   tempo?: string;
   restSeconds?: number;
@@ -143,6 +145,9 @@ export type SetType = 'warmup' | 'working' | 'drop' | 'failure';
  * One set. Warm-ups (`type: 'warmup'`) and sets with `done: false` never
  * count toward PRs, volume, impact, recovery or ACWR.
  */
+/** 'time' = static holds, carries, stretches: the set records `durationSeconds`. */
+export type ExerciseMeasure = 'reps' | 'time';
+
 export interface SetEntry {
   /** Unique id (uuid). */
   id: string;
@@ -163,6 +168,8 @@ export interface SetEntry {
   ghostKg?: number;
   /** Prefill hint shown as a placeholder: last session's reps ("beat it"). */
   ghostReps?: number;
+  /** Time-measured sets only (`Exercise.measure === 'time'`): seconds held. Excluded from e1RM and kg volume. */
+  durationSeconds?: number;
 }
 
 /**
@@ -337,6 +344,8 @@ export interface ProfileSettings {
   weakPointInjector: boolean;
   /** Spoken rest-timer cues. */
   voiceCues: boolean;
+  /** Exercises pinned to analytics/dashboard (Wave 2, G4-30). Undefined = none. */
+  pinnedExerciseIds?: string[];
 }
 
 export const DEFAULT_PROFILE_SETTINGS: Readonly<ProfileSettings> = Object.freeze({
@@ -404,11 +413,23 @@ export interface BodyweightEntry {
   deletedAt?: string;
 }
 
+/** Per-profile TYTAX machine setup for one exercise, free text per field (e.g. pin "4", bench "30°"). */
+export interface MachineSetup {
+  seat?: string;
+  pin?: string;
+  backrest?: string;
+  benchAngle?: string;
+  cable?: string;
+  other?: string;
+}
+
 export interface ExerciseNote {
   id: string;
   profileId: string;
   exerciseId: string;
   content: string;
+  /** Machine setup shown at workout time (Wave 2). */
+  setup?: MachineSetup;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
