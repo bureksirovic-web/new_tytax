@@ -1,5 +1,6 @@
 import type { WorkoutLog } from '@/contracts/domain';
-import { standardizeMuscle } from '@/lib/constants';
+import type { ExerciseLookup } from '@/contracts/training';
+import { impactWeights } from '@/lib/training/common';
 import { dayCutoff, exerciseVolume, liveLogs } from './sets';
 
 export interface MuscleGapResult {
@@ -19,13 +20,16 @@ function getMuscleStatus(pct: number): MuscleGapResult['status'] {
 
 /**
  * Impact-weighted volume share per standardised muscle over the last
- * `windowDays` local calendar days (done working sets of live logs).
+ * `windowDays` local calendar days (done working sets of live logs). Impact
+ * comes from the catalog (`opts.lookup`), falling back to the log's
+ * `muscleImpactSnapshot` (program-started workouts carry no snapshot).
  */
 export function analyzeMuscleGaps(
   logs: readonly WorkoutLog[],
   windowDays = 30,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; lookup?: ExerciseLookup } = {},
 ): MuscleGapResult[] {
+  const lookup: ExerciseLookup = opts.lookup ?? (() => undefined);
   const cutoffStr = dayCutoff(opts.now ?? new Date(), windowDays);
   const windowed = liveLogs(logs).filter((l) => l.date >= cutoffStr);
 
@@ -34,12 +38,10 @@ export function analyzeMuscleGaps(
 
   for (const log of windowed) {
     for (const ex of log.exercises) {
-      if (!ex.muscleImpactSnapshot) continue;
       const exVol = exerciseVolume(ex);
       if (exVol <= 0) continue;
-      for (const impact of ex.muscleImpactSnapshot) {
-        const muscle = standardizeMuscle(impact.muscle);
-        const share = exVol * (impact.score / 100);
+      for (const [muscle, weight] of impactWeights(ex, lookup)) {
+        const share = exVol * weight;
         volumeByMuscle.set(muscle, (volumeByMuscle.get(muscle) ?? 0) + share);
         const prev = lastTrainedByMuscle.get(muscle);
         if (!prev || log.date > prev) lastTrainedByMuscle.set(muscle, log.date);

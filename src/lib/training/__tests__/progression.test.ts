@@ -123,4 +123,43 @@ describe('prefillFromHistory', () => {
     expect(r.sets.map((s) => s.kg)).toEqual([61.25, 66.25]);
     expect(r.sets.map((s) => s.ghostReps)).toEqual([10, 8]);
   });
+
+  it('a finishing drop or failure set neither blocks progression nor comes back as a working set', () => {
+    const log = logEndingAt(NOW, 48, [
+      {
+        exerciseId: PRESS,
+        sets: [
+          { kg: 100, reps: 8, rir: 3 },
+          { kg: 100, reps: 8, rir: 3 },
+          { kg: 60, reps: 12, rir: 0, type: 'drop' },
+        ],
+      },
+    ]);
+    const r = prefillFromHistory(PRESS, [log]);
+    // working sets only: min RIR = 3 → +2.5 → 102.5; the drop set (RIR 0) is ignored; 2 working sets → 2 sets
+    expect(r.basis).toBe('rir3plus');
+    expect(r.sets.map((s) => [s.type, s.kg, s.ghostKg])).toEqual([
+      ['working', 102.5, 100],
+      ['working', 102.5, 100],
+    ]);
+  });
+
+  it('bodyweight sets (0 kg) progress on ghost reps, never +2.5 kg', () => {
+    const log = logEndingAt(NOW, 48, [{ exerciseId: 'pushup', modality: 'bodyweight', sets: [{ kg: 0, reps: 20, rir: 3 }] }]);
+    const r = prefillFromHistory('pushup', [log]);
+    // RIR 3 → basis rir3plus, but base 0 kg → next kg stays 0; ghost reps 20 ("beat it")
+    expect(r.basis).toBe('rir3plus');
+    expect(r.suggestedKg).toBe(0);
+    expect(r.sets.map((s) => [s.kg, s.ghostReps])).toEqual([[0, 20]]);
+  });
+
+  it('kettlebells hold without a bell list and snap up to the next real bell with one', () => {
+    const log = logEndingAt(NOW, 48, [{ exerciseId: 'swing', modality: 'kettlebell', sets: [{ kg: 16, reps: 10, rir: 3 }] }]);
+    // 16 + 2.5 = 18.5 is not a bell → hold at 16
+    expect(prefillFromHistory('swing', [log]).suggestedKg).toBe(16);
+    // with bells 12/16/20/24: lightest ≥ 18.5 is 20
+    expect(prefillFromHistory('swing', [log], { availableKg: [24, 12, 20, 16] }).suggestedKg).toBe(20);
+    // no bell ≥ 18.5 → stay at 16
+    expect(prefillFromHistory('swing', [log], { availableKg: [8, 12, 16] }).suggestedKg).toBe(16);
+  });
 });

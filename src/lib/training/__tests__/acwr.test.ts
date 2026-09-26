@@ -34,12 +34,23 @@ describe('acwr', () => {
   });
 
   it('thresholds are strict: 1.5 and 0.8 are still recovering', () => {
-    const at15 = biceps([curls(1, 6), curls(20, 10)]);
+    // A press log 22 d ago gives 4 weeks of history (ceil(22/7) = 4) without adding Biceps load.
+    const history = logEndingAt(NOW, 22 * 24, [{ exerciseId: 'press', sets: sets(1) }]);
+    const at15 = biceps([curls(1, 6), curls(20, 10), history]);
     // acute 6; chronic (6+10)/4 = 4; ratio 6/4 = 1.5 → not > 1.5 → recovering; previous week 0, acute > 0 → rising
     expect(at15).toMatchObject({ ratio: 1.5, status: 'recovering', trend: 'rising' });
-    const at08 = biceps([curls(1, 4), curls(10, 16)]);
+    const at08 = biceps([curls(1, 4), curls(10, 16), history]);
     // acute 4; chronic (4+16)/4 = 5; ratio 4/5 = 0.8 → not < 0.8 → recovering; 4 < 16×0.9 → falling
     expect(at08).toMatchObject({ ratio: 0.8, status: 'recovering', trend: 'falling' });
+  });
+
+  it('a short history divides the chronic load by the weeks actually trained (cold start)', () => {
+    // earliest log 10 d ago → ceil(10/7) = 2 weeks; acute 4; chronic (4+4)/2 = 4; ratio 1 → recovering
+    expect(biceps([curls(2, 4), curls(10, 4)])).toMatchObject({ chronicLoad: 4, ratio: 1, status: 'recovering' });
+    // one session 1 d ago → 1 week; chronic = acute = 3; ratio 1 (not 4 → fried)
+    expect(biceps([curls(1, 3)])).toMatchObject({ acuteLoad: 3, chronicLoad: 3, ratio: 1, status: 'recovering' });
+    // a 6-week-old log clamps to 4 weeks: chronic = 8/4 = 2 from the in-window log only; ratio 8/2 = 4 → fried
+    expect(biceps([curls(1, 8), curls(42, 8)])).toMatchObject({ chronicLoad: 2, ratio: 4, status: 'fried' });
   });
 
   it('window edges: exactly 7 d is not acute, exactly 28 d is out', () => {
@@ -54,17 +65,18 @@ describe('acwr', () => {
     const warm = [{ kg: 10, reps: 10, type: 'warmup' as const }, { kg: 30, reps: 5, done: false }];
     const deleted = logEndingAt(NOW, 24, [{ exerciseId: 'curl', sets: sets(20) }], { deleted: true });
     const r = biceps([curls(2, 4, warm), curls(10, 4, warm), deleted]);
-    // acute 4 (warm-up, undone and deleted excluded); chronic (4+4)/4 = 2; ratio 4/2 = 2 → fried
-    expect(r).toMatchObject({ acuteLoad: 4, chronicLoad: 2, ratio: 2, status: 'fried', trend: 'stable' });
+    // acute 4 (warm-up, undone and deleted excluded); history = ceil(10/7) = 2 weeks (the deleted log does not count);
+    // chronic (4+4)/2 = 4; ratio 4/4 = 1 → recovering; previous week 4 → stable
+    expect(r).toMatchObject({ acuteLoad: 4, chronicLoad: 4, ratio: 1, status: 'recovering', trend: 'stable' });
   });
 
   it('one row per standardised muscle, sorted by acute load', () => {
     const log = logEndingAt(NOW, 24, [{ exerciseId: 'press', sets: sets(2) }]);
     const rows = training.acwr([log], lookup, NOW);
-    // Chest 2×1 = 2, Triceps 2×0.5 = 1; chronic = acute/4 → ratio 4 → fried
+    // Chest 2×1 = 2, Triceps 2×0.5 = 1; one session → 1 week of history → chronic = acute → ratio 1
     expect(rows.map((r) => [r.muscle, r.acuteLoad, r.chronicLoad, r.ratio])).toEqual([
-      ['Chest', 2, 0.5, 4],
-      ['Triceps', 1, 0.25, 4],
+      ['Chest', 2, 2, 1],
+      ['Triceps', 1, 1, 1],
     ]);
     expect(acwr([], lookup, NOW)).toEqual([]);
   });

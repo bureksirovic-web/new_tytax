@@ -1,29 +1,25 @@
 import type { WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup } from '@/contracts/training';
-// Eager catalog, kept only as the default lookup for callers that pass none
-// (the analytics page today). Pass a lazy-catalog lookup instead.
-import { findExerciseById } from '@/data';
 import { dayCutoff, exerciseVolume, liveLogs } from './sets';
 
 export type MovementPattern = 'push' | 'pull' | 'quad' | 'hinge' | 'carry' | 'core' | 'other';
 
-// Map exercise patterns to movement patterns
-const PATTERN_MAP: Record<string, MovementPattern> = {
-  'horizontal push': 'push',
-  'vertical push': 'push',
-  'horizontal pull': 'pull',
-  'vertical pull': 'pull',
-  'squat': 'quad',
-  'lunge': 'quad',
-  'hinge': 'hinge',
-  'deadlift': 'hinge',
-  'swing': 'hinge',
-  'snatch': 'hinge',
-  'carry': 'carry',
-  'core': 'core',
-  'tgu': 'core',
-  'windmill': 'core',
-};
+/**
+ * Catalog `pattern` → movement pattern. First matching rule wins, so the
+ * specific families come first: "Hip Extension" is a hinge and "Knee
+ * Extension" a quad move before the generic "extension" (triceps) → push;
+ * "Calf Raise" is legs before "raise" → push; "Pushdown" never contains
+ * "pull". Patterns are lower-cased with '-', '/', '(' and ')' as spaces.
+ */
+const PATTERN_RULES: ReadonlyArray<readonly [RegExp, MovementPattern]> = [
+  [/\bcarry\b/, 'carry'],
+  [/scapular|rear delt|lower trap/, 'pull'],
+  [/core|crunch|\brotation\b|\banti\b|trunk|lateral flexion|isometric hold|\btgu\b|windmill|\bchop\b|hip flexion/, 'core'],
+  [/leg press|squat|lunge|step up|\bquads?\b|knee extension|calf|plantarflexion/, 'quad'],
+  [/hinge|deadlift|\brdl\b|hip extension|hip thrust|glute|bridge|kickback|abduction|knee flexion|hamstring|swing|snatch|\bclean\b/, 'hinge'],
+  [/pull|\brow\b|curl|shrug|pullover|shoulder extension/, 'pull'],
+  [/press|push|\bdips?\b|\bfly\b|chest|extension|raise|shoulders/, 'push'],
+];
 
 export interface ParityResult {
   pattern: MovementPattern;
@@ -45,13 +41,15 @@ export function getParityLabel(delta: number): 'balanced' | 'overtrained' | 'und
   return 'undertrained';
 }
 
-export function patternOf(exerciseId: string, lookup: ExerciseLookup): MovementPattern {
-  const raw = lookup(exerciseId)?.pattern?.toLowerCase();
-  if (!raw) return 'other';
-  for (const [key, val] of Object.entries(PATTERN_MAP)) {
-    if (raw.includes(key)) return val;
-  }
+export function movementOf(pattern: string | undefined): MovementPattern {
+  if (!pattern) return 'other';
+  const p = pattern.toLowerCase().replace(/[-/()]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const [re, movement] of PATTERN_RULES) if (re.test(p)) return movement;
   return 'other';
+}
+
+export function patternOf(exerciseId: string, lookup: ExerciseLookup): MovementPattern {
+  return movementOf(lookup(exerciseId)?.pattern);
 }
 
 /**
@@ -64,7 +62,9 @@ export function computeVolumeParity(
   opts: { now?: Date; lookup?: ExerciseLookup } = {},
 ): ParityResult[] {
   const cutoffStr = dayCutoff(opts.now ?? new Date(), windowDays);
-  const lookup = opts.lookup ?? findExerciseById;
+  // No eager catalog here (it would land in first-load JS): without a lookup
+  // every exercise counts as 'other'. Callers pass the lazy catalog's lookup.
+  const lookup: ExerciseLookup = opts.lookup ?? (() => undefined);
   const recentLogs = liveLogs(logs).filter((log) => log.date >= cutoffStr);
 
   const volumeByPattern: Record<MovementPattern, number> = {
