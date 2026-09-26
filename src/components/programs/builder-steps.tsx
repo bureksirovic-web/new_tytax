@@ -1,149 +1,62 @@
 'use client';
-import type { Modality, ProgramSession, SplitType } from '@/contracts/domain';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useLocale } from '@/components/providers';
-import { FREQ_OPTIONS, MODALITY_OPTIONS, SPLIT_OPTIONS } from './program-builder';
+import { Badge } from '@/components/ui/badge';
+import { useT } from '@/lib/i18n/use-t';
+import { FREQ_OPTIONS, splitOptions, slotNames, type BuilderSplit } from './lib/builder';
+import { SPLIT_KEYS } from './lib/labels';
 
-function OptionButton({
-  selected,
-  onClick,
-  className = '',
-  children,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  className?: string;
-  children: React.ReactNode;
-}) {
+const optionCls =
+  'flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-line bg-card px-4 py-3 text-left text-fg transition-colors hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50';
+
+/** Step 1: training days per week (2–6). Tap = select and continue (legacy L4057-4078). */
+export function StepFrequency({ onPick }: { onPick: (days: number) => void }) {
+  const { t } = useT();
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`min-h-[52px] rounded-xl border text-sm font-medium transition-colors ${
-        selected
-          ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-          : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-secondary)]'
-      } ${className}`}
-    >
-      {children}
-    </button>
+    <fieldset>
+      <legend className="mb-3 text-sm font-semibold text-fg">{t('prog_builder_how_many_days')}</legend>
+      <ul className="grid grid-cols-5 gap-2">
+        {FREQ_OPTIONS.map((d) => (
+          <li key={d}>
+            <button
+              type="button"
+              onClick={() => onPick(d)}
+              aria-label={t('prog_builder_days_n', { n: d })}
+              className={`${optionCls} justify-center font-display text-xl font-bold`}
+            >
+              {d}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </fieldset>
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mb-2 font-display text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">{children}</p>
-  );
-}
+/** Step 2: split; the two recommended for `days` first, the third under "Other" (legacy L4080-4105). */
+export function StepSplit({ days, busy, onPick }: { days: number; busy: boolean; onPick: (split: BuilderSplit) => void }) {
+  const { t } = useT();
+  const options = splitOptions(days);
+  const recommended = options.filter((o) => o.recommended);
+  const other = options.filter((o) => !o.recommended);
 
-export function StepNameModality(props: {
-  name: string;
-  modality: Modality;
-  onName: (name: string) => void;
-  onModality: (m: Modality) => void;
-  onNext: () => void;
-}) {
-  const { t } = useLocale();
-  return (
-    <div className="space-y-5">
-      <Input
-        label={t('program_name')}
-        value={props.name}
-        onChange={(e) => props.onName(e.target.value)}
-        placeholder={t('program_name_placeholder')}
-        autoFocus
-      />
-      <div>
-        <FieldLabel>{t('primary_modality')}</FieldLabel>
-        <div className="grid grid-cols-2 gap-2">
-          {MODALITY_OPTIONS.map((opt) => (
-            <OptionButton key={opt.value} selected={props.modality === opt.value} onClick={() => props.onModality(opt.value)} className="px-4 py-3">
-              {t(opt.labelKey)}
-            </OptionButton>
-          ))}
-        </div>
-      </div>
-      <Button fullWidth variant="primary" size="lg" disabled={!props.name.trim()} onClick={props.onNext}>
-        {t('next')}
-      </Button>
-    </div>
+  const renderOption = (split: BuilderSplit, isRecommended: boolean) => (
+    <li key={split}>
+      <button type="button" disabled={busy} onClick={() => onPick(split)} className={optionCls}>
+        <span className="min-w-0">
+          <span className="block font-semibold">{t(SPLIT_KEYS[split])}</span>
+          <span className="block text-xs text-fg-muted">{slotNames(split, days).join(' · ')}</span>
+        </span>
+        {isRecommended ? <Badge variant="success">{t('prog_builder_recommended')}</Badge> : null}
+      </button>
+    </li>
   );
-}
 
-export function StepStructure(props: {
-  split: SplitType;
-  frequency: number;
-  onSplit: (split: SplitType, minDays: number) => void;
-  onFrequency: (f: number) => void;
-  onNext: () => void;
-}) {
-  const { t } = useLocale();
   return (
-    <div className="space-y-5">
-      <div>
-        <FieldLabel>{t('split_type')}</FieldLabel>
-        <div className="flex flex-col gap-2">
-          {SPLIT_OPTIONS.map((opt) => (
-            <OptionButton key={opt.value} selected={props.split === opt.value} onClick={() => props.onSplit(opt.value, opt.minDays)} className="px-4 py-3 text-left">
-              {t(opt.labelKey)}
-            </OptionButton>
-          ))}
-        </div>
-      </div>
-      <div>
-        <FieldLabel>
-          {t('frequency')} ({t('days_per_week')})
-        </FieldLabel>
-        <div className="flex gap-2">
-          {FREQ_OPTIONS.map((f) => (
-            <OptionButton key={f} selected={props.frequency === f} onClick={() => props.onFrequency(f)} className="flex-1 py-3 font-semibold">
-              {f}
-            </OptionButton>
-          ))}
-        </div>
-      </div>
-      <Button fullWidth variant="primary" size="lg" onClick={props.onNext}>
-        {t('review')}
-      </Button>
-    </div>
-  );
-}
-
-export function StepReview(props: {
-  name: string;
-  modality: Modality;
-  split: SplitType;
-  frequency: number;
-  sessions: readonly ProgramSession[];
-  saving: boolean;
-  onSave: () => void;
-}) {
-  const { t } = useLocale();
-  return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
-        <p className="font-display text-lg font-bold uppercase text-[var(--highlight)]">{props.name}</p>
-        <p className="mb-4 mt-1 text-xs text-[var(--text-muted)]">
-          {props.modality} &middot; {props.split.replace(/_/g, ' ')} &middot; {props.frequency} {t('days_per_week')}
-        </p>
-        <div className="flex flex-col gap-2">
-          {props.sessions.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-3 border-t border-[var(--border-color)] py-2">
-              <span className="w-6 text-center text-xs font-semibold text-[var(--text-muted)]">{i + 1}</span>
-              <span className="text-sm text-[var(--text-secondary)]">{s.name}</span>
-              <span className="ml-auto text-xs text-[var(--text-muted)]">
-                {s.exercises.length} {t('exercise_plural')}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <p className="text-xs text-[var(--text-muted)]">{t('sessions_empty_note')}</p>
-      <Button fullWidth variant="primary" size="lg" loading={props.saving} onClick={props.onSave}>
-        {t('save_program')}
-      </Button>
-    </div>
+    <fieldset>
+      <legend className="mb-1 text-sm font-semibold text-fg">{t('prog_builder_split')}</legend>
+      <p className="mb-3 text-xs text-fg-muted">{t('prog_builder_recommended_for', { days })}</p>
+      <ul className="flex flex-col gap-2">{recommended.map((o) => renderOption(o.split, true))}</ul>
+      <h2 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-widest text-fg-muted">{t('prog_builder_other')}</h2>
+      <ul className="flex flex-col gap-2">{other.map((o) => renderOption(o.split, false))}</ul>
+    </fieldset>
   );
 }
