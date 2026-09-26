@@ -27,9 +27,28 @@ const forwardingAdapter: SyncAdapter = {
   subscribe: (listener) => currentAdapter.subscribe(listener),
 };
 
+declare global {
+  interface Window {
+    /**
+     * Interim e2e hook (docs/v2/requests/G2-01.md): the app repository, for
+     * profile switch/remove until `E2EHooks` gains them. Never set in a
+     * production build unless it ran with NEXT_PUBLIC_E2E_HOOKS=1.
+     */
+    __tytaxRepo?: Repository;
+  }
+}
+
+/** Same guard as `AppBootstrap` uses for `window.__tytaxE2E`; inlined at build time. */
+function e2eHooksEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_E2E_HOOKS === '1';
+}
+
 /** The app-wide repository (lazy; constructing it never opens IndexedDB). */
 export function getRepository(): Repository {
-  if (!singleton) singleton = createRepository({ sync: forwardingAdapter });
+  if (!singleton) {
+    singleton = createRepository({ sync: forwardingAdapter });
+    if (typeof window !== 'undefined' && e2eHooksEnabled()) window.__tytaxRepo = singleton;
+  }
   return singleton;
 }
 

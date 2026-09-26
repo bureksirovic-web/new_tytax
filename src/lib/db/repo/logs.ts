@@ -57,6 +57,12 @@ export function validateExercises(exercises: unknown): asserts exercises is Sess
   }
 }
 
+const SERVER_OWNED = ['id', 'profileId', 'createdAt', 'updatedAt', 'deletedAt', 'totalVolumeKg', 'totalSets', 'modalitiesUsed', 'prCount'] as const;
+
+export function assertRpe(v: unknown, field: string): void {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 1 || v > 10) throw new RepoError('VALIDATION', `${field} must be 1-10`);
+}
+
 /** Newest first: date desc, then startedAt desc. */
 export function byNewest(a: WorkoutLog, b: WorkoutLog): number {
   return desc(a.date, b.date) || desc(a.startedAt, b.startedAt) || desc(a.id, b.id);
@@ -93,17 +99,17 @@ export function createLogsRepo(ctx: RepoContext): LogsRepo {
       ctx.write(async (w) => {
         const current = await ownedLog(ctx, profileId, id);
         if (!current || current.deletedAt) throw notFound('WorkoutLog', id);
-        const clean = stripKeys(patch ?? {}, ['id', 'profileId', 'createdAt', 'deletedAt']);
+        // Totals, prCount and bookkeeping are server-owned: never taken from the patch.
+        const clean = stripKeys(patch ?? {}, SERVER_OWNED);
         if (clean.date !== undefined) assertDay(clean.date, 'date');
         if (clean.startedAt !== undefined) assertTimestamp(clean.startedAt, 'startedAt');
         if (clean.finishedAt !== undefined) assertTimestamp(clean.finishedAt, 'finishedAt');
         if (clean.durationSeconds !== undefined) assertNonNegative(clean.durationSeconds, 'durationSeconds');
         if (clean.bodyweightKg !== undefined) assertNonNegative(clean.bodyweightKg, 'bodyweightKg');
+        if (clean.rpe !== undefined) assertRpe(clean.rpe, 'rpe');
+        if (clean.exercises !== undefined) validateExercises(clean.exercises);
         const next: WorkoutLog = { ...current, ...clean };
-        if (clean.exercises !== undefined) {
-          validateExercises(clean.exercises);
-          Object.assign(next, computeTotals(clean.exercises));
-        }
+        Object.assign(next, computeTotals(next.exercises));
         next.updatedAt = ctx.stamp();
         const stored = compact(next);
         await ctx.db.workoutLogs.put(stored);

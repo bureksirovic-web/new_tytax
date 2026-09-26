@@ -12,10 +12,12 @@
  * 3. Anything else (`'local'`, `'preset'`, `''`, a deleted member) -> the
  *    primary profile: the first v2 user profile by id (Dexie `toArray()`
  *    order, what v2 settings showed), else the oldest v3 profile, else a
- *    profile synthesised on first use with `ctx.newId()` (a uuid, because
+ *    profile synthesised on first use with `ctx.newId()` (default `newUuid()`,
+ *    a uuid even outside secure contexts, because
  *    `'local'` is not a valid Supabase id).
  */
 import type { LegacyUserProfileV2, Profile } from '@/contracts';
+import { newUuid } from '../ids';
 import { byId } from './coerce';
 import { isV3Profile } from './profile';
 import type { LegacyFamilyMemberV2, MigrationCtx } from './types';
@@ -46,7 +48,8 @@ export function createOwnerResolver(
 
   function getPrimary(): string {
     if (primary === null) {
-      synthesized = ctx.newId ? ctx.newId() : crypto.randomUUID();
+      // `newUuid`, not `crypto.randomUUID`: the latter is missing on plain-http LAN origins.
+      synthesized = ctx.newId ? ctx.newId() : newUuid();
       primary = synthesized;
     }
     return primary;

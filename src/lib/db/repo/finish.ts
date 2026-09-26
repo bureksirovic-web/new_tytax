@@ -9,9 +9,9 @@ import { RepoError, type FinishResult } from '@/contracts/repo';
 import type { ExistingBests, PRCandidate } from '@/contracts/training';
 import { training } from '@/lib/training';
 import { assertNonEmpty, assertNonNegative, assertTimestamp, compact, type RepoContext } from './context';
-import { computeTotals, countsAsWork, validateExercises } from './logs';
+import { assertRpe, computeTotals, countsAsWork, validateExercises } from './logs';
 import { advanceIn, getOwnedProgram } from './programs';
-import { getLiveProfile } from './profiles';
+import { getLiveProfile } from './profile-store';
 
 function validateDraft(draft: WorkoutDraft, debrief?: WorkoutDebrief): void {
   if (typeof draft !== 'object' || draft === null) throw new RepoError('VALIDATION', 'draft is required');
@@ -21,9 +21,7 @@ function validateDraft(draft: WorkoutDraft, debrief?: WorkoutDebrief): void {
   if (typeof draft.sessionName !== 'string') throw new RepoError('VALIDATION', 'draft.sessionName must be a string');
   validateExercises(draft.exercises);
   if (debrief?.finishedAt !== undefined) assertTimestamp(debrief.finishedAt, 'debrief.finishedAt');
-  if (debrief?.rpe !== undefined && !(Number.isFinite(debrief.rpe) && debrief.rpe >= 1 && debrief.rpe <= 10)) {
-    throw new RepoError('VALIDATION', 'debrief.rpe must be 1-10');
-  }
+  if (debrief?.rpe !== undefined) assertRpe(debrief.rpe, 'debrief.rpe');
   if (debrief?.bodyweightKg !== undefined) assertNonNegative(debrief.bodyweightKg, 'debrief.bodyweightKg');
 }
 
@@ -59,7 +57,11 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
   return ctx.write(async (w) => {
     validateDraft(draft, debrief);
     const existing = await ctx.db.workoutLogs.get(draft.id);
-    if (existing) return { log: existing, prs: [], alreadyFinished: true };
+    if (existing) {
+      // The draft id is the idempotency key; it must never surface another profile's log.
+      if (existing.profileId !== draft.profileId) throw new RepoError('CONFLICT', `Workout ${draft.id} belongs to another profile`);
+      return { log: existing, prs: [], alreadyFinished: true };
+    }
 
     const profileId = draft.profileId;
     await getLiveProfile(ctx, profileId);
@@ -74,11 +76,13 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
     const prSets = new Set(celebrated.map((c) => `${c.sessionExerciseUid}::${c.setId}`));
 
     const exercises = annotate(draft.exercises, prSets);
+    // Only a live program of this profile is referenced; anything else would dangle in its export.
+    const program = draft.programId ? await getOwnedProgram(ctx, profileId, draft.programId) : undefined;
     const log: WorkoutLog = compact({
       id: draft.id,
       profileId,
-      programId: draft.programId,
-      programSessionId: draft.programSessionId,
+      programId: program?.id,
+      programSessionId: program ? draft.programSessionId : undefined,
       sessionName: draft.sessionName,
       date: localDay(new Date(draft.startedAt)),
       startedAt: draft.startedAt,
@@ -118,12 +122,9 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
     for (const r of records) await w.queue('pr_records', 'upsert', r.id, profileId);
 
     let advancedProgram: FinishResult['advancedProgram'];
-    if (draft.programId) {
-      const program = await getOwnedProgram(ctx, profileId, draft.programId);
-      if (program && program.sessions.length > 0) {
-        const next = await advanceIn(ctx, w, program);
-        advancedProgram = { programId: next.id, nextSessionIndex: next.currentSessionIndex };
-      }
+    if (program && program.sessions.length > 0) {
+      const next = await advanceIn(ctx, w, program);
+      advancedProgram = { programId: next.id, nextSessionIndex: next.currentSessionIndex };
     }
 
     const result: FinishResult = { log, prs: candidates, alreadyFinished: false };

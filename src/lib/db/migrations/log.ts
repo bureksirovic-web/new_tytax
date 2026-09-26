@@ -100,6 +100,23 @@ export function computeTotals(exercises: readonly SessionExercise[]): {
   return { totalVolumeKg, totalSets, prCount };
 }
 
+/**
+ * `isV3Log` cannot tell a v2 log with no exercises and no `familyMemberId` key
+ * from a v3 one (the uid check is vacuous). Coerce what v2 could have left
+ * wrong: modality spelling ('TYTAX') and, with no exercises, totals (v2 kept
+ * its own). A real v3 row already satisfies both and comes back as the same
+ * object; totals of a log with exercises are left to the repo that wrote them.
+ */
+function normaliseV3Log(log: WorkoutLog): WorkoutLog {
+  const raw: readonly unknown[] = Array.isArray(log.modalitiesUsed) ? log.modalitiesUsed : [];
+  const modalitiesUsed = toModalities(raw);
+  const sameModalities = modalitiesUsed.length === raw.length && modalitiesUsed.every((m, i) => m === raw[i]);
+  const empty = log.exercises.length === 0;
+  const zeroTotals = log.totalVolumeKg === 0 && log.totalSets === 0 && log.prCount === 0;
+  if (sameModalities && (!empty || zeroTotals)) return log;
+  return { ...log, modalitiesUsed, ...(empty ? computeTotals([]) : {}) };
+}
+
 function addSeconds(iso: string, seconds: number): string {
   const t = Date.parse(iso);
   return Number.isNaN(t) ? iso : new Date(t + seconds * 1000).toISOString();
@@ -111,7 +128,7 @@ function addSeconds(iso: string, seconds: number): string {
  * `profileId` before calling this.
  */
 export function migrateLogV2(log: LegacyWorkoutLogV2 | WorkoutLog, ctx: { now: string }): WorkoutLog {
-  if (isV3Log(log)) return log;
+  if (isV3Log(log)) return normaliseV3Log(log);
   const legacy = log as LegacyWorkoutLogV2;
   const legacyExercises = Array.isArray(legacy.exercises) ? legacy.exercises : [];
   const seen: SeenSets = { signatures: new Set(), setIds: new Set() };

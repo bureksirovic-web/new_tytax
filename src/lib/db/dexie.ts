@@ -10,7 +10,9 @@ import type {
   WorkoutLog,
 } from '@/contracts/domain';
 import type { SyncCursor, SyncOperation } from '@/contracts/sync';
-import { migrateToV3 } from './migrations';
+import { createV3Upgrade } from './migrations';
+import { browserStorage, readLegacyDeviceSettings } from './migrations/device';
+import type { LegacyDeviceSettings } from './migrations/index';
 
 /**
  * Current database schema version.
@@ -27,6 +29,14 @@ export const DEFAULT_DB_NAME = 'TytaxDB';
 export interface MetaRow {
   key: string;
   value: unknown;
+}
+
+/** Injectable clock / id source for the v2 -> v3 upgrade (tests). */
+export interface TytaxDatabaseOptions {
+  now?: () => Date;
+  newId?: () => string;
+  /** v2 localStorage settings. Default: read `globalThis.localStorage` during the upgrade. */
+  legacyDeviceSettings?: () => LegacyDeviceSettings | undefined;
 }
 
 export class TytaxDatabase extends Dexie {
@@ -47,7 +57,7 @@ export class TytaxDatabase extends Dexie {
   // Device-local settings
   meta!: Table<MetaRow, string>;
 
-  constructor(name: string = DEFAULT_DB_NAME) {
+  constructor(name: string = DEFAULT_DB_NAME, opts: TytaxDatabaseOptions = {}) {
     super(name);
 
     // ─────────────────────────────────────────────────────────────
@@ -126,7 +136,13 @@ export class TytaxDatabase extends Dexie {
       meta: 'key',
       familyMembers: null,
       equipmentProfiles: null,
-    }).upgrade(migrateToV3);
+    }).upgrade(
+      createV3Upgrade({
+        now: opts.now ?? (() => new Date()),
+        newId: opts.newId,
+        legacyDeviceSettings: opts.legacyDeviceSettings ?? (() => readLegacyDeviceSettings(browserStorage())),
+      }),
+    );
   }
 }
 

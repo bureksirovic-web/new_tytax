@@ -7,3 +7,4 @@ export { normalizeName, parseNumeric, normalizeDate } from './coerce';
 export { matchKey, KEY_SPECS } from './keys';
 export * from './types';
 export * from './map';
+export * from './service';

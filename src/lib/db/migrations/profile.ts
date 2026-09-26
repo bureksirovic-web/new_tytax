@@ -13,7 +13,7 @@ import {
   type WarmupStrategy,
 } from '@/contracts';
 import { compact, strOr } from './coerce';
-import type { LegacyFamilyMemberV2 } from './types';
+import type { LegacyDeviceSettings, LegacyFamilyMemberV2 } from './types';
 
 const EPOCH = '1970-01-01T00:00:00.000Z';
 const WARMUPS: readonly WarmupStrategy[] = ['standard', 'heavy', 'pyramid', 'none'];
@@ -27,6 +27,20 @@ export interface ProfileMigrationOptions {
   plateWeights?: readonly number[];
   /** Fallback when the v2 row has no timestamps. Default: the Unix epoch. */
   now?: string;
+  /** v2 localStorage settings; fill values the v2 row lacks. */
+  device?: LegacyDeviceSettings;
+}
+
+/** Contract defaults overlaid with the v2 device settings that are present. */
+export function baseSettings(device: LegacyDeviceSettings | undefined, plateWeights?: readonly number[]): ProfileSettings {
+  const d = DEFAULT_PROFILE_SETTINGS;
+  return {
+    ...d,
+    units: device?.units ?? d.units,
+    language: device?.language ?? d.language,
+    theme: device?.theme ?? d.theme,
+    plateSetKg: plateSet(plateWeights),
+  };
 }
 
 export function plateSet(weights: readonly number[] | undefined): number[] {
@@ -35,13 +49,14 @@ export function plateSet(weights: readonly number[] | undefined): number[] {
   return [...new Set(valid)].sort((a, b) => b - a);
 }
 
-/** v2 settings merged over `DEFAULT_PROFILE_SETTINGS`. */
+/** v2 row settings merged over the device settings, then `DEFAULT_PROFILE_SETTINGS`. */
 export function settingsFromV2(user: LegacyUserProfileV2, opts: ProfileMigrationOptions = {}): ProfileSettings {
-  const d = DEFAULT_PROFILE_SETTINGS;
+  const d = baseSettings(opts.device);
   const bar = user.barWeightKg;
+  const units = user.unitSystem === 'imperial' ? 'lb' : user.unitSystem === 'metric' ? 'kg' : d.units;
   return {
     ...d,
-    units: user.unitSystem === 'imperial' ? 'lb' : 'kg',
+    units,
     language: user.language === 'en' || user.language === 'hr' ? user.language : d.language,
     theme: user.theme === 'oled' || user.theme === 'tactical' ? user.theme : d.theme,
     warmupStrategy: WARMUPS.includes(user.warmupStrategy) ? user.warmupStrategy : d.warmupStrategy,
@@ -102,12 +117,13 @@ export function synthesizeProfile(
   now: string,
   activeProgramId: string | null,
   plateWeights?: readonly number[],
+  device?: LegacyDeviceSettings,
 ): Profile {
   return {
     id,
     name,
     activeProgramId,
-    settings: { ...DEFAULT_PROFILE_SETTINGS, plateSetKg: plateSet(plateWeights) },
+    settings: baseSettings(device, plateWeights),
     createdAt: now,
     updatedAt: now,
   };

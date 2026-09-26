@@ -34,7 +34,17 @@ export function uuidV5(name: string, namespace: string): string {
 
 export type ImportIdKind = 'log' | 'session-exercise' | 'set' | 'bodyweight' | 'program' | 'program-session';
 
-/** Id of one imported record: v5 over `${profileId}|${kind}|${sourceKey}`. */
-export function importId(profileId: string, kind: ImportIdKind, sourceKey: string): string {
-  return uuidV5(`${profileId}|${kind}|${sourceKey}`, LEGACY_IMPORT_NAMESPACE);
+/**
+ * Id scope of one legacy user imported into one profile. The username is part
+ * of it so two legacy users merged into the same profile never share an id
+ * (same-date bodyweight, the 'plan' program, fallback log keys). URI-encoded
+ * so a username containing '|' cannot forge another scope.
+ */
+export function legacyIdScope(profileId: string, username: string): string {
+  return `${profileId}|user:${encodeURIComponent(username)}`;
+}
+
+/** Id of one imported record: v5 over `${scope}|${kind}|${sourceKey}` (scope from legacyIdScope). */
+export function importId(scope: string, kind: ImportIdKind, sourceKey: string): string {
+  return uuidV5(`${scope}|${kind}|${sourceKey}`, LEGACY_IMPORT_NAMESPACE);
 }

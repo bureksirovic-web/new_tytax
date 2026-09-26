@@ -14,6 +14,7 @@ import type {
   PRRecord,
 } from '@/contracts';
 import { EPOCH_ISO, coerceTimestamp, compact, finiteOr } from './coerce';
+import { stableUuid } from './stable-id';
 import type {
   LegacyArsenalV2,
   LegacyBodyweightEntryV2,
@@ -66,11 +67,37 @@ export function migrateNoteV2(n: LegacyExerciseNoteV2 | ExerciseNote, owner: str
   return compact<ExerciseNote>({ ...n, profileId: owner, createdAt: updatedAt, updatedAt });
 }
 
-/** v2 arsenal rows were whole exercises keyed by exercise id; v3 keeps the id. */
+/**
+ * v2 arsenal rows were whole exercises keyed by the catalog exercise id (a
+ * slug). v3 user-data ids are uuids, so the slug moves to `exerciseId` and the
+ * row gets a uuid derived from owner + exercise (same on every re-run).
+ */
 export function migrateArsenalV2(a: LegacyArsenalV2 | ArsenalEntry, owner: string, now: string = EPOCH_ISO): ArsenalEntry {
   if ('exerciseId' in a) return a;
   const addedAt = coerceTimestamp(a.addedAt, now);
-  return { id: a.id, profileId: owner, exerciseId: a.id, addedAt, updatedAt: addedAt };
+  return { id: stableUuid('arsenal', owner, a.id), profileId: owner, exerciseId: a.id, addedAt, updatedAt: addedAt };
+}
+
+/** Migrated arsenal rows, one per [profileId+exerciseId]; an existing v3 row wins. */
+export function dedupeArsenal(rows: readonly ArsenalEntry[]): ArsenalEntry[] {
+  const fresh = (r: ArsenalEntry): boolean => r.id === stableUuid('arsenal', r.profileId, r.exerciseId);
+  const out = new Map<string, ArsenalEntry>();
+  for (const r of rows) {
+    const key = JSON.stringify([r.profileId, r.exerciseId]);
+    const kept = out.get(key);
+    if (kept === undefined || (fresh(kept) && !fresh(r))) out.set(key, r);
+  }
+  return [...out.values()];
+}
+
+/**
+ * v3 rule (LogsRepo.softDelete): a soft-deleted log's PRs are tombstoned with
+ * the log's own `deletedAt`, so LogsRepo.restore can revive exactly them.
+ */
+export function tombstoneWithLog(pr: PRRecord, logDeletedAt: string | undefined): PRRecord {
+  if (logDeletedAt === undefined || pr.deletedAt !== undefined) return pr;
+  const updatedAt = pr.updatedAt > logDeletedAt ? pr.updatedAt : logDeletedAt;
+  return { ...pr, deletedAt: logDeletedAt, updatedAt };
 }
 
 /** v2 station flags -> `tytax_library.json` STATIONS keys. */

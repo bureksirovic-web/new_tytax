@@ -3,7 +3,7 @@ export { createFallbackResolver, customExerciseId, resolveLegacyName, slug, TYTA
 export { computeTotals, countsTowardTotals } from './logs';
 export { DEFAULT_PLAN_NAME, FALLBACK_REPS, FALLBACK_SETS } from './programs';
 export { mapSettings } from './settings';
-export { importId, uuidV5, LEGACY_IMPORT_NAMESPACE, UUID_V5_RE } from './uuid';
+export { importId, legacyIdScope, uuidV5, LEGACY_IMPORT_NAMESPACE, UUID_V5_RE } from './uuid';
 export type { ImportIdKind } from './uuid';
 export { sha1, sha1Hex } from './sha1';
 export type { LegacyNameResolver, MapContext, MappedUser, MapWarning, MapWarningCode, UnresolvedExercise } from './types';

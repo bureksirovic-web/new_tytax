@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '@/contracts';
 import {
-  createFallbackResolver, importId, mapLegacyUser, mapSettings, resolveLegacyName, sha1Hex, slug, uuidV5,
+  createFallbackResolver, importId, legacyIdScope, mapLegacyUser, mapSettings, resolveLegacyName, sha1Hex, slug, uuidV5,
   type LegacyLog, type LegacyUserData, type MapWarning,
 } from '..';
 
@@ -94,8 +94,8 @@ describe('legacy-import-map: value guards', () => {
   it('bodyweight ids use date + index; non-positive values are skipped', () => {
     const m = map(user({ bodyweight: [{ date: '2025-01-01', kg: 80 }, { date: '2025-01-01', kg: 81 }, { date: '2025-01-02', kg: 0 }] }));
     expect(m.bodyweight.map((b) => b.valueKg)).toEqual([80, 81]);
-    expect(m.bodyweight[0].id).toBe(importId('p', 'bodyweight', '2025-01-01|0'));
-    expect(m.bodyweight[1].id).toBe(importId('p', 'bodyweight', '2025-01-01|1'));
+    expect(m.bodyweight[0].id).toBe(importId(legacyIdScope('p', 'u'), 'bodyweight', '2025-01-01|0'));
+    expect(m.bodyweight[1].id).toBe(importId(legacyIdScope('p', 'u'), 'bodyweight', '2025-01-01|1'));
     expect(codes(m.warnings)).toEqual(['INVALID_BODYWEIGHT']);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PROFILE_SETTINGS, type Profile } from '@/contracts';
 import { buildPreMigrationExport, migrateSnapshotV2toV3 } from '../snapshot';
+import { stableUuid } from '../stable-id';
 import type { SnapshotV2, TablesV3 } from '../types';
 import { CTX, v2FamilyLog, v2Log, v2Program, v2Snapshot } from './fixture';
 
@@ -36,7 +37,7 @@ describe('migrateSnapshotV2toV3', () => {
     ]);
     expect(tables.bodyweightEntries).toStrictEqual([{ id: 'bw-1', profileId: 'u-1', date: '2026-03-01', valueKg: 80.5, createdAt: '2026-03-01T07:00:00.000Z', updatedAt: '2026-03-01T07:00:00.000Z' }]);
     expect(tables.exerciseNotes).toStrictEqual([{ id: 'n-1', profileId: 'u-1', exerciseId: 'bench', content: 'Elbows in', updatedAt: '2026-03-01T08:00:00.000Z', createdAt: '2026-03-01T08:00:00.000Z' }]);
-    expect(tables.arsenal).toStrictEqual([{ id: 'bench', profileId: 'u-1', exerciseId: 'bench', addedAt: '2026-02-01T00:00:00.000Z', updatedAt: '2026-02-01T00:00:00.000Z' }]);
+    expect(tables.arsenal).toStrictEqual([{ id: stableUuid('arsenal', 'u-1', 'bench'), profileId: 'u-1', exerciseId: 'bench', addedAt: '2026-02-01T00:00:00.000Z', updatedAt: '2026-02-01T00:00:00.000Z' }]);
     expect(tables.equipment).toStrictEqual([
       { id: 'u-1', profileId: 'u-1', stationIds: ['SMITH', 'BACK_UPPER', 'LEG_CURL'], attachmentIds: ['rope'], kettlebellsKg: [16, 24], bodyweightGear: ['pull-up-bar', 'rings', 'kettlebell'], createdAt: CTX.now, updatedAt: CTX.now },
     ]);

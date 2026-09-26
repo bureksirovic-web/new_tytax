@@ -1,202 +1,145 @@
 /**
- * Dexie v2 → v3 in-place migration.
+ * Dexie v2 -> v3 upgrade: the thin Dexie side of the pure transforms in
+ * `./migrations/` (AC18).
  *
- * Wave 0 baseline migration; G2 owns hardening + tests (AC18).
+ * Inside the versionchange transaction the upgrade:
+ * 1. reads every v2 table into a `SnapshotV2`;
+ * 2. stores the automatic pre-migration export (`buildPreMigrationExport`) as
+ *    the `meta` row `preMigrationExport.v2`, before anything is rewritten;
+ * 3. runs `migrateSnapshotV2toV3` and rewrites each v3 table (clear + bulkPut);
+ * 4. sets `meta.activeProfileId` when derivable and none is set;
+ * 5. drops v2-shaped outbox rows (v2 op shape is not drainable by v3).
  *
- * Input shapes are the `Legacy*V2` types from src/contracts/domain.ts. Rows
- * are read as unknown records and only fields that exist are carried over.
+ * Any throw aborts the versionchange transaction: Dexie rolls back and the
+ * database stays at v2 with its data intact. Running the upgrade over rows
+ * that are already v3 changes nothing (the transforms are idempotent, an
+ * existing export and active profile are kept, v3 outbox rows are kept).
  */
-import type { Transaction } from 'dexie';
-import type {
-  LegacyExerciseLogV2,
-  LegacyUserProfileV2,
-  Profile,
-  ProfileSettings,
-  SessionExercise,
-  SetEntry,
-  WorkoutLog,
-} from '@/contracts/domain';
-import { DEFAULT_PROFILE_SETTINGS } from '@/contracts/domain';
-import { newUuid } from './ids';
+import Dexie, { type Table, type Transaction } from 'dexie';
+import type { MetaRow } from './dexie';
+import { buildPreMigrationExport, migrateSnapshotV2toV3 } from './migrations/index';
+import type { LegacyDeviceSettings, PreMigrationExport, SnapshotV2, TablesV3 } from './migrations/index';
 
-type Row = Record<string, unknown>;
+/** `meta` key of the automatic pre-migration JSON export. */
+export const PRE_MIGRATION_EXPORT_KEY = 'preMigrationExport.v2';
+/** `meta` key of the selected profile; must equal `ACTIVE_PROFILE_KEY` in ./repo/profiles. */
+export const ACTIVE_PROFILE_META_KEY = 'activeProfileId';
 
-function isRow(v: unknown): v is Row {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
+/** Every v2 table (plus v3 `equipment`, read so a re-run over v3 rows keeps it). */
+const SNAPSHOT_TABLES = [
+  'profiles',
+  'familyMembers',
+  'equipmentProfiles',
+  'equipment',
+  'workoutLogs',
+  'programs',
+  'prRecords',
+  'bodyweightEntries',
+  'arsenal',
+  'exerciseNotes',
+  'syncQueue',
+  'syncMetadata',
+] as const;
+
+export interface UpgradeDeps {
+  /** Clock for the export stamp and rows with no usable timestamp. */
+  now: () => Date;
+  /** Id for a synthesised primary profile. Default `newUuid()` (./ids). */
+  newId?: () => string;
+  /** v2 localStorage settings, read once per upgrade. Absent: contract defaults. */
+  legacyDeviceSettings?: () => LegacyDeviceSettings | undefined;
 }
 
-function str(v: unknown): string | undefined {
-  return typeof v === 'string' ? v : undefined;
+/**
+ * Rows of one store. Tables this version deletes (`null` spec) are absent from
+ * Dexie's `tx.storeNames` but still exist in the IndexedDB versionchange
+ * transaction until it commits, so they are read natively. `Dexie.Promise`
+ * keeps the upgrade's transaction zone alive across the await.
+ */
+function readStore(tx: Transaction, name: string): Promise<unknown[]> | null {
+  if (tx.storeNames.includes(name)) return tx.table(name).toArray();
+  if (!tx.idbtrans.objectStoreNames.contains(name)) return null;
+  const request = tx.idbtrans.objectStore(name).getAll();
+  return new Dexie.Promise<unknown[]>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
 
-function num(v: unknown): number | undefined {
-  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
-}
-
-/** LegacyUserProfileV2 → Profile. Rows that already carry `settings` pass through. */
-export function migrateProfileRow(row: Row, nowIso: string): Row {
-  if (isRow(row.settings)) return row;
-  const legacy = row as Partial<LegacyUserProfileV2> & Row;
-  const settings: ProfileSettings = {
-    ...DEFAULT_PROFILE_SETTINGS,
-    plateSetKg: [...DEFAULT_PROFILE_SETTINGS.plateSetKg],
-  };
-  if (legacy.unitSystem === 'imperial') settings.units = 'lb';
-  else if (legacy.unitSystem === 'metric') settings.units = 'kg';
-  if (legacy.language === 'en' || legacy.language === 'hr') settings.language = legacy.language;
-  if (legacy.theme === 'tactical' || legacy.theme === 'oled') settings.theme = legacy.theme;
-  if (legacy.warmupStrategy === 'standard' || legacy.warmupStrategy === 'heavy' || legacy.warmupStrategy === 'pyramid') {
-    settings.warmupStrategy = legacy.warmupStrategy;
+async function readSnapshot(tx: Transaction): Promise<SnapshotV2> {
+  const snapshot: Record<string, unknown[]> = {};
+  for (const name of SNAPSHOT_TABLES) {
+    const pending = readStore(tx, name);
+    const rows = pending === null ? null : await pending;
+    // v3-only `equipment` is empty on a real v2 database: keep it out of the export.
+    if (rows !== null && (name !== 'equipment' || rows.length > 0)) snapshot[name] = rows;
   }
-  const bar = num(legacy.barWeightKg);
-  if (bar !== undefined && bar >= 0) settings.barWeightKg = bar;
-
-  const createdAt = str(legacy.createdAt) ?? nowIso;
-  const profile: Profile = {
-    id: String(legacy.id),
-    name: str(legacy.displayName)?.trim() || 'Profile',
-    activeProgramId: null,
-    settings,
-    createdAt,
-    updatedAt: str(legacy.updatedAt) ?? createdAt,
-  };
-  const bw = num(legacy.bodyweightKg);
-  if (bw !== undefined) profile.bodyweightKg = bw;
-  if (legacy.gender) profile.gender = legacy.gender;
-  if (legacy.experienceLevel) profile.experienceLevel = legacy.experienceLevel;
-  return { ...profile };
+  // Rows are untyped IndexedDB data; the transforms coerce every field they read.
+  return snapshot as SnapshotV2;
 }
 
-function migrateSet(raw: unknown): SetEntry | undefined {
-  if (!isRow(raw)) return undefined;
-  const s = raw as Partial<LegacyExerciseLogV2['sets'][number]> & Partial<SetEntry> & Row;
-  const done = s.done === true;
-  const set: SetEntry = {
-    id: str(s.id) ?? newUuid(),
-    type: s.type ?? 'working',
-    kg: num(s.kg) ?? 0,
-    reps: num(s.reps) ?? 0,
-    done,
-  };
-  const rir = num(s.rir);
-  if (rir !== undefined) set.rir = rir;
-  if (typeof s.tempo === 'string') set.tempo = s.tempo;
-  const completedAt = str(s.completedAt) ?? (done ? str(s.timestamp) : undefined);
-  if (completedAt) set.completedAt = completedAt;
-  if (s.isPersonalRecord === true || s.isPR === true) set.isPR = true;
-  const e1rm = num(s.e1rm);
-  if (e1rm !== undefined) set.e1rm = e1rm;
-  return set;
-}
-
-function migrateExercise(raw: unknown): SessionExercise | undefined {
-  if (!isRow(raw)) return undefined;
-  const ex = raw as Partial<LegacyExerciseLogV2> & Partial<SessionExercise> & Row;
-  const exerciseId = str(ex.exerciseId) ?? str(ex.exerciseRef);
-  if (!exerciseId) return undefined;
-  const modality = ex.modality;
-  const out: SessionExercise = {
-    uid: str(ex.uid) ?? newUuid(),
-    exerciseId,
-    exerciseName: str(ex.exerciseName) ?? exerciseId,
-    modality: modality === 'tytax' || modality === 'bodyweight' || modality === 'kettlebell' ? modality : 'custom',
-    sets: (Array.isArray(ex.sets) ? ex.sets : []).map(migrateSet).filter((s): s is SetEntry => s !== undefined),
-  };
-  const rest = num(ex.restSeconds);
-  if (rest !== undefined) out.restSeconds = rest;
-  if (typeof ex.notes === 'string') out.notes = ex.notes;
-  if (typeof ex.supersetGroup === 'string') out.supersetGroup = ex.supersetGroup;
-  if (Array.isArray(ex.muscleImpactSnapshot)) out.muscleImpactSnapshot = ex.muscleImpactSnapshot;
-  return out;
-}
-
-/** LegacyWorkoutLogV2 → WorkoutLog (exerciseRef → exerciseId, uid, set cleanup). */
-export function migrateWorkoutLogRow(row: Row): Row {
-  const next: Row = { ...row };
-  delete next.familyMemberId;
-  const exercises = Array.isArray(row.exercises) ? row.exercises : [];
-  next.exercises = exercises.map(migrateExercise).filter((e): e is SessionExercise => e !== undefined);
-  const startedAt = str(row.startedAt) ?? str(row.createdAt) ?? new Date(0).toISOString();
-  next.startedAt = startedAt;
-  next.finishedAt = str(row.finishedAt) ?? startedAt;
-  next.updatedAt = str(row.updatedAt) ?? str(row.createdAt) ?? startedAt;
-  next.prCount = num(row.prCount) ?? 0;
-  next.totalSets = num(row.totalSets) ?? 0;
-  next.totalVolumeKg = num(row.totalVolumeKg) ?? 0;
-  next.durationSeconds = num(row.durationSeconds) ?? 0;
-  if (!Array.isArray(row.modalitiesUsed)) {
-    next.modalitiesUsed = [...new Set((next.exercises as WorkoutLog['exercises']).map((e) => e.modality))];
+async function writeTables(tx: Transaction, tables: TablesV3): Promise<void> {
+  for (const [name, rows] of Object.entries(tables) as Array<[keyof TablesV3, TablesV3[keyof TablesV3]]>) {
+    const table = tx.table(name);
+    await table.clear();
+    await table.bulkPut(rows);
   }
-  return next;
 }
 
-/** Old arsenal rows were whole exercises keyed by the exercise id. */
-export function migrateArsenalRow(row: Row, nowIso: string): Row {
-  const addedAt = str(row.addedAt) ?? nowIso;
-  return {
-    id: String(row.id),
-    profileId: str(row.profileId) ?? '',
-    exerciseId: str(row.exerciseId) ?? String(row.id),
-    addedAt,
-    updatedAt: str(row.updatedAt) ?? addedAt,
-    ...(str(row.deletedAt) ? { deletedAt: str(row.deletedAt) } : {}),
-  };
+function isV3Operation(row: unknown): boolean {
+  return typeof row === 'object' && row !== null && typeof (row as { table?: unknown }).table === 'string';
 }
 
-/** Wave 0 baseline migration; G2 owns hardening + tests (AC18). */
-export async function migrateToV3(tx: Transaction): Promise<void> {
-  const nowIso = new Date().toISOString();
+/** The v3 `upgrade()` callback, with injectable clock and id source. */
+export function createV3Upgrade(deps: UpgradeDeps): (tx: Transaction) => Promise<void> {
+  return async (tx) => {
+    const snapshot = await readSnapshot(tx);
+    const now = deps.now().toISOString();
+    const meta = tx.table<MetaRow, string>('meta');
 
-  // Profiles first (in memory), so programs can set activeProgramId on them.
-  const profileRows = (await tx.table('profiles').toArray()).filter(isRow);
-  const profiles = profileRows.map((r) => migrateProfileRow(r, nowIso));
-
-  // programs: boolean isActive → owning profile's activeProgramId.
-  const programTable = tx.table('programs');
-  const programRows = (await programTable.toArray()).filter(isRow);
-  for (const program of programRows) {
-    const next: Row = { ...program };
-    if (program.isActive === true && !program.deletedAt) {
-      const owner = profiles.find((p) => p.id === program.profileId) ?? profiles[0];
-      if (owner && owner.activeProgramId == null) {
-        owner.activeProgramId = program.id;
-        // An orphaned active program is adopted by the fallback owner, so the
-        // profile's activeProgramId always names a program it owns.
-        next.profileId = owner.id;
-      }
+    // Backup first, so it exists whenever any v3 row does. Never overwritten:
+    // the first export is the one holding the original v2 data.
+    if ((await meta.get(PRE_MIGRATION_EXPORT_KEY)) === undefined) {
+      await meta.put({ key: PRE_MIGRATION_EXPORT_KEY, value: buildPreMigrationExport(snapshot, now) });
     }
-    delete next.isActive;
-    if (num(next.currentSessionIndex) === undefined) next.currentSessionIndex = 0;
-    await programTable.put(next);
-  }
-  await tx.table('profiles').bulkPut(profiles);
 
-  await tx.table('workoutLogs').toCollection().modify((row: Row, ref: { value: Row }) => {
-    ref.value = migrateWorkoutLogRow(row);
-  });
+    const result = migrateSnapshotV2toV3(snapshot, {
+      now,
+      newId: deps.newId,
+      legacyDeviceSettings: deps.legacyDeviceSettings?.(),
+    });
+    await writeTables(tx, result.tables);
 
-  await tx.table('prRecords').toCollection().modify((row: Row) => {
-    const achievedAt = str(row.achievedAt) ?? nowIso;
-    if (num(row.kg) === undefined) row.kg = row.prType === 'weight' ? num(row.value) ?? 0 : 0;
-    if (num(row.reps) === undefined) row.reps = 0;
-    if (!str(row.createdAt)) row.createdAt = achievedAt;
-    if (!str(row.updatedAt)) row.updatedAt = achievedAt;
-  });
+    if (result.activeProfileId !== null && (await meta.get(ACTIVE_PROFILE_META_KEY)) === undefined) {
+      await meta.put({ key: ACTIVE_PROFILE_META_KEY, value: result.activeProfileId });
+    }
 
-  await tx.table('bodyweightEntries').toCollection().modify((row: Row) => {
-    if (!str(row.createdAt)) row.createdAt = nowIso;
-    if (!str(row.updatedAt)) row.updatedAt = str(row.createdAt) ?? nowIso;
-  });
-
-  await tx.table('exerciseNotes').toCollection().modify((row: Row) => {
-    if (!str(row.updatedAt)) row.updatedAt = nowIso;
-    if (!str(row.createdAt)) row.createdAt = str(row.updatedAt) ?? nowIso;
-  });
-
-  await tx.table('arsenal').toCollection().modify((row: Row, ref: { value: Row }) => {
-    ref.value = migrateArsenalRow(row, nowIso);
-  });
-
-  // The old outbox shape (tableName/operationType/payload) is not drainable by v3.
-  await tx.table('syncQueue').clear();
+    await tx
+      .table('syncQueue')
+      .filter((row: unknown) => !isV3Operation(row))
+      .delete();
+  };
 }
+
+function isPreMigrationExport(value: unknown): value is PreMigrationExport {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Partial<PreMigrationExport>;
+  return v.format === 'tytax-v2-premigration' && v.version === 2 && typeof v.exportedAt === 'string' && typeof v.tables === 'object' && v.tables !== null;
+}
+
+interface MetaStore {
+  meta: Table<MetaRow, string>;
+}
+
+/** The automatic pre-migration export, or null when there is none (fresh install, or cleared). */
+export async function getPreMigrationExport(db: MetaStore): Promise<PreMigrationExport | null> {
+  const row = await db.meta.get(PRE_MIGRATION_EXPORT_KEY);
+  return row !== undefined && isPreMigrationExport(row.value) ? row.value : null;
+}
+
+/** Deletes the pre-migration export (after the user has downloaded or dismissed it). */
+export async function clearPreMigrationExport(db: MetaStore): Promise<void> {
+  await db.meta.delete(PRE_MIGRATION_EXPORT_KEY);
+}
+
+export type { PreMigrationExport } from './migrations/index';

@@ -12,11 +12,14 @@ import type {
   Gender,
   LegacyProgramV2,
   LegacyUserProfileV2,
+  Language,
   LegacyWorkoutLogV2,
   PRRecord,
   PRType,
   Profile,
   Program,
+  ThemeName,
+  Units,
   WorkoutLog,
 } from '@/contracts';
 
@@ -124,11 +127,24 @@ export interface TablesV3 {
   equipment: EquipmentInventory[];
 }
 
+/** v2 device-level settings (localStorage), already mapped to v3 values. */
+export interface LegacyDeviceSettings {
+  units?: Units;
+  language?: Language;
+  theme?: ThemeName;
+}
+
 export interface MigrationCtx {
   /** ISO timestamp used only where v2 has no timestamp at all. */
   now: string;
-  /** Id for the profile synthesised when v2 has none. Default `crypto.randomUUID()`. */
+  /** Id for the profile synthesised when v2 has none. Default `newUuid()` (../ids). */
   newId?: () => string;
+  /**
+   * The v2 app kept units / language / theme in localStorage, not on a
+   * profile row. Fills the synthesised profile and any v2 profile row that
+   * lacks the value. Absent: `DEFAULT_PROFILE_SETTINGS`.
+   */
+  legacyDeviceSettings?: LegacyDeviceSettings;
   /** Name of that synthesised profile. Default `'Profile'`. */
   defaultProfileName?: string;
 }

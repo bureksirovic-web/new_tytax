@@ -9,13 +9,20 @@
  * outbox, and v2 sync never worked, PLAN §1 item 5) and unknown tables.
  */
 import type { EquipmentInventory, LegacyUserProfileV2, Profile, ProfileSettings } from '@/contracts';
-import { DEFAULT_PROFILE_SETTINGS } from '@/contracts';
 import { byId } from './coerce';
 import { migrateLogV2 } from './log';
 import { createOwnerResolver } from './owners';
-import { isV3Profile, migrateFamilyMemberV2, migrateProfileV2, settingsFromV2, synthesizeProfile } from './profile';
+import { baseSettings, isV3Profile, migrateFamilyMemberV2, migrateProfileV2, settingsFromV2, synthesizeProfile } from './profile';
 import { migrateProgramsV2 } from './program';
-import { migrateArsenalV2, migrateBodyweightV2, migrateEquipmentV2, migrateNoteV2, migratePRRecordV2 } from './records';
+import {
+  dedupeArsenal,
+  migrateArsenalV2,
+  migrateBodyweightV2,
+  migrateEquipmentV2,
+  migrateNoteV2,
+  migratePRRecordV2,
+  tombstoneWithLog,
+} from './records';
 import type { LegacyEquipmentProfileV2, MigrationCtx, MigrationResult, PreMigrationExport, SnapshotV2 } from './types';
 
 function uniqueById<T extends { id: string }>(rows: readonly T[]): T[] {
@@ -51,6 +58,7 @@ export function migrateSnapshotV2toV3(snapshot: SnapshotV2, ctx: MigrationCtx): 
     return migrateLogV2(owner === log.profileId ? log : { ...log, profileId: owner }, ctx);
   });
   const logOwner = new Map(workoutLogs.map((l) => [l.id, l.profileId]));
+  const logDeletedAt = new Map(workoutLogs.map((l) => [l.id, l.deletedAt]));
 
   const { programs, activeProgramIdByProfile: active } = migrateProgramsV2(
     (snapshot.programs ?? []).map((p) => {
@@ -67,7 +75,7 @@ export function migrateSnapshotV2toV3(snapshot: SnapshotV2, ctx: MigrationCtx): 
   const profiles: Profile[] = [];
   const settingsById = new Map<string, ProfileSettings>();
   for (const p of profileRows) {
-    const opts = { plateWeights: chosenEq.get(p.id)?.plateWeights, now: ctx.now };
+    const opts = { plateWeights: chosenEq.get(p.id)?.plateWeights, now: ctx.now, device: ctx.legacyDeviceSettings };
     let migrated = migrateProfileV2(p, activeOf(p.id), opts);
     if (isV3Profile(p) && active[p.id] !== undefined) migrated = { ...p, activeProgramId: activeOf(p.id) };
     profiles.push(migrated);
@@ -76,15 +84,18 @@ export function migrateSnapshotV2toV3(snapshot: SnapshotV2, ctx: MigrationCtx): 
   const primary = owners.primaryIdOrNull();
   for (const m of members) {
     const ownerSettings = settingsById.get(m.profileId) ?? (primary !== null ? settingsById.get(primary) : undefined);
-    profiles.push(migrateFamilyMemberV2(m, ownerSettings ?? DEFAULT_PROFILE_SETTINGS, activeOf(m.id)));
+    profiles.push(migrateFamilyMemberV2(m, ownerSettings ?? baseSettings(ctx.legacyDeviceSettings), activeOf(m.id)));
   }
 
   const prRecords = (snapshot.prRecords ?? []).map((pr) =>
-    migratePRRecordV2(pr, logOwner.get(pr.workoutLogId) ?? owners.resolve(pr.profileId), ctx.now),
+    tombstoneWithLog(
+      migratePRRecordV2(pr, logOwner.get(pr.workoutLogId) ?? owners.resolve(pr.profileId), ctx.now),
+      logDeletedAt.get(pr.workoutLogId),
+    ),
   );
   const bodyweightEntries = (snapshot.bodyweightEntries ?? []).map((e) => migrateBodyweightV2(e, owners.resolve(e.profileId), ctx.now));
   const exerciseNotes = (snapshot.exerciseNotes ?? []).map((n) => migrateNoteV2(n, owners.resolve(n.profileId), ctx.now));
-  const arsenal = (snapshot.arsenal ?? []).map((a) => migrateArsenalV2(a, owners.resolve(a.profileId), ctx.now));
+  const arsenal = dedupeArsenal((snapshot.arsenal ?? []).map((a) => migrateArsenalV2(a, owners.resolve(a.profileId), ctx.now)));
 
   const equipment: EquipmentInventory[] = [...v3Equipment];
   const haveEq = new Set(v3Equipment.map((e) => e.profileId));
@@ -96,7 +107,8 @@ export function migrateSnapshotV2toV3(snapshot: SnapshotV2, ctx: MigrationCtx): 
   const synthId = owners.synthesizedId();
   if (synthId !== null) {
     const plates = chosenEq.get(synthId)?.plateWeights;
-    profiles.push(synthesizeProfile(synthId, ctx.defaultProfileName ?? 'Profile', ctx.now, activeOf(synthId), plates));
+    const name = ctx.defaultProfileName ?? 'Profile';
+    profiles.push(synthesizeProfile(synthId, name, ctx.now, activeOf(synthId), plates, ctx.legacyDeviceSettings));
   }
 
   const wanted = users.map((u) => u.activeFamilyMemberId).find((id) => id !== undefined && owners.familyIds.has(id));

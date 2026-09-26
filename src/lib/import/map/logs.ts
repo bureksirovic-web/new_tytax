@@ -23,6 +23,8 @@ import { importId } from './uuid';
 
 export interface LogMapContext {
   profileId: string;
+  /** legacyIdScope(profileId, username): prefix of every derived id. */
+  idScope: string;
   importedAt: string;
   names: NameTable;
   warnings: MapWarning[];
@@ -51,10 +53,10 @@ function mapSet(set: LegacySet, id: string, path: string, warnings: MapWarning[]
 function mapExercise(ex: LegacyExercise, logKey: string, index: number, path: string, ctx: LogMapContext): SessionExercise {
   const ref = ctx.names.ref(ex.legacyName);
   const sets = ex.sets.map((s, j) =>
-    mapSet(s, importId(ctx.profileId, 'set', `${logKey}|${index}|${j}`), `${path}.sets[${j}]`, ctx.warnings),
+    mapSet(s, importId(ctx.idScope, 'set', `${logKey}|${index}|${j}`), `${path}.sets[${j}]`, ctx.warnings),
   );
   const out: SessionExercise = {
-    uid: importId(ctx.profileId, 'session-exercise', `${logKey}|${index}`),
+    uid: importId(ctx.idScope, 'session-exercise', `${logKey}|${index}`),
     exerciseId: ref.exerciseId,
     exerciseName: ref.exerciseName,
     modality: ref.modality,
@@ -107,7 +109,7 @@ export function mapLog(log: LegacyLog, index: number, ctx: LogMapContext): Worko
   const startedAt = startOf(log, `${path}.startedAt`, ctx.warnings);
   const finishedAt = new Date(Date.parse(startedAt) + log.durationSeconds * 1000).toISOString();
   const out: WorkoutLog = {
-    id: importId(ctx.profileId, 'log', log.sourceId),
+    id: importId(ctx.idScope, 'log', log.sourceId),
     profileId: ctx.profileId,
     sessionName: log.sessionName,
     date: log.date,

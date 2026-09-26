@@ -1,7 +1,7 @@
 /**
  * Pure mapping of one parsed legacy user into contract records, ready for the
  * one-transaction repository import. Deterministic: ids are RFC 4122 v5 over
- * `${profileId}|${kind}|${sourceKey}` and timestamps come from `importedAt`,
+ * `${legacyIdScope(profileId, username)}|${kind}|${sourceKey}` and timestamps come from `importedAt`,
  * so mapping the same input twice yields deep-equal output (idempotent re-import).
  */
 import type { BodyweightEntry, Program } from '@/contracts';
@@ -11,10 +11,10 @@ import { DEFAULT_PLAN_NAME, mapProgram, protocolSource, type ProgramMapContext }
 import { NameTable } from './resolver';
 import { mapSettings } from './settings';
 import type { MapContext, MappedUser, MapWarning } from './types';
-import { importId } from './uuid';
+import { importId, legacyIdScope } from './uuid';
 
 /** Bodyweight id key: date + index among entries of the same date. Non-positive values are skipped. */
-function mapBodyweight(entries: readonly LegacyBodyweight[], ctx: MapContext, warnings: MapWarning[]): BodyweightEntry[] {
+function mapBodyweight(entries: readonly LegacyBodyweight[], ctx: MapContext, idScope: string, warnings: MapWarning[]): BodyweightEntry[] {
   const perDate = new Map<string, number>();
   const out: BodyweightEntry[] = [];
   entries.forEach((e, i) => {
@@ -25,7 +25,7 @@ function mapBodyweight(entries: readonly LegacyBodyweight[], ctx: MapContext, wa
     const k = perDate.get(e.date) ?? 0;
     perDate.set(e.date, k + 1);
     out.push({
-      id: importId(ctx.profileId, 'bodyweight', `${e.date}|${k}`),
+      id: importId(idScope, 'bodyweight', `${e.date}|${k}`),
       profileId: ctx.profileId,
       date: e.date,
       valueKg: e.kg,
@@ -65,9 +65,10 @@ function mapPrograms(user: LegacyUserData, ctx: MapContext, pctx: ProgramMapCont
 export function mapLegacyUser(user: LegacyUserData, ctx: MapContext): MappedUser {
   const warnings: MapWarning[] = [];
   const names = new NameTable(ctx.resolver);
-  const base = { profileId: ctx.profileId, importedAt: ctx.importedAt, names, warnings };
+  const idScope = legacyIdScope(ctx.profileId, user.username);
+  const base = { profileId: ctx.profileId, idScope, importedAt: ctx.importedAt, names, warnings };
   const logs = user.logs.map((log, i) => mapLog(log, i, base));
-  const bodyweight = mapBodyweight(user.bodyweight, ctx, warnings);
+  const bodyweight = mapBodyweight(user.bodyweight, ctx, idScope, warnings);
   const { programs, activeProgramId } = mapPrograms(user, ctx, base);
   const settings = mapSettings(user.settings, ctx.sharedSettings, warnings);
   return { logs, bodyweight, programs, activeProgramId, settings, unresolved: names.unresolved(), warnings };

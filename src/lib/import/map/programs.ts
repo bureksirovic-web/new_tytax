@@ -30,6 +30,8 @@ const REST_NAMES: ReadonlySet<string> = new Set(['rest day', 'rest', 'odmor', 'd
 
 export interface ProgramMapContext {
   profileId: string;
+  /** legacyIdScope(profileId, username): prefix of every derived id. */
+  idScope: string;
   importedAt: string;
   names: NameTable;
   warnings: MapWarning[];
@@ -66,7 +68,7 @@ function mapSession(src: ProgramSource, programId: string, name: string, dayInde
   if (list === undefined) {
     ctx.warnings.push({ code: 'PLAN_SESSION_MISSING', path: `${src.path}.order[${dayIndex}]`, message: `Session "${name}" is not in the plan; imported as a rest day` });
   }
-  const id = importId(ctx.profileId, 'program-session', `${src.key}|${dayIndex}`);
+  const id = importId(ctx.idScope, 'program-session', `${src.key}|${dayIndex}`);
   const isRest = isRestName(name) || list === undefined || list.length === 0;
   if (isRest && list !== undefined && list.length > 0) {
     ctx.warnings.push({ code: 'REST_SESSION_EXERCISES_DROPPED', path: `${src.path}.plan.${name}`, message: `Rest session "${name}" lists ${list.length} exercise(s); they were not imported` });
@@ -80,7 +82,7 @@ function mapSession(src: ProgramSource, programId: string, name: string, dayInde
 export function mapProgram(src: ProgramSource, ctx: ProgramMapContext): Program | null {
   const order = src.order.length > 0 ? src.order : Object.keys(src.plan);
   if (order.length === 0) return null;
-  const id = importId(ctx.profileId, 'program', src.key);
+  const id = importId(ctx.idScope, 'program', src.key);
   const sessions = order.map((name, i) => mapSession(src, id, name, i, ctx));
   const listed = new Set(order);
   for (const key of Object.keys(src.plan)) {

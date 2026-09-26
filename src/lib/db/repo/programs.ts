@@ -2,6 +2,7 @@ import type { Program, ProgramSession, ProgramTemplate } from '@/contracts/domai
 import { RepoError, type ProgramsRepo } from '@/contracts/repo';
 import {
   asc,
+  assertDay,
   assertNonEmpty,
   byProfile,
   compact,
@@ -12,7 +13,7 @@ import {
   type RepoContext,
   type WriteScope,
 } from './context';
-import { getLiveProfile, putProfile } from './profiles';
+import { getLiveProfile, putProfile } from './profile-store';
 
 function validIndex(index: unknown, sessions: readonly ProgramSession[]): boolean {
   return typeof index === 'number' && Number.isInteger(index) && index >= 0 && (sessions.length === 0 ? index === 0 : index < sessions.length);
@@ -25,6 +26,21 @@ function validateSessions(sessions: unknown): asserts sessions is ProgramSession
       throw new RepoError('VALIDATION', 'every session needs an exercises array');
     }
   }
+}
+
+const SPLITS: ReadonlySet<string> = new Set(['full_body', 'upper_lower', 'push_pull_legs', 'custom']);
+const PERIODIZATION: ReadonlySet<string> = new Set(['none', 'linear', 'undulating', 'block']);
+
+/** Enum and range checks shared by create and update (fields that are present). */
+function validateShape(p: Partial<ProgramTemplate>): void {
+  if (p.splitType !== undefined && !SPLITS.has(p.splitType)) throw new RepoError('VALIDATION', 'splitType is invalid');
+  if (p.periodizationType !== undefined && !PERIODIZATION.has(p.periodizationType)) {
+    throw new RepoError('VALIDATION', 'periodizationType is invalid');
+  }
+  if (p.frequency !== undefined && !(Number.isInteger(p.frequency) && p.frequency >= 0 && p.frequency <= 14)) {
+    throw new RepoError('VALIDATION', 'frequency must be a whole number 0-14');
+  }
+  if (p.rotationStartDate !== undefined) assertDay(p.rotationStartDate, 'rotationStartDate');
 }
 
 export async function getOwnedProgram(ctx: RepoContext, profileId: string, id: string): Promise<Program | undefined> {
@@ -49,6 +65,7 @@ export async function advanceIn(ctx: RepoContext, w: WriteScope, program: Progra
 /** A fresh, profile-owned program from a template: new ids for it and every session. */
 function instantiate(ctx: RepoContext, profileId: string, template: ProgramTemplate): Program {
   assertNonEmpty(template?.name, 'name');
+  validateShape(template);
   validateSessions(template.sessions);
   const id = ctx.newId();
   const stamp = ctx.stamp();
@@ -116,12 +133,17 @@ export function createProgramsRepo(ctx: RepoContext): ProgramsRepo {
       ctx.write(async (w) => {
         const current = await getOwnedProgram(ctx, profileId, id);
         if (!current) throw notFound('Program', id);
-        const clean = stripKeys(patch ?? {}, ['id', 'profileId', 'createdAt', 'deletedAt']);
+        const clean = stripKeys(patch ?? {}, ['id', 'profileId', 'createdAt', 'updatedAt', 'deletedAt']);
         if (clean.name !== undefined) assertNonEmpty(clean.name, 'name');
+        validateShape(clean);
         const next: Program = { ...current, ...clean };
         if (clean.sessions !== undefined) {
           validateSessions(clean.sessions);
           next.sessions = clean.sessions.map((s) => ({ ...s, programId: id }));
+          // Sessions removed under the pointer: restart the rotation unless the caller set one.
+          if (clean.currentSessionIndex === undefined && !validIndex(next.currentSessionIndex, next.sessions)) {
+            next.currentSessionIndex = 0;
+          }
         }
         if (!validIndex(next.currentSessionIndex, next.sessions)) {
           throw new RepoError('VALIDATION', 'currentSessionIndex is out of range');
