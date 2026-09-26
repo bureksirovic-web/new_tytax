@@ -1,18 +1,31 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 import { AcwrCard } from '@/components/analytics/acwr-card';
 import { VolumeParityCard } from '@/components/analytics/balance-cards';
-import { BodyweightCard } from '@/components/analytics/bodyweight-card';
-import { ExerciseInspector } from '@/components/analytics/exercise-inspector';
 import { trainedExercises } from '@/components/analytics/exercise-series';
 import { MuscleDistribution } from '@/components/analytics/muscle-distribution';
 import { PinnedMetrics } from '@/components/analytics/pinned-metrics';
-import { TrainingHeatmap } from '@/components/analytics/training-heatmap';
 import { useAnalyticsData } from '@/components/analytics/use-analytics-data';
 import { BestLiftsCard, WeeklyVolumeCard } from '@/components/analytics/volume-and-lifts';
 import { EmptyState, Skeleton } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
+
+// Below the fold: split out of the /analytics first-load chunk (budget 250 kB gzip).
+const cardFallback = () => <Skeleton className="h-40 w-full" />;
+const BodyweightCard = dynamic(
+  () => import('@/components/analytics/bodyweight-card').then((m) => m.BodyweightCard),
+  { ssr: false, loading: cardFallback },
+);
+const ExerciseInspector = dynamic(
+  () => import('@/components/analytics/exercise-inspector').then((m) => m.ExerciseInspector),
+  { ssr: false, loading: cardFallback },
+);
+const TrainingHeatmap = dynamic(
+  () => import('@/components/analytics/training-heatmap').then((m) => m.TrainingHeatmap),
+  { ssr: false, loading: cardFallback },
+);
 
 export default function AnalyticsPage() {
   const { t } = useT();

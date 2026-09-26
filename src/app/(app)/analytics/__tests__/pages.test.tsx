@@ -54,7 +54,8 @@ describe('/analytics', () => {
     expect(await screen.findByText('No workouts logged yet')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Start a workout' }));
     expect(holder.push).toHaveBeenCalledWith('/workout');
-    expect(screen.getByLabelText('Bodyweight (kg)')).toBeInTheDocument();
+    // Lazy card (next/dynamic): arrives after its chunk loads.
+    expect(await screen.findByLabelText('Bodyweight (kg)')).toBeInTheDocument();
   });
 
   it('with logs: sections render and a pinned exercise persists and shows its best e1RM in lb', async () => {
@@ -64,7 +65,8 @@ describe('/analytics', () => {
     const view = renderEn(<AnalyticsPage />);
     expect(await screen.findByRole('heading', { name: 'Training load (ACWR)' })).toBeInTheDocument();
     for (const name of ['Muscle distribution', 'Training calendar', 'Exercise progress', 'Bodyweight', 'Best lifts', 'Pinned lifts']) {
-      expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument();
+      // Some cards are lazy (next/dynamic), so wait for each heading.
+      expect(await screen.findByRole('heading', { level: 2, name })).toBeInTheDocument();
     }
     // 10 days of history → baseline still building
     expect(screen.getByTestId('ana-acwr-building')).toHaveTextContent('10 of 28 days');
