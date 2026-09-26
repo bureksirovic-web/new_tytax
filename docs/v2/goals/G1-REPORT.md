@@ -7,6 +7,7 @@ Branch `v2-g1`. Written 2026-09-26 23:50 CEST. Final SHA: see `~/Projects/tytax-
 - **Wave 0: done.** Signalled 22:52 (`0cfb58e`, branch `v2-wave0`), 45 min after start against a ≤ 3 h target; gate green.
 - **Phase B: done except one clause.** AC5/AC6 (unit), AC7 and AC2 pass. AC8 passes every clause except
   "unresolved stations ≤ 5 %": **145 of 1,436 = 10.1 %** (cap 71). Cause and proposed fix: finding F1.
+  **Update (Wave 2, below): closed** — with the app-level FRAME/FREE_WEIGHT stations, 28 unresolved = 1.9 %.
 - Two adversarial reviews ran (Wave 0 after the signal; Phase B at the end). Every S1/S2 claim got a refuter
   that tried to reproduce it. All G1-owned findings are fixed; findings in other goals' files are handed off in
   `docs/v2/requests/G1-03-wave0-review-handoff.md` (also `signals/WAVE0_REVIEW.md`).
@@ -192,19 +193,19 @@ Refuted by the reviews (dropped, with the verifier's measurement):
 Started 00:25 with `git merge v2-w2-contracts` (additive contract fields only; clean merge `1408f13`).
 Final SHA: see `signals/G1_DONE`.
 
-## Gate (Wave 2, in this worktree)
+## Gate (Wave 2, final, in this worktree)
 Command: `npm ci && npm audit --audit-level=high && npm run lint && npx tsc --noEmit && npm test && npm run build && npm run check-bundle && npm run catalog:build -- --check && PORT=3101 npx playwright test e2e/slice.spec.ts --project=chromium`
+(`npm ci` ran after the F5 lockfile change; the final run below starts at `npm audit`.)
 ```
-5 vulnerabilities (1 low, 4 moderate)
 5 vulnerabilities (1 low, 4 moderate)
 ✖ 52 problems (0 errors, 52 warnings)
  Test Files  64 passed (64)
-      Tests  529 passed (529)
-✓ Compiled successfully in 727ms
+      Tests  536 passed (536)
+✓ Compiled successfully in 1147ms
 first-load JS for /dashboard: 204.9 kB gzip (budget 250 kB), 13 files
 check-bundle: OK
 catalog: source 1436, excluded 27, catalog 1409, unresolved 28 (1.9% of 1436), no station by design 53, without station 81 (5.6% of 1436); provenance {"t1x-meta":284,"name-rule":1021,"manual":23}; time-measured 74
-  2 passed (7.9s)
+  2 passed (7.8s)
 GATE_EXIT=0
 ```
 (npm audit exits 0 at `--audit-level=high`; the remaining 1 low + 4 moderate are below the CI threshold.)
@@ -217,7 +218,7 @@ GATE_EXIT=0
 | 2 | F3 / G4-41 rankable e1RM | done | same time-sets test file (`rankableE1rm` table) | 100×5 → 112.5; 100×12 → 144; 100×13, 0 kg, 0 reps, time set, warm-up, undone → undefined |
 | 3 | F1 FRAME / FREE_WEIGHT stations | done | `npm test -- data-integrity` | `Tests 16 passed (16)`; unresolved machine moves **28 = 1.9 %** of 1,436 (AC8 5 % clause now asserted for real); without any station **81 = 5.6 %** (53 by design: 37 stretches + 16 free-standing bodyweight) |
 | 4 | New: `orderByStation` | done | `npx vitest run src/lib/workout/__tests__/order-by-station.test.ts` | 8 tests incl. 200 seeded cases: never increases station changes, reaches distinct−1 without supersets, supersets whole |
-| 5 | G4-16 / G4-15 program helpers | done (lib only) | `npx vitest run src/lib/workout src/lib/programs src/lib/catalog/__tests__/video-links.test.ts` | `Test Files 9 passed (9) Tests 61 passed (61)` |
+| 5 | G4-16 / G4-15 program helpers | done (lib only) | `npx vitest run src/lib/workout src/lib/programs src/lib/catalog/__tests__/video-links.test.ts` | `Test Files 9 passed (9) Tests 63 passed (63)` (after hardening) |
 | 6 | G4-22 video links | done | (in the command above) | `buildVideoLinks` / `primaryVideoLink` in `@/lib/catalog` |
 | 7 | F5 npm audit | done | `npm audit --audit-level=high` | exit 0 (5 vulnerabilities: 1 low, 4 moderate) |
 | extra | G4-31 / N5 kinetic impact codes | done | `npx vitest run src/lib/analytics/__tests__/kinetic-impact.test.ts` | `Tests 6 passed (6)`; `explanationKey` `ki_*` |
@@ -251,4 +252,44 @@ GATE_EXIT=0
 - `docs/v2/requests/G1-i18n.md`: + `station_FRAME`, `station_FREE_WEIGHT`, 6 `ki_*` keys (54 keys total).
 - API signatures were shared with the peer sessions up front (`signals/G1_NOTES.md`, "Wave 2 API").
 
-HARDENING_PLACEHOLDER
+## Hardening (2 local refuters, DSH/Qwen)
+Engine queue checked first (0 queued, token usage 0.14). Two `dsh --profile headless` refuters, briefed to falsify,
+read-only, repro scripts only under `/tmp/g1-refute/`:
+- **R1** (training, analytics, orderByStation): ~170 executed assertions over 8 probe scripts; nothing contradicted a
+  function's own doc or the contract. One spec-vs-doc point and three observations.
+- **R2** (catalog build, stations, catalog, video links, program helpers): 5 findings, all reproduced; everything else
+  held (determinism under two locales, 0 invalid station ids, 0 missing provenance, 1,533 legacy names, DST in 5 zones,
+  all preset ids resolve).
+
+| Finding | Reproduced | Action |
+|---|---|---|
+| R2-1 search query keeps an unclosed "(" (2 catalog names, e.g. "Kneeling High Pulley Row (Stirrup") | yes | fixed + test |
+| R2-2 all-parenthetical name falls back to the raw name incl. "TYTAX T1 \|" | yes | fixed; the Wave 2 test that pinned the old fallback now expects the spec'd query |
+| R2-3 "Bent-Over Cable Reverse Grip Row with Crunch" on the upper pulley ("crunch") | yes | fixed (row stays lower, no ab strap) + test |
+| R2-4 "reverse" blocks the supine rule: "Lying Cable Reverse Grip Pullover" on the upper pulley | yes | fixed for reverse **grip**; "Lying Cable Reverse Fly" deliberately stays upper (Phase B verifier's T1-X video evidence); test pins both |
+| R2-5 doc says every real exercise has `exerciseLevel` (16 have not, T1-X 275–300) | yes | doc corrected; the rule (T1-X ≤ 13) was already right |
+| R1 prefill `targetSets: NaN` throws | yes (observation) | fixed + test |
+| R1 ACWR exact 1.5 reported 1.499999 (ratio from rounded chronic) | yes (observation) | fixed + test |
+| R1-1 orderByStation with a *non-contiguous* superset in the input can add a change (1 → 2) | yes | not a code change: gathering a split superset outranks "no extra changes"; the doc states the guarantee holds when supersets are contiguous in the input |
+| R1 whitespace-only `supersetGroup` treated as no group; gap-analysis window N+1 days vs ACWR N days | measured | kept: documented / pre-existing Wave 0 behaviour, no spec claim broken |
+
+Station diff of the hardening commit: exactly the 2 intended exercises changed (measured before/after over all 1,409).
+
+## Unfixed findings (Wave 2)
+- **W2-F1 — Follow-ups in other goals' files** (`docs/v2/requests/G1-W2-01-followups.md`): G2 `finish.ts` still stores
+  `e1rm` for every set and `computeTotals` counts time sets in kg volume; G3 `use-pr.ts` / `workout-selectors.ts` do not know
+  time sets yet; G4 should swap its local program helpers and video links for G1's. Why not fixed: ownership. S3.
+- **W2-F2 — No ghost duration for time sets.** Prefill cannot hint last session's hold time: no `SetEntry.ghostDurationSeconds`.
+  Proposed additive contract field (request G1-W2-01). S3.
+- **W2-F3 — 81 of 1,436 (5.6 %) still have no station.** 53 by design (37 stretches, 16 free-standing bodyweight), 28 ambiguous
+  machine moves (1.9 %, within AC8's 5 %). The 50-row review sample (`docs/v2/station-sample.md`) and the 64 FRAME/
+  FREE_WEIGHT mappings (`docs/v2/station-unresolved.md`) still want an owner's glance. S3.
+- **W2-F4 — npm audit: 1 low + 4 moderate remain** (below the CI `--audit-level=high` threshold). S3.
+- Wave 1 findings F1 (5 % clause) and F5 (audit highs) are **closed** by Wave 2; F2 (time sets) and F3 (e1RM) are closed on
+  G1's side (G2/G3 call sites in W2-F1); F4, F6–F8 unchanged.
+
+## Estimate vs actual (Wave 2)
+- Wall clock: 00:25 → ~01:15 (deadline 03:30).
+- Paid (Claude subagents): Wave 2 build workflow 0.41 M tokens; this session's own turns.
+- Local lane: 2 DSH/Qwen refuters, ~30 min wall clock, run concurrently.
+
