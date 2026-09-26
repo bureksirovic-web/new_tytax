@@ -1,6 +1,6 @@
 'use client';
 import { formatDuration } from '@/stores/measure';
-import { useHoldTimer } from './hold-timer';
+import type { HoldTimer } from './hold-timer';
 import { PlayIcon } from './icons';
 
 export interface HoldTimerButtonProps {
@@ -10,10 +10,8 @@ export interface HoldTimerButtonProps {
   startLabel: string;
   /** Accessible name while running; receives the elapsed m:ss. */
   stopLabel: (elapsed: string) => string;
-  /** Injectable clock (tests). */
-  now?: () => number;
-  /** Keeps a running hold across reloads (the set id). */
-  storageKey?: string;
+  /** The row's hold timer (`useHoldTimer`), owned by the row so typing can cancel it. */
+  hold: HoldTimer;
 }
 
 function StopIcon() {
@@ -31,8 +29,7 @@ function StopIcon() {
  * Phones get a compact running state (text-xs, 14 px icon) so the duration
  * input next to it keeps room for "10:45" at 360 px.
  */
-export function HoldTimerButton({ onStop, startLabel, stopLabel, now, storageKey }: HoldTimerButtonProps) {
-  const hold = useHoldTimer(now, undefined, storageKey);
+export function HoldTimerButton({ onStop, startLabel, stopLabel, hold }: HoldTimerButtonProps) {
   const elapsed = formatDuration(hold.elapsed);
 
   function toggle() {

@@ -10,13 +10,13 @@ let repo: Repository;
 let profileId: string;
 
 /** A repository whose notes gained G2's writer (as after integration), backed by an in-memory map. */
-function withNotesWriter(base: Repository): { repo: Repository; store: Map<string, MachineSetup | undefined> } {
-  const store = new Map<string, MachineSetup | undefined>();
+function withNotesWriter(base: Repository): { repo: Repository; store: Map<string, MachineSetup | null> } {
+  const store = new Map<string, MachineSetup | null>();
   const notes = Object.assign(Object.create(base.notes) as object, {
-    setSetup: vi.fn(async (p: string, e: string, s: MachineSetup | undefined) => {
+    setSetup: vi.fn(async (p: string, e: string, s: MachineSetup | null) => {
       store.set(`${p}/${e}`, s);
     }),
-    getSetup: vi.fn(async (p: string, e: string) => store.get(`${p}/${e}`)),
+    getSetup: vi.fn(async (p: string, e: string) => store.get(`${p}/${e}`) ?? undefined),
   });
   return { repo: { ...base, notes } as unknown as Repository, store };
 }
@@ -65,15 +65,22 @@ describe('setup adapter', () => {
     expect(res).toEqual({ saved: true, setup: { seat: '4' } });
     expect(store.get(`${profileId}/bench`)).toEqual({ seat: '4' });
     expect(await loadSetup(r, profileId, 'bench')).toEqual({ seat: '4' });
-    // Clearing every field writes undefined.
+    // Clearing every field writes null (G2's `setSetup(.., null)` clear).
     expect(await saveSetup(r, profileId, 'bench', { seat: '' })).toEqual({ saved: true, setup: undefined });
+    expect(store.get(`${profileId}/bench`)).toBeNull();
     expect(await loadSetup(r, profileId, 'bench')).toBeUndefined();
   });
 
-  it('falls back to repo-level setSetup/getSetup and reports writer errors', async () => {
+  it('reports writer errors (e.g. G2 VALIDATION) and reads through notes.getSetup', async () => {
     const err = new Error('boom');
-    const r = { ...repo, setSetup: vi.fn(async () => { throw err; }), getSetup: vi.fn(async () => ({ cable: 'rope' })) } as unknown as Repository;
+    const notes = Object.assign(Object.create(repo.notes) as object, {
+      setSetup: vi.fn(async () => { throw err; }),
+      getSetup: vi.fn(async () => ({ cable: 'rope' })),
+    });
+    const r = { ...repo, notes } as unknown as Repository;
     expect(canSaveSetup(r)).toBe(true);
+    // A repo-level pair is not G2's shape: not a writer.
+    expect(canSaveSetup({ ...repo, setSetup: vi.fn(), getSetup: vi.fn() } as unknown as Repository)).toBe(false);
     expect(await saveSetup(r, profileId, 'bench', { cable: 'rope' })).toEqual({ saved: false, reason: 'error', error: err });
     expect(await loadSetup(r, profileId, 'bench')).toEqual({ cable: 'rope' });
   });

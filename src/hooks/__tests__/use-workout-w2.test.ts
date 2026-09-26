@@ -101,6 +101,8 @@ describe('useWorkout — Wave 2', () => {
       setSetup: async (profileId: string, exerciseId: string, setup: unknown) => {
         saved.set(`${profileId}/${exerciseId}`, setup);
       },
+      // G2's NotesRepoExt pair (g2/src/lib/db/repo/notes.ts): the adapter requires both.
+      getSetup: async () => undefined,
     });
     holder.repo = { ...repo, notes };
     const { result } = renderHook(() => useWorkout());

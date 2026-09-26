@@ -56,7 +56,7 @@ export function SetRow({ set, number, modality, units, onChange, onToggleDone, o
   const warmup = set.type === 'warmup';
   const setLabel = warmup ? t('warmup_label', { n: number }) : t('set_label', { n: number });
   const beat = beatsGhostReps(set);
-  const toggleable = timed ? canToggleTimeDone(set) : canToggleDone(set, modality);
+  const toggleable = timed ? canToggleTimeDone(set, ghostSeconds) : canToggleDone(set, modality);
   const needsInput = timed ? tt('time_done_needs_duration') : t('set_done_needs_input');
   const e1rm = timed ? 0 : setE1rmKg(set);
   const e1rmText = e1rm > 0 ? formatNumber(kgToDisplay(e1rm, units)) : '';

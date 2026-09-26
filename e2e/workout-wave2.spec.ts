@@ -14,7 +14,7 @@ type Page = Fixtures['page'];
  * (src/stores/__tests__/workout-store-w2.test.ts, src/hooks/__tests__/use-workout-w2.test.ts).
  */
 
-// defaultReps "20-40s", no `measure` tag on this branch: 'time' via the measureOf fallback heuristic.
+// Catalog `measure: 'time'` (G1 tag; defaultReps "20-40s").
 const HOLD_ID = 'tytax_smith-machine_smith-bar-static-hold-double-overhand';
 // station "Leg Curl" (rank 4 of the station order).
 const LEG_CURL_ID = 'tytax_leg-curl_seated-leg-curl';
@@ -92,6 +92,43 @@ test('time set: typed 45 s and a 30 s hold are saved as durations with no kg vol
   // Time sets carry no kg: volume stays 0.
   expect(log.totalVolumeKg).toBe(0);
   expect(log.totalSets).toBe(2);
+});
+
+test('a finished 45 s hold comes back as the placeholder only: the next duration starts empty', async ({ page, tytax }) => {
+  // Refuter-2 F1/F6: history is created through a real finished workout (the seed fixture has no
+  // durationSeconds, docs/v2/requests/G3-W2-03.md), then the same exercise is started again.
+  await tytax.gotoApp('/workout');
+  await tytax.reset();
+  await startQuick(page);
+  await addExercise(page, 'smith bar static hold', HOLD_ID);
+  const first = card(page, HOLD_ID).getByTestId('set-row').nth(0);
+  await first.getByTestId('set-duration').fill('45');
+  await first.getByTestId('set-duration').press('Enter');
+  await expect(first).toHaveAttribute('data-done', 'true');
+  await page.getByTestId('finish-workout').click();
+  await expect(page).toHaveURL(/\/workout\/debrief$/);
+  // Refuter-2 F3: the debrief shows the session's hold total.
+  await expect(page.getByTestId('debrief-hold')).toHaveText(/0:45/);
+  await page.getByTestId('save-workout').click();
+  await expect(page).toHaveURL(/\/history$/);
+
+  await tytax.gotoApp('/workout');
+  await startQuick(page);
+  await addExercise(page, 'smith bar static hold', HOLD_ID);
+  const rows = card(page, HOLD_ID).getByTestId('set-row');
+  await expect(rows).toHaveCount(2);
+  const again = rows.nth(0);
+  const duration = again.getByTestId('set-duration');
+  await expect(duration).toHaveValue('');
+  await expect(duration).toHaveAttribute('placeholder', '0:45');
+  await expect(again).toHaveAttribute('data-done', 'false');
+  // The second set was not done last time: no hint, and done stays disabled.
+  await expect(rows.nth(1).getByTestId('set-duration')).toHaveValue('');
+  await expect(rows.nth(1).getByTestId('set-done')).toBeDisabled();
+  // Adopting the hint is an explicit action (Enter/done), the ghost-reps rule.
+  await duration.press('Enter');
+  await expect(again).toHaveAttribute('data-done', 'true');
+  await expect(duration).toHaveValue('0:45');
 });
 
 test('order by station puts the Smith exercise before the leg curl and survives a reload', async ({ page, tytax }) => {
@@ -182,6 +219,25 @@ test.describe('360 px phone', () => {
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     console.log('360px documentElement.scrollWidth', pageWidth);
     expect(pageWidth).toBeLessThanOrEqual(360);
+
+    // Refuter-2 F10: touch targets — inputs and the done/remove buttons are >= 44 px tall,
+    // the buttons >= 44 px wide, and every control ends inside the 360 px viewport.
+    const targets = page.locator(
+      '[data-testid="set-kg"], [data-testid="set-reps"], [data-testid="set-rir"], [data-testid="set-done"], [data-testid="remove-set"]',
+    );
+    await expect(targets).toHaveCount(30);
+    const boxes = await targets.evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { id: (el as HTMLElement).dataset.testid, width: r.width, height: r.height, right: r.right };
+      }),
+    );
+    console.log('360px set-row touch targets', JSON.stringify(boxes));
+    for (const b of boxes) {
+      expect(b.height, `${b.id} height`).toBeGreaterThanOrEqual(44);
+      expect(b.width, `${b.id} width`).toBeGreaterThanOrEqual(44);
+      expect(b.right, `${b.id} inside the viewport`).toBeLessThanOrEqual(360);
+    }
   });
 
   test('time rows keep duration, RIR and the running hold button unclipped, with no horizontal scroll', async ({ page, tytax }) => {

@@ -75,8 +75,9 @@ export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerci
   );
 
   function toggleDone(set: SetEntry) {
-    if (timed ? !canToggleTimeDone(set) : !canToggleDone(set, modality)) return;
-    if (timed) toggleTimeSetDone(uid, set.id);
+    const ghost = ghostSeconds[sets.indexOf(set)];
+    if (timed ? !canToggleTimeDone(set, ghost) : !canToggleDone(set, modality)) return;
+    if (timed) toggleTimeSetDone(uid, set.id, ghost);
     else toggleSetDone(uid, set.id);
     if (set.done) return; // undo: no timer, no focus move
     startRest(restSecondsFor(exercise, settings));

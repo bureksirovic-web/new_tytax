@@ -4,14 +4,20 @@
  * repository implementation (request docs/v2/requests/G3-W2-01.md). This file
  * duck-types it so the workout UI works before and after that merge.
  *
+ * G2's shape (g2/src/lib/db/repo/notes.ts `NotesRepoExt`, read 2026-09-27):
+ *   `repo.notes.getSetup(profileId, exerciseId): Promise<MachineSetup | undefined>`
+ *   `repo.notes.setSetup(profileId, exerciseId, setup: MachineSetup | null): Promise<ExerciseNote | undefined>`
+ *   (`null` or `{}` clears). This adapter detects exactly that pair on
+ *   `repo.notes` (G2's own `notesExt` guard also requires both).
+ *
  * - `loadSetup(repo, profileId, exerciseId)` → the stored setup or undefined.
- *   Uses `notes.getSetup` / `repo.getSetup` when the implementation has one,
- *   else `notes.get(...)?.setup`. An empty setup reads as undefined.
- * - `canSaveSetup(repo)` → true when a setup writer exists.
+ *   Uses `notes.getSetup` when the implementation has one, else
+ *   `notes.get(...)?.setup`. An empty setup reads as undefined.
+ * - `canSaveSetup(repo)` → true when `notes.setSetup` and `notes.getSetup` exist.
  * - `saveSetup(repo, profileId, exerciseId, setup)` → `SaveSetupResult`.
  *   Fields are trimmed and empty ones dropped; nothing left clears the setup.
- *   Writer: `notes.setSetup(profileId, exerciseId, setup | undefined)`, else
- *   `repo.setSetup(...)`. Without one: `{ saved: false, reason: 'unsupported' }`
+ *   Writer: `notes.setSetup(profileId, exerciseId, setup | null)` (nothing
+ *   left → `null`, G2's clear). Without one: `{ saved: false, reason: 'unsupported' }`
  *   and nothing is written (the UI shows the setup read-only). A throwing
  *   writer gives `{ saved: false, reason: 'error', error }`.
  */
@@ -33,7 +39,7 @@ export type SaveSetupResult =
   | { saved: false; reason: 'error'; error: unknown };
 
 type SetupReader = (profileId: string, exerciseId: string) => Promise<MachineSetup | undefined>;
-type SetupWriter = (profileId: string, exerciseId: string, setup: MachineSetup | undefined) => Promise<unknown>;
+type SetupWriter = (profileId: string, exerciseId: string, setup: MachineSetup | null) => Promise<unknown>;
 
 function method<T>(owner: unknown, name: string): T | undefined {
   if (typeof owner !== 'object' || owner === null) return undefined;
@@ -42,7 +48,8 @@ function method<T>(owner: unknown, name: string): T | undefined {
 }
 
 function writerOf(repo: Repository): SetupWriter | undefined {
-  return method<SetupWriter>(repo.notes, 'setSetup') ?? method<SetupWriter>(repo, 'setSetup');
+  if (!method<SetupReader>(repo.notes, 'getSetup')) return undefined;
+  return method<SetupWriter>(repo.notes, 'setSetup');
 }
 
 /** Trimmed, length-capped copy without empty fields; undefined when nothing is left. */
@@ -59,7 +66,7 @@ export function cleanSetup(setup: MachineSetup | undefined): MachineSetup | unde
 }
 
 export async function loadSetup(repo: Repository, profileId: string, exerciseId: string): Promise<MachineSetup | undefined> {
-  const reader = method<SetupReader>(repo.notes, 'getSetup') ?? method<SetupReader>(repo, 'getSetup');
+  const reader = method<SetupReader>(repo.notes, 'getSetup');
   if (reader) return cleanSetup(await reader(profileId, exerciseId));
   return cleanSetup((await repo.notes.get(profileId, exerciseId))?.setup);
 }
@@ -78,7 +85,7 @@ export async function saveSetup(
   if (!writer) return { saved: false, reason: 'unsupported' };
   const clean = cleanSetup(setup);
   try {
-    await writer(profileId, exerciseId, clean);
+    await writer(profileId, exerciseId, clean ?? null);
     return { saved: true, setup: clean };
   } catch (error) {
     return { saved: false, reason: 'error', error };

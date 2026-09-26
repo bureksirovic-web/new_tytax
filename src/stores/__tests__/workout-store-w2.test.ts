@@ -74,14 +74,15 @@ describe('workout store — Wave 2 time sets', () => {
     expect(setOf('bench', 'b1').done).toBe(false);
   });
 
-  it('addSet copies the last set’s durationSeconds (and not for rep sets)', () => {
+  it('addSet after a time set copies no duration, only the hint (refuter-2 F1); rep sets get neither', () => {
     store().startDraft({ profileId: 'p1', sessionName: 'S', exercises: [se('plank', [set('t1', { durationSeconds: 50 })]), se('bench', [set('b1', { kg: 80 })])] });
     store().addSet('plank');
     store().addSet('bench');
     const plank = draft().exercises[0].sets;
     expect(plank).toHaveLength(2);
-    expect(plank[1]).toMatchObject({ type: 'working', kg: 0, reps: 0, done: false, durationSeconds: 50 });
+    expect(plank[1]).toEqual({ id: plank[1].id, type: 'working', kg: 0, reps: 0, done: false, ghostDurationSeconds: 50 });
     expect('durationSeconds' in draft().exercises[1].sets[1]).toBe(false);
+    expect('ghostDurationSeconds' in draft().exercises[1].sets[1]).toBe(false);
   });
 
   it('persisted drafts with a non-number durationSeconds are rejected', () => {
@@ -115,7 +116,9 @@ describe('workout selectors — Wave 2 time sets', () => {
     expect(summarizeDraft(d, { measureOf })).toEqual({ exerciseCount: 2, doneSets: 1, totalSets: 2, volumeKg: 500, timeSeconds: 0 });
     expect(countsAsWorkFor(exercises[0].sets[0], 'reps')).toBe(true);
     expect(countsForVolume(exercises[0].sets[0], 'time')).toBe(false);
-    expect([exercises[1].sets[0]].filter(countsAsWork)).toHaveLength(0);
+    // Refuter-2 F5: without a lookup a stray durationSeconds 0 no longer hides the logged 50 × 10.
+    expect([exercises[1].sets[0]].filter(countsAsWork)).toHaveLength(1);
+    expect(summarizeDraft(d).volumeKg).toBe(550);
   });
 
   it('a set with seconds held never adds kg volume, whatever the lookup says (G1 isTimeSet)', () => {
@@ -169,8 +172,8 @@ describe('workout store — startFromLog and reorderExercises', () => {
     expect(bench.sets[1]).toEqual({ id: bench.sets[1].id, type: 'working', kg: 100, reps: 5, done: false, tempo: '3-1-1-0', ghostKg: 100, ghostReps: 5 });
     expect(bench.sets[2]).toEqual({ id: bench.sets[2].id, type: 'working', kg: 100, reps: 3, done: false });
     expect(new Set(bench.sets.map((s) => s.id)).has('a')).toBe(false);
-    // The held 45 s is also the set's ghost hint (contract `ghostDurationSeconds`), like ghostKg above.
-    expect(plank.sets[0]).toEqual({ id: plank.sets[0].id, type: 'working', kg: 0, reps: 0, done: false, durationSeconds: 45, ghostDurationSeconds: 45 });
+    // Refuter-2 F1/F5: the held 45 s is only the ghost hint (contract `ghostDurationSeconds`), never the value.
+    expect(plank.sets[0]).toEqual({ id: plank.sets[0].id, type: 'working', kg: 0, reps: 0, done: false, ghostDurationSeconds: 45 });
     // The log is untouched.
     expect(log.exercises[0].sets[1].done).toBe(true);
     expect(log.exercises[0].muscleImpactSnapshot).toEqual([{ muscle: 'Chest', score: 100 }]);

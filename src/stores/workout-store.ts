@@ -32,13 +32,16 @@
  *
  * Wave 2:
  * - Time sets (`measure.ts`): `updateSet` accepts `durationSeconds` (whole,
- *   non-negative seconds). A set is a time set when `measure === 'time'` is
- *   passed, or (no measure) when it carries `durationSeconds`; a done time set
- *   an edit leaves at 0 s is no longer done. `toggleTimeSetDone(uid, setId)`
- *   marks a time set done only with `durationSeconds > 0` (reps/kg ignored);
- *   `toggleSetDone` stays the reps rule. `addSet` copies the last set's
- *   `durationSeconds` too.
- * - `startFromLog(profileId, log)` → WorkoutDraft: "repeat workout", replaces
+ *   non-negative seconds). A done set stays done while the set itself holds
+ *   work: seconds > 0, or reps (+ kg unless bodyweight). The `measure`
+ *   argument is accepted for callers but never erases work logged in the other
+ *   dimension; a done time set an edit leaves at 0 s is no longer done. `toggleTimeSetDone(uid, setId, ghost?)` marks a time set done with
+ *   its seconds, or — empty — by adopting the ghost (reps/kg ignored);
+ *   `toggleSetDone` stays the reps rule. `addSet` after a time set copies no
+ *   duration: the previous hold becomes the new set's `ghostDurationSeconds`.
+ * - Hold timers (refuter-2 F2): `removeSet`, `removeExercise` and `discard`
+ *   clear the stored starts of the sets they drop (`clearHoldStarts`, ./hold-storage.ts).
+ * - `startFromLog(profileId, log, measureOf?)` → WorkoutDraft: "repeat workout", replaces
  *   any draft (the caller confirms); rules in `draftFromLog` (./draft-ops.ts).
  * - `reorderExercises(uids)` → applies an exact permutation of the draft's
  *   uids; anything else is a no-op.
@@ -61,7 +64,8 @@ import { useRestTimerStore } from './rest-timer-store';
 import { draftFromLog, makeDraft, prependWarmupsTo, reorderByUids, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
 import { syncAcrossTabs } from './cross-tab';
 import { sanitizeDraft } from './draft-validation';
-import { cleanSeconds, isTimeSet } from './measure';
+import { cleanSeconds } from './measure';
+import { clearHoldStarts } from './hold-storage';
 
 export type { StartDraftInput } from './draft-ops';
 
@@ -109,10 +113,14 @@ export interface WorkoutActions {
   removeSet(uid: string, setId: string): void;
   /** Flips `done`; stamps `completedAt` when it becomes done, clears it otherwise. */
   toggleSetDone(uid: string, setId: string): void;
-  /** Time sets: flips `done`; becomes done only when `durationSeconds > 0`. */
-  toggleTimeSetDone(uid: string, setId: string): void;
+  /**
+   * Time sets: flips `done`. An empty duration adopts the set's
+   * `ghostDurationSeconds`, else `ghostSeconds` (the card's last-session hint);
+   * with neither it stays not done.
+   */
+  toggleTimeSetDone(uid: string, setId: string, ghostSeconds?: number): void;
   /** Repeat workout: a new draft from a history log (see `draftFromLog`); replaces any draft. */
-  startFromLog(profileId: string, log: WorkoutLog): WorkoutDraft;
+  startFromLog(profileId: string, log: WorkoutLog, measureOf?: (exerciseId: string) => ExerciseMeasure | undefined): WorkoutDraft;
   /** Reorders the draft to `uids` when it is an exact permutation of its uids; otherwise no-op. */
   reorderExercises(uids: readonly string[]): void;
   setNotes(notes: string): void;
@@ -267,9 +275,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       removeExercise: (uid) =>
-        set((s) =>
-          s.draft ? { draft: { ...s.draft, exercises: s.draft.exercises.filter((e) => e.uid !== uid) } } : s,
-        ),
+        set((s) => {
+          if (!s.draft) return s;
+          clearHoldStarts(s.draft.exercises.filter((e) => e.uid === uid).flatMap((e) => e.sets.map((x) => x.id)));
+          return { draft: { ...s.draft, exercises: s.draft.exercises.filter((e) => e.uid !== uid) } };
+        }),
 
       moveExercise: (uid, direction) =>
         set((s) => {
@@ -287,12 +297,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
           draft: withExercise(s.draft, uid, (ex) => {
             const last = ex.sets[ex.sets.length - 1];
             const next = emptyWorkingSet(last?.kg ?? 0);
-            if (last?.durationSeconds !== undefined) next.durationSeconds = last.durationSeconds;
+            // Time sets (refuter-2 F1): the previous hold is only the placeholder hint, never a value.
+            const hint = cleanSeconds(last?.durationSeconds) || cleanSeconds(last?.ghostDurationSeconds);
+            if (hint > 0) next.ghostDurationSeconds = hint;
             return { ...ex, sets: [...ex.sets, next] };
           }),
         })),
 
-      updateSet: (uid, setId, patch, measure) =>
+      updateSet: (uid, setId, patch) =>
         set((s) => ({
           draft: withExercise(s.draft, uid, (ex) => {
             if (!ex.sets.some((x) => x.id === setId)) return ex;
@@ -300,11 +312,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
               if (entry.id !== setId) return entry;
               const next = { ...entry, ...patch, id: entry.id };
               if ('durationSeconds' in patch) next.durationSeconds = cleanSeconds(patch.durationSeconds);
-              // A done set that an edit leaves without reps (or weight, unless bodyweight) is no longer done;
-              // a done time set without seconds neither.
-              const complete = isTimeSet(next, measure)
-                ? (next.durationSeconds ?? 0) > 0
-                : next.reps > 0 && (next.kg > 0 || ex.modality === 'bodyweight');
+              // A done set stays done while the SET still holds work in either dimension (refuter-2 F4):
+              // seconds > 0, or reps with a weight (unless bodyweight). The measure only picks the inputs
+              // shown; a wrong or not-yet-loaded measure never erases work logged in the other dimension.
+              // So a done time set cleared to 0 s, or a rep set cleared to 0 reps, is no longer done.
+              const complete = cleanSeconds(next.durationSeconds) > 0 || (next.reps > 0 && (next.kg > 0 || ex.modality === 'bodyweight'));
               return next.done && !complete ? { ...next, done: false, completedAt: undefined } : next;
             });
             return { ...ex, sets };
@@ -312,9 +324,12 @@ export const useWorkoutStore = create<WorkoutStore>()(
         })),
 
       removeSet: (uid, setId) =>
-        set((s) => ({
-          draft: withExercise(s.draft, uid, (ex) => ({ ...ex, sets: ex.sets.filter((x) => x.id !== setId) })),
-        })),
+        set((s) => {
+          clearHoldStarts([setId]);
+          return {
+            draft: withExercise(s.draft, uid, (ex) => ({ ...ex, sets: ex.sets.filter((x) => x.id !== setId) })),
+          };
+        }),
 
       toggleSetDone: (uid, setId) =>
         set((s) => ({
@@ -329,17 +344,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
           }),
         })),
 
-      toggleTimeSetDone: (uid, setId) =>
+      toggleTimeSetDone: (uid, setId, ghostSeconds) =>
         set((s) => ({
           draft: withSet(s.draft, uid, setId, (entry) => {
             if (entry.done) return { ...entry, done: false, completedAt: undefined };
-            if (cleanSeconds(entry.durationSeconds) <= 0) return entry;
-            return { ...entry, done: true, completedAt: nowIso() };
+            // Empty duration adopts the ghost (explicit tap/Enter, the ghost-reps rule); neither → not done.
+            const seconds = cleanSeconds(entry.durationSeconds) || cleanSeconds(entry.ghostDurationSeconds) || cleanSeconds(ghostSeconds);
+            if (seconds <= 0) return entry;
+            return { ...entry, durationSeconds: seconds, done: true, completedAt: nowIso() };
           }),
         })),
 
-      startFromLog: (profileId, log) => {
-        const draft = draftFromLog(profileId, log, nowIso());
+      startFromLog: (profileId, log, measureOf) => {
+        const draft = draftFromLog(profileId, log, nowIso(), measureOf);
         useRestTimerStore.getState().stop();
         set({ draft });
         return draft;
@@ -356,6 +373,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       discard: () => {
         // A rest belongs to its workout: never carry it into the next one.
         useRestTimerStore.getState().stop();
+        clearHoldStarts(); // refuter-2 F2: no hold outlives its workout (finish ends with discard too)
         set({ draft: null });
       },
 

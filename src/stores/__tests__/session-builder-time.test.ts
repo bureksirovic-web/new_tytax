@@ -34,9 +34,10 @@ describe('buildSessionExercise — time exercises', () => {
     // Newest: 40 s, 50 s, the third set not done → index 2 has no prefill.
     const newest = timedLog(2, 'plank', [40, 50, null], true);
     const out = buildSessionExercise({ exercise: plank, history: [newest, older], settings: settings() });
+    // Refuter-2 F1: nothing is prefilled as a value; the input starts empty.
     expect(out.sets.map((s) => [s.type, s.kg, s.reps, s.durationSeconds])).toEqual([
-      ['working', 0, 0, 40],
-      ['working', 0, 0, 50],
+      ['working', 0, 0, undefined],
+      ['working', 0, 0, undefined],
       ['working', 0, 0, undefined],
     ]);
     // ghostDurationSeconds (contract hint): last session's seconds at the same index; the undone set has none.
@@ -44,21 +45,22 @@ describe('buildSessionExercise — time exercises', () => {
     expect(out.sets.some((s) => s.ghostKg !== undefined || s.ghostReps !== undefined)).toBe(false);
   });
 
-  it('targetSets past the last session repeat its last done duration; fewer sets cut from the end', () => {
+  it('targetSets past the last session get no hint and no value; fewer sets cut from the end', () => {
     const newest = timedLog(1, 'hold', [30, 35]);
     const more = buildSessionExercise({ exercise: tagged, history: [newest], settings: settings(), targetSets: 4 });
-    expect(more.sets.map((s) => s.durationSeconds)).toEqual([30, 35, 35, 35]);
+    expect(more.sets.map((s) => s.durationSeconds)).toEqual([undefined, undefined, undefined, undefined]);
     // Like ghostKg, the hint exists only for indices last session had.
     expect(more.sets.map((s) => s.ghostDurationSeconds)).toEqual([30, 35, undefined, undefined]);
     const fewer = buildSessionExercise({ exercise: tagged, history: [newest], settings: settings(), targetSets: 1 });
-    expect(fewer.sets.map((s) => s.durationSeconds)).toEqual([30]);
+    expect(fewer.sets.map((s) => [s.durationSeconds, s.ghostDurationSeconds])).toEqual([[undefined, 30]]);
   });
 
   it('ignores deleted logs and uses the history set count when no target is given', () => {
     const deleted = { ...timedLog(0, 'hold', [99, 99, 99, 99]), deletedAt: '2026-09-20T00:00:00.000Z' };
     const kept = timedLog(3, 'hold', [25, 25, 25]);
     const out = buildSessionExercise({ exercise: tagged, history: [deleted, kept], settings: settings() });
-    expect(out.sets.map((s) => s.durationSeconds)).toEqual([25, 25, 25]);
+    expect(out.sets.map((s) => s.ghostDurationSeconds)).toEqual([25, 25, 25]);
+    expect(out.sets.every((s) => s.durationSeconds === undefined)).toBe(true);
   });
 
   it('input.measure overrides the catalog; a reps exercise is unchanged', () => {
@@ -69,9 +71,9 @@ describe('buildSessionExercise — time exercises', () => {
     expect('durationSeconds' in asReps.sets[0]).toBe(false);
   });
 
-  it('a deload keeps the held durations and drops one set', () => {
+  it('a deload keeps the held-duration hints and drops one set', () => {
     const built = buildSessionExercise({ exercise: tagged, history: [timedLog(1, 'hold', [30, 40, 50])], settings: settings() });
     const [deloaded] = applyDeload([built], settings());
-    expect(deloaded.sets.map((s) => [s.kg, s.durationSeconds])).toEqual([[0, 30], [0, 40]]);
+    expect(deloaded.sets.map((s) => [s.kg, s.durationSeconds, s.ghostDurationSeconds])).toEqual([[0, undefined, 30], [0, undefined, 40]]);
   });
 });

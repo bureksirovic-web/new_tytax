@@ -33,7 +33,7 @@
  * - `measureOfExercise(exerciseId)` → 'reps' | 'time': `measureOf` over the
  *   catalog (loaded once a draft exists); until then, or for an id the catalog
  *   does not know, 'time' when a draft set of that exercise carries
- *   `durationSeconds`.
+ *   `durationSeconds` or `ghostDurationSeconds` (a prefilled hold has only the ghost).
  * - `lastDurations(exerciseId)` → Promise of last session's working-set
  *   seconds by working index (undefined: not done / no seconds), from
  *   `repo.logs.historyFor`; [] without a profile. Feeds the time-set ghost.
@@ -209,17 +209,19 @@ export function useWorkout(): UseWorkoutResult {
   const repeatLog = useCallback(
     (log: WorkoutLog, opts?: { replace?: boolean }) => {
       if (!profileId) return null;
-      const res = orch.repeatLog(profileId, log, opts);
+      // Catalog measure when loaded; else draftFromLog falls back to sets carrying durationSeconds.
+      const lookup = catalog ? (id: string) => { const e = catalog.getById(id); return e ? measureOf(e) : undefined; } : undefined;
+      const res = orch.repeatLog(profileId, log, { ...opts, measureOf: lookup });
       return res.ok ? res.draft : null;
     },
-    [orch, profileId],
+    [orch, profileId, catalog],
   );
   const measureOfExercise = useCallback(
     (exerciseId: string): ExerciseMeasure => {
       const known = catalog?.getById(exerciseId);
       if (known) return measureOf(known);
       const timed = draft?.exercises.some(
-        (e) => e.exerciseId === exerciseId && e.sets.some((x) => typeof x.durationSeconds === 'number'),
+        (e) => e.exerciseId === exerciseId && e.sets.some((x) => typeof x.durationSeconds === 'number' || typeof x.ghostDurationSeconds === 'number'),
       );
       return timed ? 'time' : 'reps';
     },

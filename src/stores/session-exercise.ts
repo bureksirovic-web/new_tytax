@@ -4,14 +4,12 @@
  *
  * Time exercises (Wave 2): `input.measure`, else `measureOf(exercise)`. A time
  * exercise gets NO warm-ups; its working sets (same count rule as reps) are
- * `kg 0, reps 0, durationSeconds` = the duration of the done working set at
- * the same working index in the newest (non-deleted) log containing the
- * exercise; past that session's last set, its last done duration. No history
- * → no `durationSeconds` (the input starts empty). Holds are repeated, never
- * progressed, and time sets carry no kg/reps ghosts. The placeholder hint
- * `ghostDurationSeconds` is that same index's done duration (only for indices
- * last session had, like `ghostKg`): G1's `prefillFromHistory` does not fill
- * it (it never reads durations), so this builder does.
+ * `kg 0, reps 0` with NO `durationSeconds` (the input starts empty). The
+ * placeholder hint `ghostDurationSeconds` is the duration of the done working
+ * set at the same working index in the newest (non-deleted) log containing the
+ * exercise (only for indices last session had, like `ghostKg`). Holds are
+ * never progressed, and time sets carry no kg/reps ghosts. G1's
+ * `prefillFromHistory` never reads durations, so this builder fills the hint.
  */
 import type { Exercise, ExerciseMeasure, Modality, ProfileSettings, ProgramExercise, SessionExercise, SetEntry, WorkoutLog } from '@/contracts/domain';
 import { newUuid } from '@/lib/db/ids';
@@ -71,16 +69,20 @@ export function lastDurations(exerciseId: string, history: readonly WorkoutLog[]
     .map((s) => (s.done && cleanSeconds(s.durationSeconds) > 0 ? cleanSeconds(s.durationSeconds) : undefined));
 }
 
-/** `targetSets` when known, else as many sets as last session had (at least one). */
+/**
+ * `targetSets` when known, else as many sets as last session had (at least one).
+ * Refuter-2 F1: last session's hold is ONLY the placeholder hint
+ * (`ghostDurationSeconds`, for indices last session had); `durationSeconds`
+ * stays undefined so nothing is logged unless the athlete types, times a hold,
+ * or explicitly adopts the ghost with done / Enter (`toggleTimeSetDone`).
+ */
 function timeSets(targetSets: number | undefined, exerciseId: string, history: readonly WorkoutLog[]): SetEntry[] {
   const last = lastDurations(exerciseId, history);
-  const lastDone = last.filter((d) => d !== undefined).at(-1);
   const count = Math.max(1, Math.floor(targetSets ?? last.length));
   return Array.from({ length: count }, (_, i) => {
     const set: SetEntry = { id: newUuid(), type: 'working', kg: 0, reps: 0, done: false };
-    const seconds = i < last.length ? last[i] : lastDone;
-    if (seconds !== undefined) set.durationSeconds = seconds;
-    if (i < last.length && last[i] !== undefined) set.ghostDurationSeconds = last[i];
+    const ghost = i < last.length ? last[i] : undefined;
+    if (ghost !== undefined) set.ghostDurationSeconds = ghost;
     return set;
   });
 }

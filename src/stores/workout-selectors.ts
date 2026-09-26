@@ -4,14 +4,13 @@
  *
  * Time sets mirror G1 (`@/lib/training`): a set with `durationSeconds` > 0
  * (`isTimeSet`) is seconds held. It counts as a done set, never adds kg volume,
- * and its seconds are the hold total (`holdSeconds`). The row measure of
- * ./measure.ts only adds the UI rule that a time row with no seconds yet (a
- * 'time' exercise, or without a lookup a set carrying `durationSeconds`) is not
- * logged work, whatever its reps.
+ * and its seconds are the hold total (`holdSeconds`). With an explicit 'time'
+ * measure, a set with no seconds is not logged work, whatever its reps.
+ * Without a measure, reps count: a stray `durationSeconds: 0` never turns
+ * logged rep work into nothing (refuter-2 F5; the finish guard uses this).
  */
 import type { ExerciseMeasure, SessionExercise, SetEntry, WorkoutDraft } from '@/contracts/domain';
 import { holdSeconds, isTimeSet as isHeldSet } from '@/lib/training';
-import { isTimeSet as isTimeRow } from './measure';
 
 export interface DraftSummary {
   exerciseCount: number;
@@ -42,7 +41,8 @@ export function countsAsWork(s: SetEntry): boolean {
 export function countsAsWorkFor(s: SetEntry, measure?: ExerciseMeasure): boolean {
   if (!s.done || s.type === 'warmup') return false;
   if (isHeldSet(s)) return true;
-  return !isTimeRow(s, measure) && s.reps > 0;
+  // Refuter-2 F5: only an explicit 'time' measure discards reps; a stray durationSeconds 0 does not.
+  return measure !== 'time' && s.reps > 0;
 }
 
 /** Counts toward kg volume: logged work that is not a time set (G1 `isTimeSet`). */

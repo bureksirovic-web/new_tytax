@@ -6,9 +6,10 @@
  * Wave 2: `draftFromLog` (repeat workout) and `reorderByUids` (order by
  * station / manual reorder).
  */
-import type { Exercise, SessionExercise, SetEntry, WorkoutDraft, WorkoutLog } from '@/contracts/domain';
+import type { Exercise, ExerciseMeasure, SessionExercise, SetEntry, WorkoutDraft, WorkoutLog } from '@/contracts/domain';
 import { newUuid } from '@/lib/db/ids';
 import { countsAsWork } from './workout-selectors';
+import { cleanSeconds } from './measure';
 
 const newId = newUuid;
 
@@ -126,23 +127,34 @@ export function prependWarmupsTo(ex: SessionExercise, warmups: readonly SetEntry
 /**
  * "Repeat workout" (G4-25): a new draft with the log's exercises in the log's
  * order. Fresh draft id, uids and set ids; every set is undone (no
- * `completedAt`, `rir`, `isPR`, `e1rm`); kg/reps/`durationSeconds` stay as the
- * prefill; a done working set's kg/reps become `ghostKg`/`ghostReps` ("beat
- * it"), a done working time set's seconds `ghostDurationSeconds`; other sets
- * keep no ghost. Warm-ups stay warm-ups. Kept per exercise:
+ * `completedAt`, `rir`, `isPR`, `e1rm`); kg/reps stay as the prefill and a
+ * done working set's kg/reps become `ghostKg`/`ghostReps` ("beat it").
+ * Time exercises (refuter-2 F5) — `measureOf(exerciseId) === 'time'`, or
+ * without a lookup (or an unknown id) any set holding `durationSeconds` > 0 —
+ * get kg 0, reps 0, NO `durationSeconds` and no kg/reps ghosts: a done working
+ * set's seconds become `ghostDurationSeconds` only (the placeholder, adopted
+ * only by an explicit done, see `toggleTimeSetDone`). Other sets keep no
+ * ghost. Warm-ups stay warm-ups. Kept per exercise:
  * name, modality, rest, superset group, impact snapshot and `tempo` per set;
  * the exercise `notes` are dropped (they described that day). `sessionName`
  * comes from the log. NOT carried: `programId` / `programSessionId` (a repeat
  * is a quick workout and never advances a rotation), `isDeload`, the log notes.
  */
-export function draftFromLog(profileId: string, log: WorkoutLog, startedAt: string): WorkoutDraft {
+export function draftFromLog(
+  profileId: string,
+  log: WorkoutLog,
+  startedAt: string,
+  measureOf?: (exerciseId: string) => ExerciseMeasure | undefined,
+): WorkoutDraft {
   const exercises = log.exercises.map((ex): SessionExercise => {
+    const known = measureOf?.(ex.exerciseId);
+    const timed = known !== undefined ? known === 'time' : ex.sets.some((s) => cleanSeconds(s.durationSeconds) > 0);
     const out: SessionExercise = {
       uid: newId(),
       exerciseId: ex.exerciseId,
       exerciseName: ex.exerciseName,
       modality: ex.modality,
-      sets: ex.sets.map(repeatSet),
+      sets: ex.sets.map((s) => (timed ? repeatTimeSet(s) : repeatSet(s))),
     };
     if (ex.restSeconds !== undefined) out.restSeconds = ex.restSeconds;
     if (ex.supersetGroup !== undefined) out.supersetGroup = ex.supersetGroup;
@@ -155,13 +167,18 @@ export function draftFromLog(profileId: string, log: WorkoutLog, startedAt: stri
 function repeatSet(s: SetEntry): SetEntry {
   const out: SetEntry = { id: newId(), type: s.type, kg: s.kg, reps: s.reps, done: false };
   if (s.tempo !== undefined) out.tempo = s.tempo;
-  if (s.durationSeconds !== undefined) out.durationSeconds = s.durationSeconds;
-  if (s.done && s.type !== 'warmup' && s.durationSeconds === undefined) {
+  if (s.done && s.type !== 'warmup') {
     out.ghostKg = s.kg;
     out.ghostReps = s.reps;
   }
-  // A held time set's seconds become its placeholder hint, like ghostKg for a rep set.
-  if (s.done && s.type !== 'warmup' && (s.durationSeconds ?? 0) > 0) out.ghostDurationSeconds = s.durationSeconds;
+  return out;
+}
+
+function repeatTimeSet(s: SetEntry): SetEntry {
+  const out: SetEntry = { id: newId(), type: s.type, kg: 0, reps: 0, done: false };
+  if (s.tempo !== undefined) out.tempo = s.tempo;
+  const held = cleanSeconds(s.durationSeconds);
+  if (s.done && s.type !== 'warmup' && held > 0) out.ghostDurationSeconds = held;
   return out;
 }
 

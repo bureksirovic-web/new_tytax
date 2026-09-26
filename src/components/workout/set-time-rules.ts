@@ -15,14 +15,19 @@ export function setSeconds(set: Pick<SetEntry, 'durationSeconds'>): number {
   return cleanSeconds(set.durationSeconds);
 }
 
-/** A time set can be marked done once it has a duration above 0 s (kg and reps are not needed). */
-export function canCompleteTimeSet(set: Pick<SetEntry, 'durationSeconds'>): boolean {
-  return setSeconds(set) > 0;
+/**
+ * A time set can be marked done once it has a duration above 0 s (kg and reps
+ * are not needed), or — duration left empty — when a ghost exists: done/Enter
+ * then adopts it (`toggleTimeSetDone`), the ghost-reps rule. `ghost` is the
+ * card's hint for the row; the set's own `ghostDurationSeconds` counts too.
+ */
+export function canCompleteTimeSet(set: Pick<SetEntry, 'durationSeconds' | 'ghostDurationSeconds'>, ghost?: number): boolean {
+  return setSeconds(set) > 0 || (ghostSecondsOf(set.ghostDurationSeconds) ?? ghostSecondsOf(ghost)) !== undefined;
 }
 
-/** The done button of a time set: usable to complete a timed set, and always to undo. */
-export function canToggleTimeDone(set: Pick<SetEntry, 'durationSeconds' | 'done'>): boolean {
-  return set.done || canCompleteTimeSet(set);
+/** The done button of a time set: usable to complete a timed (or ghosted) set, and always to undo. */
+export function canToggleTimeDone(set: Pick<SetEntry, 'durationSeconds' | 'ghostDurationSeconds' | 'done'>, ghost?: number): boolean {
+  return set.done || canCompleteTimeSet(set, ghost);
 }
 
 /** Ghost duration for the placeholder: a positive whole number of seconds, else undefined. */

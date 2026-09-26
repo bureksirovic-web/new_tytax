@@ -30,14 +30,16 @@
  * - `orderByStation(profileId)` → boolean: reorders the draft with
  *   G1's `orderByStation` (@/lib/workout/order-by-station) over the catalog; false (nothing
  *   changed) without a draft, for a foreign draft, or when already in order.
- * - `repeatLog(profileId, log, { replace? })` → `RepeatLogResult`: starts a
- *   draft from a history log (`startFromLog`). Refused with `reason:
+ * - `repeatLog(profileId, log, { replace?, measureOf? })` → `RepeatLogResult`: starts a
+ *   draft from a history log (`startFromLog`; `measureOf` = catalog measure by id,
+ *   so a time exercise repeats as holds, see `draftFromLog`). Refused with `reason:
  *   'draft-exists'` while a draft exists unless `replace: true`, and with
  *   `'foreign-log'` for a log of another profile, and `'deleted-log'` for a
  *   log in the trash (`deletedAt` set).
  */
 import type {
   Exercise,
+  ExerciseMeasure,
   Profile,
   ProfileSettings,
   Program,
@@ -107,6 +109,12 @@ export class ForeignDraftError extends Error {
 /** True when a draft exists and was started by a profile other than `activeProfileId`. */
 export function isForeignDraft(draft: Pick<WorkoutDraft, 'profileId'> | null | undefined, activeProfileId: string | null | undefined): boolean {
   return !!draft && draft.profileId !== activeProfileId;
+}
+
+export interface RepeatLogOptions {
+  replace?: boolean;
+  /** Catalog measure by exercise id (undefined: unknown id); see `draftFromLog`. */
+  measureOf?: (exerciseId: string) => ExerciseMeasure | undefined;
 }
 
 export type RepeatLogResult =
@@ -242,11 +250,11 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       store.getState().reorderExercises(uids);
       return store.getState().draft !== current;
     },
-    repeatLog(profileId: string, log: WorkoutLog, opts: { replace?: boolean } = {}): RepeatLogResult {
+    repeatLog(profileId: string, log: WorkoutLog, opts: RepeatLogOptions = {}): RepeatLogResult {
       if (log.profileId !== profileId) return { ok: false, reason: 'foreign-log' };
       if (log.deletedAt) return { ok: false, reason: 'deleted-log' };
       if (store.getState().draft && !opts.replace) return { ok: false, reason: 'draft-exists' };
-      return { ok: true, draft: store.getState().startFromLog(profileId, log) };
+      return { ok: true, draft: store.getState().startFromLog(profileId, log, opts.measureOf) };
     },
     /**
      * Skips the rotation pointer past a rest session only: re-reads the program
