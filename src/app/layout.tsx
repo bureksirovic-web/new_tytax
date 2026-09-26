@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: 'TYTAX — trening',
   description: 'TYTAX T1, trening s vlastitom težinom i kettlebellom',
   manifest: '/manifest.json',
+  icons: {
+    icon: [{ url: '/icons/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
