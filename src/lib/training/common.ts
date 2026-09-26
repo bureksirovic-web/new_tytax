@@ -4,6 +4,7 @@
 import type { MuscleImpact, SessionExercise, SetEntry, SetType, WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup } from '@/contracts/training';
 import { standardizeMuscle } from '@/lib/constants';
+import { generateId } from '@/lib/utils';
 
 const WORKING_TYPES: ReadonlySet<SetType> = new Set<SetType>(['working', 'drop', 'failure']);
 
@@ -33,7 +34,7 @@ export function clean(value: number): number {
 }
 
 export function newId(): string {
-  return crypto.randomUUID();
+  return generateId();
 }
 
 /**
