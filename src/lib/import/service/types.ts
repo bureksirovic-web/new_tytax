@@ -92,10 +92,36 @@ export interface RestoreResult {
   existingProfileIds: string[];
 }
 
+/** Profile-owned backup tables compared per profile by `inspectBackupJson`. */
+export type BackupOwnedTable = 'workoutLogs' | 'programs' | 'prRecords' | 'bodyweightEntries' | 'exerciseNotes' | 'arsenal' | 'equipment';
+
+/** One backup profile that already exists (live) on this device. */
+export interface BackupProfileConflict {
+  profileId: string;
+  localName: string;
+  backupName: string;
+  localUpdatedAt: string;
+  backupUpdatedAt: string;
+  /** The restore would replace at least one existing local row of this profile (the profile row included; LWW winner that differs). */
+  wouldOverwrite: boolean;
+  /** The restore would add rows this device does not have to this profile. */
+  wouldAdd: boolean;
+  /** Live (not soft-deleted) rows per table: on this device vs in the file. */
+  rowCountsByTable: Record<BackupOwnedTable, { local: number; incoming: number }>;
+}
+
 /** `inspectBackupJson`: what a restore would touch, before it runs. */
 export interface BackupInspection {
   profiles: { id: string; name: string; existsLocally: boolean }[];
   /** Records in the file, all tables. */
   rows: number;
   warnings: ImportWarning[];
+  /** One entry per backup profile that exists locally (order of the file). */
+  conflicts: BackupProfileConflict[];
+  /**
+   * True when some conflict would overwrite or add rows. restoreBackupJson
+   * then refuses (RepoError CONFLICT) unless `confirmOverwrite: true`.
+   * Re-restoring a file already applied is a no-op and needs no confirmation.
+   */
+  requiresConfirmation: boolean;
 }

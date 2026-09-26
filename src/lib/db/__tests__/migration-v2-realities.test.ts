@@ -135,7 +135,16 @@ describe('v3 upgrade re-keys slug arsenal rows and tombstones PRs of deleted log
 
     await repo.logs.restore('u-1', 'log-1');
     const revived = await repo.prs.list('u-1');
-    expect(revived.map((p) => ({ id: p.id, kg: p.kg, deletedAt: p.deletedAt }))).toEqual([{ id: 'pr-1', kg: 500, deletedAt: undefined }]);
+    // Restore reuses pr-1's id and re-derives the log (only live log -> all baselines), newest achievedAt first:
+    // KB swing weight 24 (s-5, 09:05; 24x15 has reps > 12, so no e1rm row); bench weight: done working
+    // sets 60, 62.5, 50 (65 not done) -> 62.5 (s-3, 09:03) corrects pr-1's stale 500; bench e1rm (reps <= 12):
+    // 60x8 = 60*36/29 = 74.48 > 62.5x6 = 72.58 > 50x10 = 66.67 -> the 60 kg set (s-2, 09:02).
+    expect(revived.map((p) => ({ kg: p.kg, prType: p.prType, deletedAt: p.deletedAt }))).toEqual([
+      { kg: 24, prType: 'weight', deletedAt: undefined },
+      { kg: 62.5, prType: 'weight', deletedAt: undefined },
+      { kg: 60, prType: 'e1rm', deletedAt: undefined },
+    ]);
+    expect(revived[1].id).toBe('pr-1');
     db.close();
   });
 });

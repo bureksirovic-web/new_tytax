@@ -44,7 +44,8 @@ describe('legacy-import service: PR recompute over imported + existing history',
     expect(ana.prRecords).toEqual({ inserted: 10, updated: 2, skipped: 2 });
     const all = await t.repo.prs.list(t.profileId, { includeDeleted: true });
     expect(live(all, 'd1')).toEqual([]);
-    expect(all.filter((r) => r.workoutLogId === 'd1' && r.deletedAt === STAMP)).toHaveLength(2);
+    // Tombstones carry the repository clock (seeded(): T0 + 1 day), written by importBackup's rebuild (G3-02).
+    expect(all.filter((r) => r.workoutLogId === 'd1' && r.deletedAt === t.now().toISOString())).toHaveLength(2);
     expect(live(all, 'd2').map((r) => r.value).sort((a, b) => a - b)).toEqual([100, 112.5]);
     const bench = await t.repo.prs.best(t.profileId, 't-bench');
     expect(bench.weight?.value).toBe(100);
@@ -72,11 +73,13 @@ describe('legacy-import service: PR recompute over imported + existing history',
     const backup = await t.repo.exportBackup(t.profileId);
     const target = backup.prRecords.find((r) => r.workoutLogId === 'd2' && r.prType === 'weight');
     if (!target) throw new Error('fixture: d2 weight record missing');
-    await t.repo.importBackup({ ...backup, prRecords: [{ ...target, value: 1, kg: 1 }], profiles: [], workoutLogs: [], programs: [] });
+    // Raw write: importBackup itself would re-derive (and so fix) the row since G3-02.
+    await t.db.prRecords.put({ ...target, value: 1, kg: 1 });
     const ana = (await importAna(t)).perUser[0];
     expect(ana.prRecords).toEqual({ inserted: 10, updated: 3, skipped: 1 });
     const fixed = (await t.repo.prs.list(t.profileId)).find((r) => r.id === target.id);
-    expect(fixed).toMatchObject({ value: 100, kg: 100, updatedAt: STAMP });
+    // LWW: the row was stamped t.now() by d2's finish (same clock), so the rewrite is stamped 1 ms after it.
+    expect(fixed).toMatchObject({ value: 100, kg: 100, updatedAt: new Date(t.now().getTime() + 1).toISOString() });
   });
 
   it('activates the imported plan only when the profile has none, and keeps its settings', async () => {

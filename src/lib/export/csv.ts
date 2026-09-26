@@ -120,9 +120,12 @@ export function downloadCSV(content: string, filename: string): void {
   a.download = filename;
   a.rel = 'noopener';
   document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Revoke after the click has been dispatched; immediate revoke can abort
-  // the download in some browsers.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  try {
+    a.click();
+  } finally {
+    a.remove();
+    // Revoke after the click has been dispatched (G4-35): an immediate revoke
+    // can abort the download in some browsers. Runs even if click threw.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
 }

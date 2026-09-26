@@ -34,6 +34,14 @@ export function assertNonNegative(v: unknown, field: string): asserts v is numbe
   }
 }
 
+/** Hold time of a set: an integer number of seconds, 0 to 24 h. */
+export const MAX_SET_SECONDS = 86_400;
+export function assertDurationSeconds(v: unknown, field: string): asserts v is number {
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_SET_SECONDS) {
+    throw new RepoError('VALIDATION', `${field} must be an integer 0-${MAX_SET_SECONDS} seconds`);
+  }
+}
+
 export function assertPositive(v: unknown, field: string): asserts v is number {
   if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
     throw new RepoError('VALIDATION', `${field} must be a finite number > 0`);

@@ -51,7 +51,10 @@ describe('restore of a backup with far-future stamps naming an existing profile'
   it('the hostile stamp is not pinned: the owner can take the profile back', async () => {
     const { t, ana, payload } = await setup();
     const clampAt = t.now();
-    const res = await restoreBackupJson(t.repo, payload, { now: clampAt });
+    // Wave 2 (Unfixed #1): unconfirmed, the restore onto Ana's profile throws CONFLICT and writes nothing.
+    await expect(restoreBackupJson(t.repo, payload, { now: clampAt })).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect((await t.repo.profiles.get(ana.id))?.name).toBe('Ana');
+    const res = await restoreBackupJson(t.repo, payload, { now: clampAt, confirmOverwrite: true });
     expect(res.existingProfileIds).toEqual([ana.id]);
     expect(res.warnings.some((w) => w.path === 'profiles[0].updatedAt')).toBe(true);
     const stored = await t.repo.profiles.get(ana.id);
@@ -63,7 +66,7 @@ describe('restore of a backup with far-future stamps naming an existing profile'
     const again = await exportBackupJson(t.repo, ana.id);
     const other = freshRepo();
     await restoreBackupJson(other.repo, payload, { now: clampAt });
-    await restoreBackupJson(other.repo, again, { now: t.now() });
+    await restoreBackupJson(other.repo, again, { now: t.now(), confirmOverwrite: true });
     expect((await other.repo.profiles.get(ana.id))?.name).toBe('Ana');
   });
 

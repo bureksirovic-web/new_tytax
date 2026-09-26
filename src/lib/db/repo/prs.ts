@@ -1,73 +1,19 @@
 /**
- * PR records: the read repo plus the shared PR bookkeeping of finishWorkout
- * and logs.update. Detection compares against the profile's live workout logs
- * (R01): stored PR rows are an audit trail, never the comparison base, so log
- * edits, deletes and history written without PR rows (seedHistory,
- * importBackup, migration) keep detection correct.
+ * PR records: the read repo plus the PR bookkeeping of finishWorkout, logs
+ * and import. Detection compares against the profile's live logs (R01), never
+ * stored PR rows; an edit re-derives every later live log too (G4-26/G4-47).
  */
-import type { PRRecord, PRType, SessionExercise, SetEntry, WorkoutLog } from '@/contracts/domain';
+import type { PRRecord, WorkoutLog } from '@/contracts/domain';
 import type { PRsRepo } from '@/contracts/repo';
-import type { ExistingBests, PRCandidate } from '@/contracts/training';
-import { training } from '@/lib/training';
+import type { PRCandidate } from '@/contracts/training';
 import type { RepoContext, WriteScope } from './context';
-import { asc, byProfile, desc, paginate, visible } from './rows';
+import { absorb, annotate, asc, bestPerType, byProfile, chrono, compact, desc, detectRepoPRs, laterStamp, paginate, sameAnnotations, setKey, upsertRows, visible, type Bests } from './rows';
 
-/** A set that counts as training: done and not a warm-up (contract rule). */
-export function countsAsWork(s: SetEntry): boolean {
-  return s.done && s.type !== 'warmup';
-}
-
-/** Best (max value) live record per PR type; ties keep the earliest achieved. */
-export function bestPerType(records: readonly PRRecord[]): Partial<Record<PRType, PRRecord>> {
-  const best: Partial<Record<PRType, PRRecord>> = {};
-  for (const r of records) {
-    if (r.deletedAt) continue;
-    const cur = best[r.prType];
-    if (!cur || r.value > cur.value || (r.value === cur.value && asc(r.achievedAt, cur.achievedAt) < 0)) {
-      best[r.prType] = r;
-    }
-  }
-  return best;
-}
+export { annotate, bestPerType, bestsFromLogs, countsAsWork, detectRepoPRs, E1RM_MAX_REPS, isTimeSet, setKey, storedE1rm } from './rows';
 
 /** Live logs of a profile, one read over the [profileId] index. */
 export async function liveLogsOf(ctx: RepoContext, profileId: string): Promise<WorkoutLog[]> {
   return ctx.db.workoutLogs.where('profileId').equals(profileId).filter((l) => !l.deletedAt).toArray();
-}
-
-/**
- * Best value per (exercise, PR type) over `logs`, measured exactly the way
- * detectPRs measures a workout (same set rule, same rounding): each log's
- * own maxima are its detectPRs result against no prior bests.
- */
-export function bestsFromLogs(logs: readonly WorkoutLog[]): ExistingBests {
-  const bests: Record<string, Partial<Record<PRType, number>>> = Object.create(null);
-  for (const log of logs) {
-    if (log.deletedAt || !Array.isArray(log.exercises)) continue;
-    for (const c of training.detectPRs(log.exercises, bests)) {
-      (bests[c.exerciseId] ??= {})[c.prType] = c.value;
-    }
-  }
-  return bests;
-}
-
-export const setKey = (uid: string, setId: string): string => `${uid}::${setId}`;
-
-/** Stored exercises: e1RM on every counting set, isPR on sets that set a non-baseline PR. */
-export function annotate(exercises: readonly SessionExercise[], celebrated: readonly PRCandidate[]): SessionExercise[] {
-  const prSets = new Set(celebrated.map((c) => setKey(c.sessionExerciseUid, c.setId)));
-  return exercises.map((ex) => ({
-    ...ex,
-    sets: ex.sets.map((s) => {
-      const set = { ...s };
-      delete set.isPR;
-      delete set.e1rm;
-      if (!countsAsWork(s)) return set;
-      set.e1rm = training.e1rm(s.kg, s.reps);
-      if (prSets.has(setKey(ex.uid, s.id))) set.isPR = true;
-      return set;
-    }),
-  }));
 }
 
 /** PR rows for `candidates` of `log` (ids and stamps are the caller's). */
@@ -91,36 +37,85 @@ export function recordsFor(ctx: RepoContext, log: WorkoutLog, candidates: readon
   }));
 }
 
-const before = (a: WorkoutLog, b: WorkoutLog): boolean => asc(a.startedAt, b.startedAt) < 0 || (a.startedAt === b.startedAt && a.id < b.id);
+/** PR rows written by a rebuild. */
+export type RebuildCounts = { inserted: number; updated: number; tombstoned: number };
 
 /**
- * Re-derives an edited log's PRs against the live logs that started before it:
- * re-annotates its sets and prCount, updates its live PR rows in place,
- * tombstones the ones that no longer hold and inserts new ones. Returns the log.
+ * `from`: re-derive logs at (`after`: strictly after) its chronological position (a deleted log still marks one).
+ * `pending`: unsaved new version of a log (logs.update), replaces the stored one, always written.
+ * `orphans`: also tombstone live PR rows whose log is not live (full rebuild).
  */
-export async function reconcileLogPRs(ctx: RepoContext, w: WriteScope, log: WorkoutLog): Promise<WorkoutLog> {
-  const earlier = (await liveLogsOf(ctx, log.profileId)).filter((l) => l.id !== log.id && before(l, log));
-  const candidates = training.detectPRs(log.exercises, bestsFromLogs(earlier));
-  const celebrated = candidates.filter((c) => !c.isBaseline);
-  const next: WorkoutLog = { ...log, exercises: annotate(log.exercises, celebrated), prCount: celebrated.length };
-  const stamp = log.updatedAt;
-  const wanted = new Map(recordsFor(ctx, next, candidates, stamp).map((r) => [`${r.exerciseId}|${r.prType}`, r]));
-  const stored = await ctx.db.prRecords.where('workoutLogId').equals(log.id).toArray();
-  const writes: PRRecord[] = [];
-  for (const r of stored) {
-    if (r.deletedAt || r.profileId !== log.profileId) continue;
-    const key = `${r.exerciseId}|${r.prType}`;
-    const want = wanted.get(key);
-    wanted.delete(key);
-    if (!want) writes.push({ ...r, deletedAt: stamp, updatedAt: stamp });
-    else if (want.value !== r.value || want.kg !== r.kg || want.reps !== r.reps || want.setId !== r.setId || want.achievedAt !== r.achievedAt) {
-      writes.push({ ...want, id: r.id, createdAt: r.createdAt });
+export type RebuildOptions = { from?: WorkoutLog; after?: boolean; pending?: WorkoutLog; orphans?: boolean };
+
+/**
+ * Re-derives set e1rm/isPR, prCount and PR rows of the profile's live logs
+ * from `from` on, with finishWorkout's rules (first-ever values are stored
+ * baselines, never counted). Writes and queues changed rows only. Run it
+ * inside `ctx.write`. Returns the PR-row counts and every log it wrote.
+ */
+export async function rebuildPRsFrom(ctx: RepoContext, w: WriteScope, profileId: string, opts: RebuildOptions = {}): Promise<RebuildCounts & { logs: Map<string, WorkoutLog> }> {
+  const { from, pending } = opts;
+  const stamp = ctx.stamp();
+  let logs = (await liveLogsOf(ctx, profileId)).filter((l) => l.id !== pending?.id && Array.isArray(l.exercises));
+  if (pending && !pending.deletedAt) logs.push(pending);
+  logs = logs.sort(chrono);
+  const rowsByLog = new Map<string, PRRecord[]>();
+  for (const r of await byProfile(ctx.db.prRecords, profileId)) if (!r.deletedAt) rowsByLog.set(r.workoutLogId, [...(rowsByLog.get(r.workoutLogId) ?? []), r]);
+  const out = { inserted: 0, updated: 0, tombstoned: 0, logs: new Map<string, WorkoutLog>() };
+  const [prWrites, bests]: [PRRecord[], Bests] = [[], Object.create(null)];
+  for (const log of logs) {
+    const candidates = detectRepoPRs(log.exercises, bests);
+    absorb(bests, candidates);
+    if (from && chrono(log, from) < (opts.after ? 1 : 0)) continue;
+    const celebrated = candidates.filter((c) => !c.isBaseline);
+    const exercises = annotate(log.exercises, celebrated);
+    let next = log;
+    if (log === pending || log.prCount !== celebrated.length || !sameAnnotations(log.exercises, exercises)) {
+      next = compact({ ...log, exercises, prCount: celebrated.length, updatedAt: log === pending ? log.updatedAt : laterStamp(stamp, log.updatedAt) });
+      out.logs.set(log.id, next);
     }
+    const wanted = new Map(recordsFor(ctx, next, candidates, stamp).map((r) => [`${r.exerciseId}|${r.prType}`, r]));
+    for (const r of rowsByLog.get(log.id) ?? []) {
+      const key = `${r.exerciseId}|${r.prType}`;
+      const want = wanted.get(key);
+      wanted.delete(key);
+      if (!want) {
+        out.tombstoned += 1;
+        prWrites.push({ ...r, deletedAt: stamp, updatedAt: laterStamp(stamp, r.updatedAt) });
+      } else if (want.value !== r.value || want.kg !== r.kg || want.reps !== r.reps || want.setId !== r.setId || want.achievedAt !== r.achievedAt || want.exerciseName !== r.exerciseName) {
+        out.updated += 1;
+        prWrites.push({ ...want, id: r.id, createdAt: r.createdAt, updatedAt: laterStamp(stamp, r.updatedAt) });
+      }
+    }
+    out.inserted += wanted.size;
+    prWrites.push(...wanted.values());
   }
-  writes.push(...wanted.values());
-  if (writes.length > 0) await ctx.db.prRecords.bulkPut(writes);
-  await w.queueMany(writes.map((r) => ({ table: 'pr_records' as const, op: r.deletedAt ? ('delete' as const) : ('upsert' as const), recordId: r.id, profileId: log.profileId })));
-  return next;
+  if (opts.orphans) {
+    const live = new Set(logs.map((l) => l.id));
+    const dead = [...rowsByLog].filter(([logId]) => !live.has(logId)).flatMap(([, rows]) => rows);
+    out.tombstoned += dead.length;
+    prWrites.push(...dead.map((r) => ({ ...r, deletedAt: stamp, updatedAt: laterStamp(stamp, r.updatedAt) })));
+  }
+  await upsertRows(ctx.db.workoutLogs, [...out.logs.values()]);
+  await upsertRows(ctx.db.prRecords, prWrites);
+  await w.queueMany([
+    ...[...out.logs.keys()].map((id) => ({ table: 'workout_logs' as const, op: 'upsert' as const, recordId: id, profileId })),
+    ...prWrites.map((r) => ({ table: 'pr_records' as const, op: r.deletedAt ? ('delete' as const) : ('upsert' as const), recordId: r.id, profileId })),
+  ]);
+  return out;
+}
+
+/**
+ * Full PR recompute of one profile from all of its live logs, for import and
+ * restore: re-annotates every live log, rewrites its PR rows and tombstones
+ * live PR rows of deleted or missing logs. Joins the caller's transaction
+ * (or opens one). Returns PR-row counts.
+ */
+export async function rebuildAllPRs(ctx: RepoContext, profileId: string): Promise<RebuildCounts> {
+  return ctx.write(async (w) => {
+    const { inserted, updated, tombstoned } = await rebuildPRsFrom(ctx, w, profileId, { orphans: true });
+    return { inserted, updated, tombstoned };
+  });
 }
 
 export function createPRsRepo(ctx: RepoContext): PRsRepo {

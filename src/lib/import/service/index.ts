@@ -23,9 +23,11 @@
  */
 export { previewLegacyImport } from './preview';
 export { importLegacy } from './legacy';
-export { exportBackupJson, inspectBackupJson, restoreBackupJson } from './backup';
+export { exportBackupJson, inspectBackupJson, restoreBackupJson, type RestoreBackupOptions } from './backup';
 export type {
   BackupInspection,
+  BackupOwnedTable,
+  BackupProfileConflict,
   ImportCounts,
   ImportLegacyOptions,
   ImportTarget,

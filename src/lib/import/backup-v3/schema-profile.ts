@@ -33,6 +33,12 @@ export const profileSettingsSchema = z.object({
   plateSetKg: z.array(z.number().positive()),
   weakPointInjector: z.boolean(),
   voiceCues: z.boolean(),
+  /** Wave 2 (G4-30): same rules as the repo (src/lib/db/repo/settings.ts). */
+  pinnedExerciseIds: z
+    .array(z.string().trim().min(1))
+    .max(4)
+    .refine((a) => new Set(a).size === a.length, 'duplicate id')
+    .optional(),
 }) satisfies z.ZodType<ProfileSettings>;
 
 export const profileSchema = z.object({
@@ -73,10 +79,24 @@ export const bodyweightEntrySchema = z.object({
   createdAt: timestamp,
 }) satisfies z.ZodType<BodyweightEntry>;
 
+/** Same rules as `MAX_SETUP_FIELD_LENGTH` in src/lib/db/repo/notes.ts. */
+const setupText = z.string().trim().min(1).max(40);
+export const machineSetupSchema = z
+  .object({
+    seat: setupText.optional(),
+    pin: setupText.optional(),
+    backrest: setupText.optional(),
+    benchAngle: setupText.optional(),
+    cable: setupText.optional(),
+    other: setupText.optional(),
+  })
+  .strict();
+
 export const exerciseNoteSchema = z.object({
   ...owned,
   exerciseId: id,
   content: z.string(),
+  setup: machineSetupSchema.optional(),
   createdAt: timestamp,
 }) satisfies z.ZodType<ExerciseNote>;
 

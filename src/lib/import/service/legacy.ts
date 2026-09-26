@@ -16,7 +16,12 @@
  *   the keys the legacy data has. An existing profile's settings are kept.
  * - activeProgramId is set to the imported plan only when the profile has
  *   none and that program is live.
- * - PRs are recomputed (./prs.ts) only when at least one new log was written.
+ * - PRs: new logs are written un-annotated with no PR rows; repo.importBackup
+ *   then re-derives the profile's whole live history in the same transaction
+ *   (rebuildPRsFrom, src/lib/db/repo/prs.ts: the finishWorkout rules). No new
+ *   log -> nothing written -> no recompute, all-zero counts. prRecords counts are the diff of
+ *   the profile's PR rows before/after: inserted = new ids, updated = rows
+ *   rewritten (tombstones included), skipped = live rows left untouched.
  * - Every row is schema-checked (assertValidBackup) before the write.
  */
 import { RepoError, type BackupV3, type Profile, type Repository } from '@/contracts';
@@ -27,8 +32,10 @@ import type { LegacyImportBundle, LegacyUserData } from '../types';
 import { assertValidBackup } from './backup';
 import { defaultResolver, tagWarnings } from './preview';
 import { capUnresolved, capWarnings } from './cap';
-import { planPRs } from './prs';
+import { prDiff } from './prs';
 import type { ImportCounts, ImportLegacyOptions, ImportTarget, LegacyImportResult, LegacyUserResult } from './types';
+
+const NO_PRS: ImportCounts = { inserted: 0, updated: 0, skipped: 0 };
 
 interface Env {
   resolver: LegacyNameResolver;
@@ -83,16 +90,15 @@ async function importUser(repo: Repository, { user, target }: Selection, env: En
   const logs = split(mapped.logs, existing.workoutLogs);
   const bodyweight = split(mapped.bodyweight, existing.bodyweightEntries);
   const programs = split(mapped.programs, existing.programs);
-  const prs = logs.fresh.length > 0 ? planPRs(profile.id, existing.workoutLogs, logs.fresh, existing.prRecords, env.stamp) : undefined;
 
   const backup: BackupV3 = {
     format: 'tytax-backup',
     version: 3,
     exportedAt: env.stamp,
     profiles: [profile],
-    workoutLogs: prs?.logs ?? [],
+    workoutLogs: logs.fresh,
     programs: programs.fresh,
-    prRecords: prs?.records ?? [],
+    prRecords: [],
     bodyweightEntries: bodyweight.fresh,
     exerciseNotes: [],
     arsenal: [],
@@ -101,6 +107,7 @@ async function importUser(repo: Repository, { user, target }: Selection, env: En
   assertValidBackup(backup);
   // The profile row is only there for the reference check; it is not rewritten.
   await repo.importBackup({ ...backup, profiles: [] });
+  const prRecords = logs.fresh.length > 0 ? prDiff(existing.prRecords, (await repo.exportBackup(profile.id)).prRecords) : NO_PRS;
 
   const plan = mapped.activeProgramId;
   const planLive = plan !== null && (await repo.programs.get(profile.id, plan)) !== undefined;
@@ -114,7 +121,7 @@ async function importUser(repo: Repository, { user, target }: Selection, env: En
     logs: logs.counts,
     bodyweight: bodyweight.counts,
     programs: programs.counts,
-    prRecords: prs?.counts ?? { inserted: 0, updated: 0, skipped: 0 },
+    prRecords,
     activatedProgramId,
     settingsApplied,
   };

@@ -3,10 +3,14 @@ import type { Modality, SessionExercise, WorkoutLog } from '@/contracts/domain';
 import { RepoError, type DateRange, type ListOptions, type LogsRepo } from '@/contracts/repo';
 import {
   assertDay,
+  assertDurationSeconds,
   assertNonNegative,
   assertTimestamp,
+  chrono,
   compact,
   desc,
+  isTimeSet,
+  laterStamp,
   notFound,
   paginate,
   stripKeys,
@@ -14,8 +18,7 @@ import {
   visible,
   type RepoContext,
 } from './context';
-
-import { countsAsWork, reconcileLogPRs } from './prs';
+import { countsAsWork, rebuildPRsFrom } from './prs';
 
 export { countsAsWork };
 
@@ -25,13 +28,17 @@ export interface LogTotals {
   modalitiesUsed: Modality[];
 }
 
+/**
+ * Totals over counting sets (done, not warm-up). A time set (`durationSeconds`
+ * present) counts in totalSets but adds no kg volume: its kg x reps is not work.
+ */
 export function computeTotals(exercises: readonly SessionExercise[]): LogTotals {
   let totalVolumeKg = 0;
   let totalSets = 0;
   for (const ex of exercises) {
     for (const s of ex.sets) {
       if (!countsAsWork(s)) continue;
-      totalVolumeKg += s.kg * s.reps;
+      if (!isTimeSet(s)) totalVolumeKg += s.kg * s.reps;
       totalSets += 1;
     }
   }
@@ -44,14 +51,22 @@ export function computeTotals(exercises: readonly SessionExercise[]): LogTotals 
 
 export function validateExercises(exercises: unknown): asserts exercises is SessionExercise[] {
   if (!Array.isArray(exercises)) throw new RepoError('VALIDATION', 'exercises must be an array');
+  // Duplicate uids / set ids would make isPR (keyed uid::setId) flag every set sharing a PR set's id.
+  const uids = new Set<string>();
   for (const ex of exercises as SessionExercise[]) {
     if (typeof ex?.exerciseId !== 'string' || ex.exerciseId === '') {
       throw new RepoError('VALIDATION', 'exercise.exerciseId must not be empty');
     }
     if (!Array.isArray(ex.sets)) throw new RepoError('VALIDATION', 'exercise.sets must be an array');
+    if (uids.has(ex.uid)) throw new RepoError('VALIDATION', `exercise.uid ${ex.uid} is not unique`);
+    uids.add(ex.uid);
+    const ids = new Set<string>();
     for (const s of ex.sets) {
+      if (ids.has(s?.id)) throw new RepoError('VALIDATION', `set.id ${s.id} is not unique within its exercise`);
+      ids.add(s?.id);
       assertNonNegative(s?.kg, 'set.kg');
       assertNonNegative(s?.reps, 'set.reps');
+      if (s.durationSeconds !== undefined) assertDurationSeconds(s.durationSeconds, 'set.durationSeconds');
     }
   }
 }
@@ -107,15 +122,18 @@ export function createLogsRepo(ctx: RepoContext): LogsRepo {
         if (clean.bodyweightKg !== undefined) assertNonNegative(clean.bodyweightKg, 'bodyweightKg');
         if (clean.rpe !== undefined) assertRpe(clean.rpe, 'rpe');
         if (clean.exercises !== undefined) validateExercises(clean.exercises);
-        let next: WorkoutLog = { ...current, ...clean };
-        Object.assign(next, computeTotals(next.exercises));
-        next.updatedAt = ctx.stamp();
-        // R01: edited sets re-derive their e1rm/isPR, prCount and this log's PR rows.
-        if (clean.exercises !== undefined) next = await reconcileLogPRs(ctx, w, next);
-        const stored = compact(next);
-        await ctx.db.workoutLogs.put(stored);
-        await w.queue('workout_logs', 'upsert', id, profileId);
-        return stored;
+        const next: WorkoutLog = { ...current, ...clean, ...computeTotals(clean.exercises ?? current.exercises), updatedAt: laterStamp(ctx.stamp(), current.updatedAt) };
+        // finishedAt feeds PR rows' achievedAt (sets without completedAt), so it takes the rebuild path too.
+        if (clean.exercises === undefined && clean.date === undefined && clean.startedAt === undefined && clean.finishedAt === undefined) {
+          const stored = compact(next);
+          await ctx.db.workoutLogs.put(stored);
+          await w.queue('workout_logs', 'upsert', id, profileId);
+          return stored;
+        }
+        // G4-26/G4-47: sets, prCount and PR rows of this log and every later live log follow the edit.
+        const from = chrono(current, next) <= 0 ? current : next;
+        const { logs } = await rebuildPRsFrom(ctx, w, profileId, { from, pending: next });
+        return logs.get(id) ?? compact(next);
       }),
 
     softDelete: (profileId, id) =>
@@ -124,15 +142,17 @@ export function createLogsRepo(ctx: RepoContext): LogsRepo {
         if (!current) throw notFound('WorkoutLog', id);
         if (current.deletedAt) return;
         const stamp = ctx.stamp();
-        await ctx.db.workoutLogs.put({ ...current, deletedAt: stamp, updatedAt: stamp });
+        await ctx.db.workoutLogs.put({ ...current, deletedAt: stamp, updatedAt: laterStamp(stamp, current.updatedAt) });
         await w.queue('workout_logs', 'delete', id, profileId);
         // PRs set by this workout stop counting while it is deleted.
         const prs = await ctx.db.prRecords.where('workoutLogId').equals(id).toArray();
         for (const pr of prs) {
           if (pr.deletedAt || pr.profileId !== profileId) continue;
-          await ctx.db.prRecords.put({ ...pr, deletedAt: stamp, updatedAt: stamp });
+          await ctx.db.prRecords.put({ ...pr, deletedAt: stamp, updatedAt: laterStamp(stamp, pr.updatedAt) });
           await w.queue('pr_records', 'delete', pr.id, profileId);
         }
+        // A deleted PR log lets the next log take the PR: re-derive everything after it.
+        await rebuildPRsFrom(ctx, w, profileId, { from: current });
       }),
 
     restore: (profileId, id) =>
@@ -142,15 +162,18 @@ export function createLogsRepo(ctx: RepoContext): LogsRepo {
         if (!current.deletedAt) return;
         const deletedAt = current.deletedAt;
         const stamp = ctx.stamp();
-        await ctx.db.workoutLogs.put({ ...undeleted(current), updatedAt: stamp });
+        await ctx.db.workoutLogs.put({ ...undeleted(current), updatedAt: laterStamp(stamp, current.updatedAt) });
         await w.queue('workout_logs', 'upsert', id, profileId);
         // Bring back exactly the PRs the log's soft delete took with it.
         const prs = await ctx.db.prRecords.where('workoutLogId').equals(id).toArray();
         for (const pr of prs) {
           if (pr.deletedAt !== deletedAt || pr.profileId !== profileId) continue;
-          await ctx.db.prRecords.put({ ...undeleted(pr), updatedAt: stamp });
+          await ctx.db.prRecords.put({ ...undeleted(pr), updatedAt: laterStamp(stamp, pr.updatedAt) });
           await w.queue('pr_records', 'upsert', pr.id, profileId);
         }
+        // Revival above only reuses row ids: history before the log may have changed while it was
+        // deleted, so the log itself and every later log are re-derived.
+        await rebuildPRsFrom(ctx, w, profileId, { from: current });
       }),
 
     async historyFor(profileId, exerciseId, opts) {

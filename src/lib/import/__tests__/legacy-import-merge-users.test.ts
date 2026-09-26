@@ -7,11 +7,10 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import type { PRRecord } from '@/contracts';
 import { draft, exercise, freshRepo, T0 } from '@/lib/db/__tests__/helpers';
-import { importId, importLegacy, legacyIdScope, LEGACY_IMPORT_NAMESPACE, uuidV5 } from '..';
+import { importId, importLegacy, legacyIdScope } from '..';
 import { MULTI_USER_DUMP } from '../__fixtures__/expected';
 import { loadFixtureText } from '../__fixtures__/load';
 import { syntheticResolver } from '../service/__fixtures__/testing';
-import { planPRs, stampAfter } from '../service/prs';
 
 const TEXT = loadFixtureText(MULTI_USER_DUMP.file);
 const STAMP = '2026-09-26T08:00:00.000Z';
@@ -70,31 +69,9 @@ describe('importLegacy: PR recompute when the import clock is behind the stored 
     expect(ana.prRecords.updated).toBe(2);
     const all: PRRecord[] = await t.repo.prs.list(p.id, { includeDeleted: true });
     const d1 = all.filter((r) => r.workoutLogId === 'd1');
-    expect(d1.map((r) => r.deletedAt)).toEqual(storedD1.map((r) => stampAfter('2000-01-01T00:00:00.000Z', r.updatedAt)));
+    // The rebuild in repo.importBackup stamps with the repository clock (T0 + 1 day), not the import's `now` (T0 - 1 day).
+    expect(d1.map((r) => r.deletedAt)).toEqual(storedD1.map(() => t.now().toISOString()));
     expect(d1.every((r) => r.updatedAt === r.deletedAt && Date.parse(r.updatedAt) > Date.parse(storedD1[0].updatedAt))).toBe(true);
     expect(all.filter((r) => !r.deletedAt)).toHaveLength(ana.prRecords.inserted);
-  });
-
-  it('stampAfter keeps a newer stamp and otherwise moves 1 ms past the stored row', () => {
-    expect(stampAfter(STAMP, '2026-01-01T00:00:00.000Z')).toBe(STAMP);
-    expect(stampAfter(STAMP, STAMP)).toBe('2026-09-26T08:00:00.001Z');
-    expect(stampAfter(STAMP, '2027-01-01T00:00:00.000Z')).toBe('2027-01-01T00:00:00.001Z');
-    expect(stampAfter(STAMP, undefined)).toBe(STAMP);
-    expect(stampAfter(STAMP, 'garbage')).toBe(STAMP);
-  });
-
-  it('a desired record whose id is a newer soft-deleted row is revived after it, counted as updated', async () => {
-    const t = freshRepo();
-    const p = await t.repo.profiles.create({ name: 'P' });
-    await t.repo.finishWorkout(draft('d1', p.id, [exercise('u1', 't-bench', [{ kg: 50, reps: 5 }])]));
-    const log = (await t.repo.exportBackup(p.id)).workoutLogs[0];
-    const id = uuidV5(`${p.id}|pr|d1|t-bench|e1rm`, LEGACY_IMPORT_NAMESPACE);
-    const later = '2030-01-01T00:00:00.000Z';
-    const dead: PRRecord = { ...(await t.repo.prs.list(p.id))[0], id, prType: 'e1rm', createdAt: STAMP, updatedAt: later, deletedAt: later };
-    const plan = planPRs(p.id, [], [log], [dead], STAMP);
-    const revived = plan.records.find((r) => r.id === id);
-    expect(revived).toMatchObject({ id, createdAt: STAMP, updatedAt: '2030-01-01T00:00:00.001Z', workoutLogId: 'd1' });
-    expect(revived?.deletedAt).toBeUndefined();
-    expect(plan.counts).toEqual({ inserted: plan.records.length - 1, updated: 1, skipped: 0 });
   });
 });

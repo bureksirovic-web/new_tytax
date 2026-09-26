@@ -9,11 +9,20 @@
  * never written; the caller decides. Deep field validation is
  * `parseBackupV3`'s job (src/lib/import); this trusted-caller path checks
  * shape. Outbox rows only for rows written.
+ *
+ * PR re-derivation (G3-02): every profile with a written workout log or PR
+ * row gets `rebuildPRsFrom(.., { orphans: true })` in the SAME transaction,
+ * so prRecords, set isPR/e1rm and prCount reflect the whole live history
+ * (the first real PR after a restore/legacy import is not a baseline). Its
+ * writes are derived rows: queued, but not in the returned counts (those
+ * describe backup rows). A re-import that writes nothing rebuilds nothing.
+ * applyRemote never rebuilds: the server is authoritative for pulled rows.
  */
 import { RepoError, type BackupV3 } from '@/contracts/repo';
 import type { SyncOperation, SyncOutbox } from '@/contracts/sync';
 import type { RepoContext } from './context';
 import { planImport, validateBackup } from './import-plan';
+import { rebuildPRsFrom } from './prs';
 import { dataTable } from './tables';
 
 export { applyRemote } from './apply-remote';
@@ -55,14 +64,18 @@ export async function importBackup(ctx: RepoContext, backup: BackupV3): Promise<
     const plans = await planImport(ctx, backup);
     let inserted = 0;
     let updated = 0;
+    const touched = new Set<string>();
     for (const plan of plans) {
       if (plan.write.length === 0) continue;
+      if (plan.name === 'workoutLogs' || plan.name === 'prRecords') for (const r of plan.write) touched.add(String(r.profileId));
       await dataTable(ctx.db, plan.name).bulkPut(plan.write);
       inserted += plan.inserted;
       updated += plan.write.length - plan.inserted;
       // One outbox request per table, never one await per row (see WriteScope.queueMany).
       await w.queueMany(plan.write.map((r) => ({ table: plan.syncName, op: 'upsert' as const, recordId: r.id, profileId: plan.isProfiles ? r.id : String(r.profileId) })));
     }
+    // Sorted: deterministic outbox order across runs.
+    for (const profileId of [...touched].sort()) await rebuildPRsFrom(ctx, w, profileId, { orphans: true });
     return { inserted, updated };
   });
 }

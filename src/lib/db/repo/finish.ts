@@ -7,10 +7,9 @@ import type { WorkoutDebrief, WorkoutDraft, WorkoutLog } from '@/contracts/domai
 import { localDay } from '@/contracts/fixtures';
 import { RepoError, type FinishResult } from '@/contracts/repo';
 import type { PRCandidate } from '@/contracts/training';
-import { training } from '@/lib/training';
-import { assertNonEmpty, assertNonNegative, assertTimestamp, compact, type RepoContext } from './context';
+import { assertNonEmpty, assertNonNegative, assertTimestamp, chrono, compact, type RepoContext } from './context';
 import { assertRpe, computeTotals, validateExercises } from './logs';
-import { annotate, bestsFromLogs, liveLogsOf, recordsFor } from './prs';
+import { annotate, bestsFromLogs, detectRepoPRs, liveLogsOf, rebuildPRsFrom, recordsFor } from './prs';
 import { advanceIn, getOwnedProgram } from './programs';
 import { getLiveProfile } from './profile-store';
 
@@ -43,8 +42,14 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
     const finishedAt = debrief?.finishedAt ?? stamp;
     const durationSeconds = Math.max(0, Math.round((Date.parse(finishedAt) - Date.parse(draft.startedAt)) / 1000));
 
-    // R01: bests come from the profile's live logs (one [profileId] read), not from stored PR rows.
-    const candidates: PRCandidate[] = training.detectPRs(draft.exercises, bestsFromLogs(await liveLogsOf(ctx, profileId)));
+    // R01: bests come from the profile's live logs (one [profileId] read), not from stored PR rows,
+    // and only from logs before this one in its history: an earlier-dated draft ranks as a rebuild would.
+    // Repo rules (prs.ts): time sets never rank; e1rm ranks reps <= E1RM_MAX_REPS only.
+    const date = localDay(new Date(draft.startedAt));
+    const place = { id: draft.id, date, startedAt: draft.startedAt };
+    const live = await liveLogsOf(ctx, profileId);
+    const earlier = live.filter((l) => chrono(l, place) < 0);
+    const candidates: PRCandidate[] = detectRepoPRs(draft.exercises, bestsFromLogs(earlier));
     const celebrated = candidates.filter((c) => !c.isBaseline);
 
     const exercises = annotate(draft.exercises, celebrated);
@@ -56,7 +61,7 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
       programId: program?.id,
       programSessionId: program ? draft.programSessionId : undefined,
       sessionName: draft.sessionName,
-      date: localDay(new Date(draft.startedAt)),
+      date,
       startedAt: draft.startedAt,
       finishedAt,
       durationSeconds,
@@ -76,6 +81,8 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
     const records = recordsFor(ctx, log, candidates, stamp);
     if (records.length > 0) await ctx.db.prRecords.bulkAdd(records);
     await w.queueMany(records.map((r) => ({ table: 'pr_records' as const, op: 'upsert' as const, recordId: r.id, profileId })));
+    // Logs after it (a back-dated finish) are re-derived against it, as logs.update does.
+    if (earlier.length < live.length) await rebuildPRsFrom(ctx, w, profileId, { from: log, after: true });
 
     let advancedProgram: FinishResult['advancedProgram'];
     if (program && program.sessions.length > 0) {

@@ -96,7 +96,8 @@ describe('R01: history written without PR records', () => {
 
     const t = freshRepo({ start: new Date(src.now().getTime()) });
     await t.repo.importBackup({ ...backup, prRecords: [] });
-    expect(await t.db.prRecords.count()).toBe(0);
+    // G3-02: the import derives w1's rows (baselines weight 100, e1rm 100x5 = 112.5) from the history itself.
+    expect((await t.repo.prs.list(a.id)).map((r) => [r.prType, r.value])).toEqual([['e1rm', 112.5], ['weight', 100]]);
 
     const same = await finish(t, 'w2', a.id, 100);
     expect(same.prs).toEqual([]);

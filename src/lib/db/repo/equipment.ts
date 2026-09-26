@@ -72,3 +72,15 @@ export function createEquipmentRepo(ctx: RepoContext): EquipmentRepo {
       }),
   };
 }
+
+/**
+ * Wave 2 (G4-36): an inventory counts as configured once any of its four
+ * lists holds an entry. `equipment.get` returns an empty default when nothing
+ * is stored, so "all empty" is the "not configured yet" state the UI must
+ * not treat as "owns nothing" (a `configuredAt` stamp is requested in
+ * docs/v2/requests/G2-W2-03.md; until then this helper is the rule).
+ */
+export function isEquipmentConfigured(inv: Pick<EquipmentInventory, (typeof LIST_KEYS)[number]> | undefined | null): boolean {
+  if (!inv) return false;
+  return LIST_KEYS.some((key) => Array.isArray(inv[key]) && inv[key].length > 0);
+}
