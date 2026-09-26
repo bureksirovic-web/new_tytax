@@ -8,7 +8,10 @@
  * the same working index in the newest (non-deleted) log containing the
  * exercise; past that session's last set, its last done duration. No history
  * → no `durationSeconds` (the input starts empty). Holds are repeated, never
- * progressed, and time sets carry no kg/reps ghosts.
+ * progressed, and time sets carry no kg/reps ghosts. The placeholder hint
+ * `ghostDurationSeconds` is that same index's done duration (only for indices
+ * last session had, like `ghostKg`): G1's `prefillFromHistory` does not fill
+ * it (it never reads durations), so this builder does.
  */
 import type { Exercise, ExerciseMeasure, Modality, ProfileSettings, ProgramExercise, SessionExercise, SetEntry, WorkoutLog } from '@/contracts/domain';
 import { newUuid } from '@/lib/db/ids';
@@ -33,42 +36,15 @@ export interface BuildSessionExerciseInput {
   repTarget?: string;
   /** Default true. */
   warmups?: boolean;
-  /** Kettlebells the profile owns (`EquipmentInventory.kettlebellsKg`); prefill snaps to a real bell (`snapToBells`). */
+  /** Kettlebells the profile owns (`EquipmentInventory.kettlebellsKg`); passed to G1's prefill, which snaps progression to a real bell. */
   availableKg?: readonly number[];
   /** Overrides `measureOf(exercise)` (e.g. a slot without a catalog entry). */
   measure?: ExerciseMeasure;
 }
 
-/**
- * `availableKg` is additive in `PrefillOptions` (request G1-02, lands with
- * v2-g1). Typed as an intersection so this compiles before and after that merge.
- */
-type PrefillOptionsWithBells = PrefillOptions & { availableKg?: readonly number[] };
-
 /** Heaviest non-warm-up kg of `sets`; 0 when none. */
 export function heaviestKg(sets: readonly SetEntry[]): number {
   return sets.reduce((max, x) => (x.type === 'warmup' ? max : Math.max(max, x.kg)), 0);
-}
-
-/**
- * LOCAL ADAPTER until v2-g1 merges (F6): this branch's `prefillFromHistory`
- * ignores `availableKg`, so a kettlebell suggestion can be a bell the profile
- * does not own (16 kg + 2.5 → 18.5). Mirrors G1's final `nextKg`: where the
- * prefill raised a set above last time's kg (`ghostKg`; sets past last
- * session's count use the last ghost seen), the set snaps UP to the lightest
- * owned bell ≥ the suggestion, or holds last time's kg when no owned bell is
- * that heavy. Sets that did not progress are left alone. Idempotent on G1's
- * already snapped output, so it can stay or go at integration.
- */
-export function snapToBells(sets: readonly SetEntry[], availableKg: readonly number[]): SetEntry[] {
-  const bells = availableKg.filter((k) => Number.isFinite(k) && k > 0).sort((a, b) => a - b);
-  let base: number | undefined;
-  return sets.map((set) => {
-    if (set.ghostKg !== undefined) base = set.ghostKg;
-    if (base === undefined || !(base > 0) || !(set.kg > base)) return set;
-    const up = bells.find((k) => k >= set.kg);
-    return { ...set, kg: up ?? base };
-  });
 }
 
 function snapshotOf(ex: Exercise | undefined): SessionExercise['muscleImpactSnapshot'] {
@@ -104,6 +80,7 @@ function timeSets(targetSets: number | undefined, exerciseId: string, history: r
     const set: SetEntry = { id: newUuid(), type: 'working', kg: 0, reps: 0, done: false };
     const seconds = i < last.length ? last[i] : lastDone;
     if (seconds !== undefined) set.durationSeconds = seconds;
+    if (i < last.length && last[i] !== undefined) set.ghostDurationSeconds = last[i];
     return set;
   });
 }
@@ -117,10 +94,10 @@ export function buildSessionExercise(input: BuildSessionExerciseInput): SessionE
   if (targetSets === undefined && !hasLoggedSets(exerciseId, history)) {
     targetSets = Math.min(exercise?.defaultSets || MAX_INITIAL_SETS, MAX_INITIAL_SETS);
   }
-  const options: PrefillOptionsWithBells = { targetSets, repTarget: input.repTarget ?? slot?.reps };
+  const options: PrefillOptions = { targetSets, repTarget: input.repTarget ?? slot?.reps };
   if (modality === 'kettlebell' && input.availableKg && input.availableKg.length > 0) options.availableKg = input.availableKg;
   const prefill = training.prefillFromHistory(exerciseId, history, options);
-  const working = options.availableKg ? snapToBells(prefill.sets, options.availableKg) : prefill.sets;
+  const working = prefill.sets;
   const isTime = (input.measure ?? measureOf(exercise)) === 'time';
   // One warm-up rule everywhere (F9): the ladder climbs to the HEAVIEST working kg, as the card's add-warm-up button does.
   const warmupBase = heaviestKg(working);

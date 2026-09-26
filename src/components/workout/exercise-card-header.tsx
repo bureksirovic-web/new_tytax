@@ -49,7 +49,7 @@ export function ExerciseCardHeader({
         {name}
       </h2>
       <div className="flex items-center">
-        <VideoButton name={name} exercise={catalogExercise} />
+        <VideoButton name={name} modality={exercise.modality} exercise={catalogExercise} />
         {onEditSetup && (
           <button
             type="button"

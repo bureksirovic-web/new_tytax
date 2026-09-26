@@ -24,7 +24,12 @@ vi.mock('@/lib/db', () => {
   return { getRepository: () => repo };
 });
 // loadCatalog: the exercise card resolves catalog entries via useExercises(); never resolving keeps it loading.
-vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] }, loadCatalog: () => new Promise(() => undefined) }));
+// The card's video button uses the real (pure) buildVideoLinks from @/lib/catalog.
+vi.mock('@/lib/catalog', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/catalog/video-links')>('@/lib/catalog/video-links')),
+  catalog: { search: async () => [] },
+  loadCatalog: () => new Promise(() => undefined),
+}));
 
 import { WORKOUT_DRAFT_STORAGE_KEY, useWorkoutStore } from '@/stores/workout-store';
 import ActiveWorkoutPage from '@/app/(app)/workout/active/page-client';

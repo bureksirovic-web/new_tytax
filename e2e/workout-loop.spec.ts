@@ -14,8 +14,8 @@ type Locator = ReturnType<Page['locator']>;
 
 const BENCH_ID = 'tytax_smith-machine_smith-flat-bench-press';
 const SQUAT_ID = 'tytax_smith-machine_smith-back-squat';
-/** Catalog entry with exactly one video, on app.tytax.com. */
-const LASER_ID = 'tytax_tytax_laser1';
+/** Catalog entry with exactly one video, on app.tytax.com (Laser1 left the catalog in G1's reconciliation). */
+const ONE_VIDEO_ID = 'tytax_tytax_dumbbell-fly';
 /** Catalog entry with no videos. */
 const FLOOR_PRESS_ID = 'tytax_smith-machine_smith-floor-press';
 
@@ -125,20 +125,20 @@ test('deleting sets: an empty set goes at once, a logged one asks first', async 
 
 test('video button: app.tytax link, YouTube links in a menu, YouTube search fallback', async ({ page, tytax }) => {
   await startQuick(page, tytax);
-  await addExercise(page, 'Laser1', LASER_ID);
+  await addExercise(page, 'Dumbbell Fly', ONE_VIDEO_ID);
   await addExercise(page, 'Smith Floor Press', FLOOR_PRESS_ID);
   await addExercise(page, 'Smith Flat Bench', BENCH_ID);
   const card = (id: string) => page.locator(`[data-testid="session-exercise"][data-exercise-id="${id}"]`);
 
   // One link → a direct <a> to app.tytax.com.
-  const laser = card(LASER_ID).getByTestId('video-button');
-  await expect(laser).toHaveAttribute('href', /^https:\/\/app\.tytax\.com\//);
-  await expect(laser).toHaveAttribute('target', '_blank');
+  const single = card(ONE_VIDEO_ID).getByTestId('video-button');
+  await expect(single).toHaveAttribute('href', /^https:\/\/app\.tytax\.com\//);
+  await expect(single).toHaveAttribute('target', '_blank');
 
-  // No links → YouTube search for the name.
+  // No links → YouTube search for the name (G1 buildVideoLinks appends " TYTAX" for TYTAX exercises).
   await expect(card(FLOOR_PRESS_ID).getByTestId('video-button')).toHaveAttribute(
     'href',
-    'https://www.youtube.com/results?search_query=Smith%20Floor%20Press',
+    'https://www.youtube.com/results?search_query=Smith%20Floor%20Press%20TYTAX',
   );
 
   // Several links → a menu: app.tytax first, then the YouTube videos.

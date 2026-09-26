@@ -38,8 +38,9 @@ describe('R06: ids without crypto.randomUUID (plain-http LAN)', () => {
     store().addSet(uid!);
     expect(d.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(draft().exercises[0].sets.length).toBeGreaterThan(1);
-    // buildSessionExercise also calls training.prefillFromHistory, whose set ids get the same
-    // fallback on v2-g1 (G1 part of R06); G3's own ids are covered here.
+    // buildSessionExercise also calls training.prefillFromHistory (G1, merged): its set ids get
+    // the same fallback, so every set id of the draft is a UUID.
+    for (const s of draft().exercises[0].sets) expect(s.id).toMatch(/^[0-9a-f-]{36}$/);
     useUIStore.getState().addToast('x', 'info');
     expect(useUIStore.getState().toasts.at(-1)?.id).toMatch(/^[0-9a-f-]{36}$/);
   });
@@ -79,7 +80,7 @@ describe('S3-01: done with empty reps adopts ghost reps, never records 0 reps', 
   });
 });
 
-describe('G1-02: kettlebell prefill gets the owned bells', () => {
+describe('kettlebell prefill gets the owned bells (G1 PrefillOptions.availableKg)', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('passes availableKg for kettlebell exercises only', () => {

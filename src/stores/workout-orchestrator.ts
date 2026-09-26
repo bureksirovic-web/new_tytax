@@ -28,7 +28,7 @@
  *
  * Wave 2:
  * - `orderByStation(profileId)` → boolean: reorders the draft with
- *   `orderByStation` (./order-by-station.ts) over the catalog; false (nothing
+ *   G1's `orderByStation` (@/lib/workout/order-by-station) over the catalog; false (nothing
  *   changed) without a draft, for a foreign draft, or when already in order.
  * - `repeatLog(profileId, log, { replace? })` → `RepeatLogResult`: starts a
  *   draft from a history log (`startFromLog`). Refused with `reason:
@@ -60,7 +60,7 @@ import {
   type WeakPointPick,
 } from './session-builder';
 import { remainingWorkingCount } from './draft-ops';
-import { orderByStation } from './order-by-station';
+import { orderByStation } from '@/lib/workout/order-by-station';
 import { summarizeDraft } from './workout-selectors';
 import { useWorkoutStore } from './workout-store';
 

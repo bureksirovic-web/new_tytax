@@ -17,7 +17,7 @@ import type { EquipmentInventory, Exercise, ProfileSettings, SessionExercise, Wo
 import type { ExerciseLookup } from '@/contracts/training';
 import { standardizeMuscle } from '@/lib/constants';
 import { training } from '@/lib/training';
-import { exerciseStationKey, stationKey } from './order-by-station';
+import { exerciseStationKey, stationKey } from './station-key';
 import { buildSessionExercise } from './session-exercise';
 
 /** Working sets the weak-point injector adds. */

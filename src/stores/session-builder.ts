@@ -9,7 +9,7 @@
  *     (kg by the RIR rule, `ghostKg`/`ghostReps` from last time); warm-ups from
  *     `training.generateWarmups(heaviest working kg, settings.warmupStrategy,
  *     { barKg: settings.barWeightKg })` are prepended. No history (kg 0) → no
- *     warm-ups. Kettlebells with `availableKg`: `snapToBells` (local adapter). Warm-ups are only generated for loadable modalities
+ *     warm-ups. Kettlebells: `availableKg` goes to G1's prefill (snaps to an owned bell). Warm-ups are only generated for loadable modalities
  *     (`tytax`, `custom`): a bar-based ladder means nothing for bodyweight or a
  *     single kettlebell. Set count: `targetSets` → `slot.sets` → last session's
  *     count (with history) → `min(exercise.defaultSets || 3, 3)`.

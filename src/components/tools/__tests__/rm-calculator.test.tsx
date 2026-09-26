@@ -129,9 +129,11 @@ describe('RmCalculator high-rep warning (Wave 2, G3 item 6)', () => {
   beforeEach(() => localStorage.clear());
 
   it('E1RM_MAX_REPS is 12 and drives the warning threshold', async () => {
-    const { E1RM_MAX_REPS, UNRELIABLE_ABOVE_REPS } = await import('../rm-math');
+    // The local E1RM_MAX_REPS copy is gone: the threshold is G1's constant itself.
+    const { UNRELIABLE_ABOVE_REPS } = await import('../rm-math');
+    const { E1RM_MAX_REPS } = await import('@/lib/training');
     expect(E1RM_MAX_REPS).toBe(12);
-    expect(UNRELIABLE_ABOVE_REPS).toBe(12);
+    expect(UNRELIABLE_ABOVE_REPS).toBe(E1RM_MAX_REPS);
   });
 
   it('warns above 12 reps and still shows the estimate', () => {

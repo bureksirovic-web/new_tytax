@@ -54,4 +54,41 @@ describe('VideoButton', () => {
     expect(screen.queryByTestId('video-menu')).toBeNull();
     expect(document.activeElement).toBe(button);
   });
+
+  // URL safety and host classification, carried over from the deleted local
+  // runtime/video-links.test.ts (the button now uses G1's buildVideoLinks).
+  it('never links a non-http(s) url: all unsafe → the search link', () => {
+    render(
+      <VideoButton
+        name="Row"
+        modality="tytax"
+        exercise={{ videos: [{ url: 'javascript:alert(1)', label: 'x' }, { url: ' JavaScript:alert(1)', label: 'v' }, { url: 'data:text/html,<b>', label: 'v' }, { url: 'ftp://a.com/v', label: 'v' }, { url: '/relative', label: 'v' }, { url: 'not a url', label: 'v' }] }}
+      />,
+    );
+    const link = screen.getByTestId('video-button');
+    // tytax modality: G1 appends " TYTAX" to the query.
+    expect(link).toHaveAttribute('href', 'https://www.youtube.com/results?search_query=Row%20TYTAX');
+  });
+
+  it('look-alike hosts are neither tytax nor YouTube, unsafe entries are dropped from the menu, no search entry', () => {
+    render(
+      <VideoButton
+        name="Row"
+        exercise={{
+          modality: 'tytax',
+          videos: [
+            { url: 'https://eviltytax.com/a', label: 'v' },
+            { url: 'javascript:alert(1)', label: 'v' },
+            { url: 'https://youtube.com.evil.io/a', label: 'v' },
+            { url: 'https://app.tytax.com/v/1', label: 'v' },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('video-button'));
+    const options = screen.getAllByTestId('video-option');
+    // app.tytax first, then the two look-alikes as 'other' in catalog order; the search is not in the menu.
+    expect(options.map((o) => o.getAttribute('href'))).toEqual(['https://app.tytax.com/v/1', 'https://eviltytax.com/a', 'https://youtube.com.evil.io/a']);
+    expect(options.map((o) => o.textContent)).toEqual(['Row · TYTAX app', 'Row · Video 1', 'Row · Video 2']);
+  });
 });

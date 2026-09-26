@@ -23,7 +23,8 @@ vi.mock('@/lib/catalog', () => ({
 }));
 
 const { useWorkout } = await import('../use-workout');
-const { livePRCheck, LIVE_E1RM_PR_MAX_REPS } = await import('../use-pr');
+const { livePRCheck } = await import('../use-pr');
+const { E1RM_MAX_REPS } = await import('@/lib/training');
 const { useWorkoutStore } = await import('@/stores/workout-store');
 const { ForeignDraftError } = await import('@/stores/workout-orchestrator');
 
@@ -82,11 +83,24 @@ describe('livePRCheck mirrors detectPRs (item 12)', () => {
   const rec = (prType: PRRecord['prType'], value: number) => ({ prType, value }) as PRRecord;
 
   it('e1RM PRs only up to 12 reps; weight PRs at any reps', () => {
-    expect(LIVE_E1RM_PR_MAX_REPS).toBe(12);
+    // The local LIVE_E1RM_PR_MAX_REPS copy is gone: the cap is G1's E1RM_MAX_REPS, asserted
+    // at the boundary below (12 reps ranks, 13 does not).
+    expect(E1RM_MAX_REPS).toBe(12);
     const best = { e1rm: rec('e1rm', 100), weight: rec('weight', 100) };
     expect(livePRCheck(best, 90, 8)).toEqual({ isPR: true, prType: 'e1rm' });
     expect(livePRCheck({ e1rm: rec('e1rm', 50) }, 16, 35)).toEqual({ isPR: false, prType: null });
     expect(livePRCheck(best, 105, 20)).toEqual({ isPR: true, prType: 'weight' });
+    // 80 × 12 → e1RM 80·36/25 = 115.2 > 100; 80 × 13 → unrankable, and 80 < weight best 100.
+    expect(livePRCheck(best, 80, E1RM_MAX_REPS)).toEqual({ isPR: true, prType: 'e1rm' });
+    expect(livePRCheck(best, 80, E1RM_MAX_REPS + 1)).toEqual({ isPR: false, prType: null });
+  });
+
+  it('a time set is never a PR candidate (detectPRs skips isTimeSet)', () => {
+    const best = { e1rm: rec('e1rm', 10), weight: rec('weight', 10), reps: rec('reps', 1) };
+    expect(livePRCheck(best, 50, 5, 30)).toEqual({ isPR: false, prType: null });
+    expect(livePRCheck(best, 0, 20, 45)).toEqual({ isPR: false, prType: null });
+    // durationSeconds 0 / undefined is a reps set.
+    expect(livePRCheck(best, 50, 5, 0)).toEqual({ isPR: true, prType: 'e1rm' });
   });
 
   it('reps PRs for 0 kg sets; nothing without a stored best (baseline)', () => {

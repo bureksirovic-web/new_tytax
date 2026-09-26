@@ -6,7 +6,12 @@ const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 // Cold load: the active-profile query never resolves (watch never emits).
 vi.mock('@/lib/db', () => ({ getRepository: () => ({ watch: () => () => undefined }) }));
-vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] }, loadCatalog: () => new Promise(() => undefined) }));
+// The card's video button uses the real (pure) buildVideoLinks from @/lib/catalog.
+vi.mock('@/lib/catalog', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/catalog/video-links')>('@/lib/catalog/video-links')),
+  catalog: { search: async () => [] },
+  loadCatalog: () => new Promise(() => undefined),
+}));
 
 import { useWorkoutStore } from '@/stores/workout-store';
 import ActiveWorkoutPage from '@/app/(app)/workout/active/page-client';

@@ -32,18 +32,20 @@ export function ghostSecondsOf(value: number | undefined): number | undefined {
 }
 
 /**
- * Last session's duration for each set of a card, aligned with `sets`: the
- * n-th working (non-warm-up) set gets `last[n]`; warm-ups and positions last
- * session did not have get undefined.
+ * Ghost duration for each set of a card, aligned with `sets`: the set's own
+ * `ghostDurationSeconds` (filled by the session builder from history) wins;
+ * else the n-th working (non-warm-up) set gets `last[n]` (a set added during
+ * the workout, or a draft built before the field existed). Warm-ups and
+ * positions last session did not have get undefined.
  */
 export function ghostSecondsForSets(
-  sets: ReadonlyArray<Pick<SetEntry, 'type'>>,
+  sets: ReadonlyArray<Pick<SetEntry, 'type' | 'ghostDurationSeconds'>>,
   last: ReadonlyArray<number | undefined>,
 ): Array<number | undefined> {
   let working = 0;
   return sets.map((s) => {
     if (s.type === 'warmup') return undefined;
-    const ghost = ghostSecondsOf(last[working]);
+    const ghost = ghostSecondsOf(s.ghostDurationSeconds) ?? ghostSecondsOf(last[working]);
     working += 1;
     return ghost;
   });

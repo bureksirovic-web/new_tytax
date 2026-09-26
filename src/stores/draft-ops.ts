@@ -128,7 +128,8 @@ export function prependWarmupsTo(ex: SessionExercise, warmups: readonly SetEntry
  * order. Fresh draft id, uids and set ids; every set is undone (no
  * `completedAt`, `rir`, `isPR`, `e1rm`); kg/reps/`durationSeconds` stay as the
  * prefill; a done working set's kg/reps become `ghostKg`/`ghostReps` ("beat
- * it"), other sets keep no ghost. Warm-ups stay warm-ups. Kept per exercise:
+ * it"), a done working time set's seconds `ghostDurationSeconds`; other sets
+ * keep no ghost. Warm-ups stay warm-ups. Kept per exercise:
  * name, modality, rest, superset group, impact snapshot and `tempo` per set;
  * the exercise `notes` are dropped (they described that day). `sessionName`
  * comes from the log. NOT carried: `programId` / `programSessionId` (a repeat
@@ -159,6 +160,8 @@ function repeatSet(s: SetEntry): SetEntry {
     out.ghostKg = s.kg;
     out.ghostReps = s.reps;
   }
+  // A held time set's seconds become its placeholder hint, like ghostKg for a rep set.
+  if (s.done && s.type !== 'warmup' && (s.durationSeconds ?? 0) > 0) out.ghostDurationSeconds = s.durationSeconds;
   return out;
 }
 

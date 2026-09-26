@@ -3,7 +3,9 @@ import type { WorkoutLog } from '@/contracts/domain';
 import { applyDeload, buildSessionExercise } from '../session-builder';
 import { ex, log, settings } from './g3-helpers';
 
-const plank = ex('plank', [['Abs', 90]], { name: 'Plank', modality: 'tytax', defaultReps: '30-60s', defaultSets: 3 });
+// G1 tags time exercises in the catalog (`measure: 'time'`); the defaultReps heuristic that used to
+// infer it is gone, so the fixture carries the tag like the real catalog entry.
+const plank = ex('plank', [['Abs', 90]], { name: 'Plank', modality: 'tytax', measure: 'time', defaultReps: '30-60s', defaultSets: 3 });
 const tagged = ex('hold', [['Abs', 90]], { measure: 'time', defaultReps: '8-12', defaultSets: 2 });
 
 /** A log of `exerciseId` whose sets carry the given durations (null = not done). */
@@ -22,6 +24,7 @@ describe('buildSessionExercise — time exercises', () => {
     const out = buildSessionExercise({ exercise: plank, history: [], settings: settings() });
     expect(out.sets).toHaveLength(3);
     for (const s of out.sets) {
+      // No history: no durationSeconds and no ghostDurationSeconds.
       expect(s).toEqual({ id: s.id, type: 'working', kg: 0, reps: 0, done: false });
     }
   });
@@ -36,6 +39,8 @@ describe('buildSessionExercise — time exercises', () => {
       ['working', 0, 0, 50],
       ['working', 0, 0, undefined],
     ]);
+    // ghostDurationSeconds (contract hint): last session's seconds at the same index; the undone set has none.
+    expect(out.sets.map((s) => s.ghostDurationSeconds)).toEqual([40, 50, undefined]);
     expect(out.sets.some((s) => s.ghostKg !== undefined || s.ghostReps !== undefined)).toBe(false);
   });
 
@@ -43,6 +48,8 @@ describe('buildSessionExercise — time exercises', () => {
     const newest = timedLog(1, 'hold', [30, 35]);
     const more = buildSessionExercise({ exercise: tagged, history: [newest], settings: settings(), targetSets: 4 });
     expect(more.sets.map((s) => s.durationSeconds)).toEqual([30, 35, 35, 35]);
+    // Like ghostKg, the hint exists only for indices last session had.
+    expect(more.sets.map((s) => s.ghostDurationSeconds)).toEqual([30, 35, undefined, undefined]);
     const fewer = buildSessionExercise({ exercise: tagged, history: [newest], settings: settings(), targetSets: 1 });
     expect(fewer.sets.map((s) => s.durationSeconds)).toEqual([30]);
   });

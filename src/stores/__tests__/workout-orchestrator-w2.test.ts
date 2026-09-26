@@ -9,7 +9,9 @@ import { ex, fakeCatalog } from './g3-helpers';
 
 const NOW = new Date('2026-09-20T12:00:00.000Z');
 const smith = ex('smith-press', [['Chest', 100]], { stationId: 'SMITH' });
-const lat = ex('lat-pull', [['Lats', 100]], { station: 'Back Upper Pulley' });
+// G1's orderByStation reads catalog `stationId` only (the removed local adapter also
+// normalised display names); the real catalog tags upper-pulley exercises 'BACK_UPPER'.
+const lat = ex('lat-pull', [['Lats', 100]], { station: 'Back Upper Pulley', stationId: 'BACK_UPPER' });
 const legCurl = ex('leg-curl', [['Hamstrings', 100]], { stationId: 'LEG_CURL' });
 const plank = ex('plank', [['Abs', 90]], { defaultReps: '30-60s', modality: 'bodyweight' });
 const catalog = fakeCatalog([smith, lat, legCurl, plank]);

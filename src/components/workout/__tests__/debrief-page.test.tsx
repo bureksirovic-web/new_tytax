@@ -76,6 +76,26 @@ describe('debrief page (G3 finish)', () => {
     expect(screen.getByTestId('debrief-exercises')).toHaveTextContent('2');
     // Started 47 min 10 s ago → rounds to 47.
     expect(screen.getByTestId('debrief-duration')).toHaveTextContent('47 min');
+    // No time sets → no hold stat.
+    expect(screen.queryByTestId('debrief-hold')).toBeNull();
+  });
+
+  it('shows the seconds held (G1 holdSeconds) and keeps time sets out of kg volume', () => {
+    const plank = {
+      uid: 'plank', exerciseId: 'plank', exerciseName: 'Plank', modality: 'bodyweight' as const,
+      sets: [
+        { id: 'h1', type: 'working' as const, kg: 10, reps: 0, done: true, durationSeconds: 45 },
+        { id: 'h2', type: 'working' as const, kg: 0, reps: 0, done: true, durationSeconds: 80 },
+        { id: 'h3', type: 'working' as const, kg: 0, reps: 0, done: false, durationSeconds: 60 },
+      ],
+    };
+    useWorkoutStore.setState({ draft: { ...DRAFT, exercises: [...DRAFT.exercises, plank] } });
+    render(<DebriefPage />);
+    // 45 + 80 = 125 s = 2:05 (the undone 60 s set does not count); the 10 kg on h1 is not volume.
+    expect(screen.getByTestId('debrief-hold')).toHaveTextContent('2:05');
+    expect(screen.getByTestId('debrief-volume')).toHaveTextContent('1140');
+    // 2 rep sets + 2 done time sets.
+    expect(screen.getByTestId('debrief-sets')).toHaveTextContent('4');
   });
 
   it('RPE quick buttons fill the input; none is selected by default; a second tap clears', async () => {

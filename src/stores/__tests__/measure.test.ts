@@ -1,19 +1,35 @@
 import { describe, it, expect } from 'vitest';
+import type { Exercise } from '@/contracts/domain';
+import tytax from '@/data/tytax/exercises.json';
+import { BODYWEIGHT_EXERCISES } from '@/data/bodyweight/exercises';
+import { KB_EXERCISES as KETTLEBELL_EXERCISES } from '@/data/kettlebell/exercises';
 import { cleanSeconds, formatDuration, isTimeSet, MAX_SET_SECONDS, measureOf, parseDuration } from '../measure';
 
 describe('measureOf', () => {
   it('uses the catalog tag when present', () => {
-    expect(measureOf({ measure: 'time', defaultReps: '8-12' })).toBe('time');
-    expect(measureOf({ measure: 'reps', defaultReps: '30-60s' })).toBe('reps');
+    const tagged = (measure: Exercise['measure'], defaultReps: string): Partial<Exercise> => ({ measure, defaultReps });
+    expect(measureOf(tagged('time', '8-12'))).toBe('time');
+    expect(measureOf(tagged('reps', '30-60s'))).toBe('reps');
   });
 
-  it('falls back to the defaultReps time-target heuristic', () => {
-    for (const t of ['30-60s', '2-5 min', '15-30s hold', '20-40s', '45 sec', '60 seconds', ' 10s/side', '1 MIN']) {
-      expect(measureOf({ defaultReps: t }), t).toBe('time');
-    }
-    for (const t of ['8-12', '12-20/side', '8-12 (2s hold)', '8-12 (2s hold)/side', '5x5', '', 'AMRAP', '10 minutes']) {
-      expect(measureOf({ defaultReps: t }), t).toBe('reps');
-    }
+  // Supersedes the local `defaultReps` heuristic fallback (removed once G1 tagged the
+  // catalog): untagged means 'reps', and the catalog invariant below proves every
+  // time-target exercise carries the tag, so no exercise lost its time measure.
+  it('is reps for an untagged exercise, whatever its defaultReps', () => {
+    expect(measureOf({})).toBe('reps');
+    const untagged: Partial<Exercise> = { defaultReps: '30-60s' };
+    expect(measureOf(untagged)).toBe('reps');
+  });
+
+  it('catalog: every time-target exercise is tagged time, and every time tag has a time target', () => {
+    const TIME_TARGET = /^\s*\d+(-\d+)?\s*(s|sec|secs|seconds|min)\b/i;
+    const all: Exercise[] = [...(tytax as unknown as Exercise[]), ...BODYWEIGHT_EXERCISES, ...KETTLEBELL_EXERCISES];
+    const heuristicOnly = all.filter((e) => TIME_TARGET.test(e.defaultReps) && e.measure !== 'time').map((e) => e.id);
+    const tagOnly = all.filter((e) => e.measure === 'time' && !TIME_TARGET.test(e.defaultReps)).map((e) => e.id);
+    expect(heuristicOnly).toEqual([]);
+    expect(tagOnly).toEqual([]);
+    // 74 tytax + 12 bodyweight + 6 kettlebell = 92 tagged (G1 notes: "~92").
+    expect(all.filter((e) => measureOf(e) === 'time')).toHaveLength(92);
   });
 
   it('is reps for an unknown exercise', () => {

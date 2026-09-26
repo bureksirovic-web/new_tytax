@@ -1,10 +1,10 @@
 /**
  * How a set is measured (Wave 2, F2). Pure helpers, no React.
  *
- * - `measureOf(ex)` → `ex.measure` when the catalog tags it. Until G1's
- *   catalog tags land, an untagged exercise whose `defaultReps` starts with a
- *   time target ("30-60s", "2-5 min", "15-30s hold") is 'time'; everything
- *   else (including an unknown exercise) is 'reps'.
+ * - `measureOf(ex)` → `ex.measure` (G1 tags every time-target exercise of the
+ *   catalog 'time'); untagged or unknown → 'reps' (the contract default). The
+ *   former `defaultReps` heuristic is gone: on G1's catalog it agreed with the
+ *   tag on all 1566 exercises (92 time, 0 disagreements; see measure.test.ts).
  * - `isTimeSet(set, measure?)` → true for a set of a 'time' exercise. Without a
  *   measure (the store and selectors do not see the catalog), a set that carries
  *   a `durationSeconds` number is a time set.
@@ -20,12 +20,8 @@ import type { Exercise, ExerciseMeasure, SetEntry } from '@/contracts/domain';
 
 export type { ExerciseMeasure } from '@/contracts/domain';
 
-const TIME_TARGET = /^\s*\d+(-\d+)?\s*(s|sec|secs|seconds|min)\b/i;
-
-export function measureOf(ex: Pick<Exercise, 'measure' | 'defaultReps'> | undefined): ExerciseMeasure {
-  if (!ex) return 'reps';
-  if (ex.measure) return ex.measure;
-  return TIME_TARGET.test(ex.defaultReps ?? '') ? 'time' : 'reps';
+export function measureOf(ex: Pick<Exercise, 'measure'> | undefined): ExerciseMeasure {
+  return ex?.measure ?? 'reps';
 }
 
 export function isTimeSet(set: Pick<SetEntry, 'durationSeconds'>, measure?: ExerciseMeasure): boolean {

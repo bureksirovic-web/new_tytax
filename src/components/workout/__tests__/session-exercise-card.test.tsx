@@ -317,6 +317,17 @@ describe('SessionExerciseCard time sets (Wave 2)', () => {
     expect(durations[1]).toHaveAttribute('placeholder', 'sec');
   });
 
+  it("a time set's own ghostDurationSeconds (from the session builder) is the placeholder", async () => {
+    h.measure = 'time';
+    // No loaded history at all: the hint on the set alone drives the placeholder (row 1 only).
+    const se = exAt(0);
+    store().replaceExercises([{ ...se, sets: se.sets.map((s, i) => (i === 0 ? { ...s, ghostDurationSeconds: 50 } : s)) }]);
+    render(<Cards />);
+    const rows = await screen.findAllByPlaceholderText('0:50');
+    expect(rows).toHaveLength(1);
+    expect(screen.getAllByTestId('set-duration')[0]).toHaveAccessibleName('Set 1: Duration (seconds or m:ss). Last time 0:50');
+  });
+
   it('a reps exercise never loads last durations', () => {
     render(<Cards />);
     expect(screen.getAllByTestId('set-kg').length).toBeGreaterThan(0);

@@ -5,19 +5,17 @@
  * history. Brzycki grows fast past ~12 reps, so the UI flags those
  * estimates as unreliable (`UNRELIABLE_ABOVE_REPS`).
  */
-import { training } from '@/lib/training';
+import { E1RM_MAX_REPS, training } from '@/lib/training';
 
 export const PERCENTAGES: readonly number[] = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50];
 export const REP_RANGE_MAX = 12;
 /** Same switch point as `training.e1rm`. */
 const EPLEY_FROM_REPS = 37;
 /**
- * Rep cap for a rankable e1RM (Wave 2, G1 item 2). TODO(G1): replace with
- * `E1RM_MAX_REPS` from '@/lib/training' once G1's branch merges (it is not
- * exported on this branch yet); the value is the same, 12.
+ * Estimates from more reps than this get the warning (the estimate is still
+ * shown): G1's rankable-e1RM cap `E1RM_MAX_REPS` (12), so the tool warns
+ * exactly where PRs stop ranking.
  */
-export const E1RM_MAX_REPS = 12;
-/** Estimates from more reps than this get the warning (the estimate is still shown). */
 export const UNRELIABLE_ABOVE_REPS = E1RM_MAX_REPS;
 /** The UI rejects rep counts above this; estimates past it are meaningless. */
 export const MAX_REPS = 30;

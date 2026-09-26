@@ -12,7 +12,12 @@ vi.mock('@/lib/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/db')>();
   return { ...actual, getRepository: () => ({ watch: () => () => undefined }) };
 });
-vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] }, loadCatalog: () => new Promise(() => undefined) }));
+// The card's video button uses the real (pure) buildVideoLinks from @/lib/catalog.
+vi.mock('@/lib/catalog', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/catalog/video-links')>('@/lib/catalog/video-links')),
+  catalog: { search: async () => [] },
+  loadCatalog: () => new Promise(() => undefined),
+}));
 
 const hook = vi.hoisted(() => ({ current: undefined as unknown }));
 vi.mock('@/hooks/use-workout', async (importOriginal) => {

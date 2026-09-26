@@ -25,7 +25,7 @@
  *
  * Wave 2:
  * - `orderByStation()` → Promise<boolean>: reorders the draft by TYTAX station
- *   (see src/stores/order-by-station.ts); false when nothing changed.
+ *   (G1's @/lib/workout/order-by-station); false when nothing changed.
  * - `repeatLog(log, { replace? })` → WorkoutDraft | null: "repeat workout"
  *   (`startFromLog`, a quick workout, no program). Null without a profile, for
  *   a log of another profile or in the trash, or while a draft exists unless `replace: true`

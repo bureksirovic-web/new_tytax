@@ -184,6 +184,10 @@ describe('F6 kettlebell prefill uses owned bells', () => {
     buildSessionExercise({ exercise: swing, history: hist(rir), settings: settings(), targetSets: 2, availableKg }).sets.map((s) => s.kg);
 
   it('snaps up to the lightest owned bell at or above the suggestion, else holds', () => {
+    // Derived from G1's src/lib/training/prefill.ts (the local snapToBells adapter is gone):
+    // basisFor: lowest RIR ≥ 3 → +2.5, = 2 → +1.25, else +0 (PREFILL_INCREMENT_KG);
+    // nextKg(base 16, inc, 'kettlebell', availableKg): inc 0 → 16; target = 16 + inc;
+    // with bells → lightest bell ≥ target, else base 16; no bells + kettlebell → base 16.
     // 16 + 2.5 = 18.5 → lightest owned bell ≥ 18.5 = 20.
     expect(build(3, [12, 16, 20])).toEqual([20, 20]);
     // 16 + 1.25 = 17.25 → 20.
@@ -192,8 +196,10 @@ describe('F6 kettlebell prefill uses owned bells', () => {
     expect(build(3, [12, 16])).toEqual([16, 16]);
     // RIR 1 → hold (no increment): 16 stays even though 16 is not owned.
     expect(build(1, [12, 20])).toEqual([16, 16]);
-    // Without bells the prefill is unchanged.
-    expect(build(3)).toEqual([18.5, 18.5]);
+    // Without bells a kettlebell holds (G1 nextKg): 16, never the unowned 18.5 the old
+    // prefill suggested. Stronger than before: no bell list can yield a non-bell weight.
+    expect(build(3)).toEqual([16, 16]);
+    expect(build(3, [])).toEqual([16, 16]);
   });
 });
 

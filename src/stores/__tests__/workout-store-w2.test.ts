@@ -117,6 +117,16 @@ describe('workout selectors — Wave 2 time sets', () => {
     expect(countsForVolume(exercises[0].sets[0], 'time')).toBe(false);
     expect([exercises[1].sets[0]].filter(countsAsWork)).toHaveLength(0);
   });
+
+  it('a set with seconds held never adds kg volume, whatever the lookup says (G1 isTimeSet)', () => {
+    // A 'reps' exercise row that carries 40 s held with 20 kg × 5: G1 counts it as a time set.
+    const exercises = [se('row', [set('1', { kg: 20, reps: 5, done: true, durationSeconds: 40 }), set('2', { kg: 50, reps: 10, done: true })])];
+    const d = { id: 'd', profileId: 'p', sessionName: 'S', startedAt: 'x', exercises };
+    // Volume: only 50 × 10 = 500; held: 40 s; both sets are done work.
+    expect(summarizeDraft(d, { measureOf: () => 'reps' })).toEqual({ exerciseCount: 1, doneSets: 2, totalSets: 2, volumeKg: 500, timeSeconds: 40 });
+    expect(countsForVolume(exercises[0].sets[0], 'reps')).toBe(false);
+    expect(exerciseVolumeKg(exercises[0], 'reps')).toBe(500);
+  });
 });
 
 describe('workout store — startFromLog and reorderExercises', () => {
@@ -159,7 +169,8 @@ describe('workout store — startFromLog and reorderExercises', () => {
     expect(bench.sets[1]).toEqual({ id: bench.sets[1].id, type: 'working', kg: 100, reps: 5, done: false, tempo: '3-1-1-0', ghostKg: 100, ghostReps: 5 });
     expect(bench.sets[2]).toEqual({ id: bench.sets[2].id, type: 'working', kg: 100, reps: 3, done: false });
     expect(new Set(bench.sets.map((s) => s.id)).has('a')).toBe(false);
-    expect(plank.sets[0]).toEqual({ id: plank.sets[0].id, type: 'working', kg: 0, reps: 0, done: false, durationSeconds: 45 });
+    // The held 45 s is also the set's ghost hint (contract `ghostDurationSeconds`), like ghostKg above.
+    expect(plank.sets[0]).toEqual({ id: plank.sets[0].id, type: 'working', kg: 0, reps: 0, done: false, durationSeconds: 45, ghostDurationSeconds: 45 });
     // The log is untouched.
     expect(log.exercises[0].sets[1].done).toBe(true);
     expect(log.exercises[0].muscleImpactSnapshot).toEqual([{ muscle: 'Chest', score: 100 }]);

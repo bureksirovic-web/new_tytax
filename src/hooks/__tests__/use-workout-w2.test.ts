@@ -15,7 +15,8 @@ vi.mock('@/lib/db', async (importOriginal) => {
 const base = { muscleGroup: 'CHEST', pattern: 'push', isUnilateral: false, defaultSets: 3 } as const;
 const smith: Exercise = { ...base, id: 'smith', name: 'Smith Press', modality: 'tytax', impact: [], defaultReps: '8', stationId: 'SMITH' };
 const curl: Exercise = { ...base, id: 'curl', name: 'Leg Curl', modality: 'tytax', impact: [], defaultReps: '10', stationId: 'LEG_CURL' };
-const plank: Exercise = { ...base, id: 'plank', name: 'Plank', modality: 'bodyweight', impact: [], defaultReps: '30-60s' };
+// G1 tags time exercises (`measure: 'time'`); the defaultReps heuristic is gone, so the fixture carries the tag.
+const plank: Exercise = { ...base, id: 'plank', name: 'Plank', modality: 'bodyweight', impact: [], defaultReps: '30-60s', measure: 'time' };
 const byId = new Map([smith, curl, plank].map((e) => [e.id, e]));
 
 vi.mock('@/lib/catalog', () => ({

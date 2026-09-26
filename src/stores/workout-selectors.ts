@@ -2,13 +2,16 @@
  * Pure read-only views over a workout draft for the UI. They follow the
  * training contract: only done sets that are not warm-ups count.
  *
- * Time sets (Wave 2, see ./measure.ts): a done time set counts as a done set
- * when `durationSeconds > 0` (reps are ignored) and never adds kg volume.
- * Without a `measureOf` lookup a set is a time set when it carries
- * `durationSeconds`; with one, the exercise's measure decides.
+ * Time sets mirror G1 (`@/lib/training`): a set with `durationSeconds` > 0
+ * (`isTimeSet`) is seconds held. It counts as a done set, never adds kg volume,
+ * and its seconds are the hold total (`holdSeconds`). The row measure of
+ * ./measure.ts only adds the UI rule that a time row with no seconds yet (a
+ * 'time' exercise, or without a lookup a set carrying `durationSeconds`) is not
+ * logged work, whatever its reps.
  */
 import type { ExerciseMeasure, SessionExercise, SetEntry, WorkoutDraft } from '@/contracts/domain';
-import { isTimeSet } from './measure';
+import { holdSeconds, isTimeSet as isHeldSet } from '@/lib/training';
+import { isTimeSet as isTimeRow } from './measure';
 
 export interface DraftSummary {
   exerciseCount: number;
@@ -18,7 +21,7 @@ export interface DraftSummary {
   totalSets: number;
   /** Σ kg × reps over done working rep sets (time sets excluded). */
   volumeKg: number;
-  /** Σ seconds over done working time sets. */
+  /** Seconds held: Σ G1 `holdSeconds(sets)` over the exercises. */
   timeSeconds: number;
 }
 
@@ -38,12 +41,13 @@ export function countsAsWork(s: SetEntry): boolean {
 
 export function countsAsWorkFor(s: SetEntry, measure?: ExerciseMeasure): boolean {
   if (!s.done || s.type === 'warmup') return false;
-  return isTimeSet(s, measure) ? (s.durationSeconds ?? 0) > 0 : s.reps > 0;
+  if (isHeldSet(s)) return true;
+  return !isTimeRow(s, measure) && s.reps > 0;
 }
 
-/** Counts toward kg volume: logged work that is not a time set. */
+/** Counts toward kg volume: logged work that is not a time set (G1 `isTimeSet`). */
 export function countsForVolume(s: SetEntry, measure?: ExerciseMeasure): boolean {
-  return countsAsWorkFor(s, measure) && !isTimeSet(s, measure);
+  return countsAsWorkFor(s, measure) && !isHeldSet(s);
 }
 
 export function exerciseVolumeKg(ex: SessionExercise, measure?: ExerciseMeasure): number {
@@ -58,11 +62,11 @@ export function summarizeDraft(draft: WorkoutDraft, opts: SummaryOptions = {}): 
   for (const ex of draft.exercises) {
     const measure = opts.measureOf?.(ex.exerciseId);
     totalSets += ex.sets.length;
+    timeSeconds += holdSeconds(ex.sets);
     for (const s of ex.sets) {
       if (!countsAsWorkFor(s, measure)) continue;
       doneSets += 1;
-      if (isTimeSet(s, measure)) timeSeconds += s.durationSeconds ?? 0;
-      else volumeKg += s.kg * s.reps;
+      if (!isHeldSet(s)) volumeKg += s.kg * s.reps;
     }
   }
   return { exerciseCount: draft.exercises.length, doneSets, totalSets, volumeKg, timeSeconds };

@@ -31,7 +31,9 @@ export type SetsKey =
   | 'card_video'
   | 'card_video_menu'
   | 'card_video_search'
-  | 'card_video_option';
+  | 'card_video_option'
+  | 'card_video_tytax'
+  | 'card_video_youtube';
 
 export const SETS_STRINGS: StringTable<SetsKey> = {
   en: {
@@ -65,6 +67,8 @@ export const SETS_STRINGS: StringTable<SetsKey> = {
     card_video_menu: 'Videos',
     card_video_search: 'Search YouTube',
     card_video_option: 'Video {n}',
+    card_video_tytax: 'TYTAX app',
+    card_video_youtube: 'YouTube {n}',
   },
   hr: {
     set_label: 'Serija {n}',
@@ -97,6 +101,8 @@ export const SETS_STRINGS: StringTable<SetsKey> = {
     card_video_menu: 'Videozapisi',
     card_video_search: 'Pretraži YouTube',
     card_video_option: 'Video {n}',
+    card_video_tytax: 'TYTAX aplikacija',
+    card_video_youtube: 'YouTube {n}',
   },
 };
 

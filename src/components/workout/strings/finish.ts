@@ -5,6 +5,7 @@ import { makeStringsHook, type StringTable } from './make-strings';
 export type FinishKey =
   | 'duration'
   | 'duration_value'
+  | 'hold_total'
   | 'rpe_label'
   | 'rpe_quick'
   | 'rpe_quick_n'
@@ -26,6 +27,7 @@ export const FINISH_STRINGS: StringTable<FinishKey> = {
   en: {
     duration: 'Duration',
     duration_value: '{n} min',
+    hold_total: 'Time held',
     rpe_label: 'Session RPE (1–10)',
     rpe_quick: 'Quick RPE',
     rpe_quick_n: 'RPE {n}',
@@ -46,6 +48,7 @@ export const FINISH_STRINGS: StringTable<FinishKey> = {
   hr: {
     duration: 'Trajanje',
     duration_value: '{n} min',
+    hold_total: 'Ukupni izdržaj',
     rpe_label: 'RPE sesije (1–10)',
     rpe_quick: 'Brzi RPE',
     rpe_quick_n: 'RPE {n}',

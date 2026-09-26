@@ -78,4 +78,16 @@ describe('ghostSecondsForSets', () => {
     expect(ghostSecondsForSets([{ type: 'working' }, { type: 'working' }], [20])).toEqual([20, undefined]);
     expect(ghostSecondsForSets([], [20])).toEqual([]);
   });
+
+  it("prefers the set's own ghostDurationSeconds over the loaded history", () => {
+    const sets = [
+      { type: 'warmup' as const, ghostDurationSeconds: 99 },
+      { type: 'working' as const, ghostDurationSeconds: 40 },
+      { type: 'working' as const },
+      { type: 'working' as const, ghostDurationSeconds: 0 },
+    ];
+    // Warm-up → none even with a hint; 40 wins over last[0] = 30; set 2 falls back to last[1] = 35;
+    // a 0 s hint is no hint, so set 3 falls back to last[2] = 50.
+    expect(ghostSecondsForSets(sets, [30, 35, 50])).toEqual([undefined, 40, 35, 50]);
+  });
 });
