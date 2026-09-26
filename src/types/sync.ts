@@ -1,22 +1,14 @@
-export type SyncOperationType = 'create' | 'update' | 'delete';
-
-export interface SyncOperation {
-  id: string;
-  tableName: string;
-  operationType: SyncOperationType;
-  recordId: string;
-  payload: Record<string, unknown>;
-  createdAt: string;
-  retryCount: number;
-  lastError?: string;
-}
-
-export interface SyncMetadata {
-  id: string;
-  profileId: string;
-  tableName: string;
-  deviceId: string;
-  lastSyncedAt: string;
-}
-
-export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
+// Re-export of the frozen contract (src/contracts/sync.ts). Do not add types here.
+export type {
+  SyncTable,
+  SyncOperationType,
+  SyncOperation,
+  SyncCursor,
+  SyncStatus,
+  SyncState,
+  SyncResult,
+  SyncOutbox,
+  SyncAdapter,
+  ApplyRemoteResult,
+} from '@/contracts/sync';
+export { SYNC_TABLES, noopSyncAdapter } from '@/contracts/sync';
