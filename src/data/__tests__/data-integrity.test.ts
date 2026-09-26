@@ -4,7 +4,7 @@
  * denominator of 1,436, and the committed catalog matches a fresh build.
  * Command: npm test -- data-integrity
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '@/contracts/domain';
@@ -111,5 +111,27 @@ describe('data integrity (AC8)', () => {
     const stale = Object.entries(files).filter(([rel, content]) => read(rel) !== content).map(([rel]) => rel);
     expect(stale).toEqual([]);
     expect(Object.keys(files)).toContain(OUTPUT_PATHS.exercises);
+  });
+
+  it('the catalog is lazy: no static import of exercise data outside src/data and the chunk loader', () => {
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = resolve(dir, name);
+        if (statSync(p).isDirectory()) {
+          if (name !== '__tests__' && name !== 'node_modules') walk(p);
+        } else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(p);
+      }
+    };
+    walk(resolve(ROOT, 'src'));
+    // `import x from '@/data/…/exercises…'` (static); `import('…')` inside src/lib/catalog is the lazy path
+    const staticImport = /^\s*import\s[^;]*from\s+['"]@\/data\/(tytax|bodyweight|kettlebell)\/exercises(\.json)?['"]/m;
+    const offenders = files
+      .filter((f) => !f.includes(`${resolve(ROOT, 'src/data')}/`))
+      .filter((f) => staticImport.test(readFileSync(f, 'utf8')))
+      .map((f) => f.slice(ROOT.length + 1));
+    expect(offenders).toEqual([]);
+    // the scan saw the app: more than 100 source files
+    expect(files.length).toBeGreaterThan(100);
   });
 });
