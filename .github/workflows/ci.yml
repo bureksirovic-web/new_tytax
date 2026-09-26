@@ -2,7 +2,8 @@
 #
 # Assumes Wave 0 has added: @axe-core/playwright, fake-indexeddb, zod, supabase
 # CLI dev dep, eslint i18n plugin, and scripts/check-bundle.mjs.
-# `npm run test:sync` is added by G5 (vitest integration suite against local Supabase).
+# `npm run test:sync` is G5's vitest integration suite against local Supabase
+# (src/lib/sync/__tests__/*.sync.test.ts); it fails without Supabase env, never skips.
 # Other not-yet-scripted steps are called through npx / node directly on purpose.
 name: CI
 
@@ -103,8 +104,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Playwright (desktop chromium + one mobile project)
-        run: npx playwright test --project=chromium --project=mobile
+      # @sync specs need local Supabase; they run (and must pass) in the sync-e2e job.
+      - name: Playwright (desktop chromium + one mobile project, without @sync)
+        run: npx playwright test --project=chromium --project=mobile --grep-invert @sync
 
       - name: Upload Playwright report
         if: failure()
@@ -121,6 +123,13 @@ jobs:
     name: sync-e2e (local Supabase)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PORT: "3100"
+      # The magic link's emailRedirectTo origin; supabase/config.toml allow-lists
+      # localhost:3100 and 127.0.0.1:3100 callbacks. playwright.config.ts pins the
+      # e2e server's value to its own baseURL (http://127.0.0.1:$PORT), because the
+      # PKCE verifier cookie only exists on the host that requested the link.
+      NEXT_PUBLIC_APP_URL: "http://localhost:3100"
     steps:
       - uses: actions/checkout@v4
 
@@ -154,6 +163,7 @@ jobs:
           api_url=$(get API_URL)
           anon=$(get ANON_KEY)
           service=$(get SERVICE_ROLE_KEY)
+          mailpit=$(get MAILPIT_URL)
           rm -f "$RUNNER_TEMP/sb.env"
           if [ -z "$api_url" ] || [ -z "$anon" ] || [ -z "$service" ]; then
             echo "::error::Could not read API_URL / ANON_KEY / SERVICE_ROLE_KEY from 'supabase status -o env'"
@@ -167,22 +177,27 @@ jobs:
             echo "SUPABASE_URL=$api_url"
             echo "SUPABASE_ANON_KEY=$anon"
             echo "SUPABASE_SERVICE_ROLE_KEY=$service"
+            echo "MAILPIT_URL=${mailpit:-http://127.0.0.1:54424}"
             echo "NEXT_PUBLIC_SYNC_ENABLED=true"
           } >> "$GITHUB_ENV"
 
+      # Env names read by src/lib/sync/__tests__/live-harness.ts: SUPABASE_URL | NEXT_PUBLIC_SUPABASE_URL,
+      # SUPABASE_ANON_KEY | NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
       - name: Sync integration suite (fails on any skip)
         run: |
-          npm run test:sync -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/test-sync.log"
-          if grep -qi 'skipped' "$RUNNER_TEMP/test-sync.log"; then
-            echo "::error::test:sync reported skipped tests; AC12 requires zero skips"
-            grep -ni 'skipped' "$RUNNER_TEMP/test-sync.log"
-            exit 1
-          fi
+          npm run test:sync -- --reporter=verbose --reporter=json --outputFile.json="$RUNNER_TEMP/test-sync.json"
+          node .github/scripts/check-no-skips.mjs vitest "$RUNNER_TEMP/test-sync.json"
 
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Sync + auth e2e
-        run: npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium
+      # Env read by e2e/fixtures/supabase.ts: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      # SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SYNC_ENABLED=true, MAILPIT_URL.
+      - name: Sync + auth e2e (fails on any skip)
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/sync-e2e.json
+        run: |
+          npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium --reporter=list,json
+          node .github/scripts/check-no-skips.mjs playwright "$PLAYWRIGHT_JSON_OUTPUT_FILE"
 
       - name: Upload Playwright report
         if: failure()

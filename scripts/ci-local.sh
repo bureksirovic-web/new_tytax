@@ -86,7 +86,7 @@ if want e2e && [ "$SKIP_E2E" -eq 0 ]; then
   fi
   step "e2e: playwright install"      "npx playwright install chromium"
   step "e2e: playwright chromium+mobile" \
-    "env -u NEXT_PUBLIC_SYNC_ENABLED npx playwright test --project=chromium --project=mobile"
+    "env -u NEXT_PUBLIC_SYNC_ENABLED npx playwright test --project=chromium --project=mobile --grep-invert @sync"
 elif want e2e; then
   record "e2e" "SKIP (--skip-e2e)"
 fi
@@ -108,7 +108,7 @@ if want sync-e2e && [ "$SKIP_E2E" -eq 0 ]; then
   if [ "$JOB_FAILED" -eq 0 ]; then
     SB_ENV="$($SUPABASE_CLI status -o env 2>/dev/null || true)"
     get() { printf '%s\n' "$SB_ENV" | sed -nE "s/^$1=\"?([^\"]*)\"?\$/\1/p" | head -n1; }
-    api_url="$(get API_URL)"; anon="$(get ANON_KEY)"; service="$(get SERVICE_ROLE_KEY)"
+    api_url="$(get API_URL)"; anon="$(get ANON_KEY)"; service="$(get SERVICE_ROLE_KEY)"; mailpit="$(get MAILPIT_URL)"
     unset SB_ENV
     if [ -z "$api_url" ] || [ -z "$anon" ] || [ -z "$service" ]; then
       echo "could not read API_URL / ANON_KEY / SERVICE_ROLE_KEY from supabase status" >&2
@@ -117,19 +117,23 @@ if want sync-e2e && [ "$SKIP_E2E" -eq 0 ]; then
       export NEXT_PUBLIC_SUPABASE_URL="$api_url" SUPABASE_URL="$api_url"
       export NEXT_PUBLIC_SUPABASE_ANON_KEY="$anon" SUPABASE_ANON_KEY="$anon"
       export SUPABASE_SERVICE_ROLE_KEY="$service"
+      export MAILPIT_URL="${mailpit:-http://127.0.0.1:54424}"
       export NEXT_PUBLIC_SYNC_ENABLED=true
+      # Same as the CI job; playwright.config.ts pins the e2e server's value to its baseURL.
+      export NEXT_PUBLIC_APP_URL="http://localhost:$PORT"
       record "sync-e2e: export env" "PASS"
     fi
   else
     record "sync-e2e: export env" "SKIP"
   fi
   step "sync-e2e: test:sync (zero skips)" \
-    "npm run test:sync -- --reporter=verbose 2>&1 | tee '$LOG_DIR/test-sync.log'
-     if grep -qi skipped '$LOG_DIR/test-sync.log'; then echo 'test:sync reported skipped tests'; exit 1; fi"
+    "npm run test:sync -- --reporter=verbose --reporter=json --outputFile.json='$LOG_DIR/test-sync.json'
+     node .github/scripts/check-no-skips.mjs vitest '$LOG_DIR/test-sync.json'"
   step "sync-e2e: build (sync on)"    "npm run build"
   step "sync-e2e: playwright install" "npx playwright install chromium"
-  step "sync-e2e: playwright sync+auth" \
-    "npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium"
+  step "sync-e2e: playwright sync+auth (zero skips)" \
+    "PLAYWRIGHT_JSON_OUTPUT_FILE='$LOG_DIR/sync-e2e.json' npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium --reporter=list,json
+     node .github/scripts/check-no-skips.mjs playwright '$LOG_DIR/sync-e2e.json'"
 elif want sync-e2e; then
   record "sync-e2e" "SKIP (--skip-e2e)"
 fi

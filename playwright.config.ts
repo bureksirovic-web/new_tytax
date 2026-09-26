@@ -44,6 +44,19 @@ export default defineConfig({
     url: `${baseURL}/api/health`,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { NEXT_PUBLIC_E2E_HOOKS: '1' },
+    // The Supabase public env is pinned to the runner's own values ('' when
+    // unset). An explicit '' blocks Next from filling it from .env.local, so
+    // specs can read process.env and know whether the server has Supabase
+    // (see e2e/fixtures/env.ts); without it auth routes answer auth_not_configured.
+    env: {
+      NEXT_PUBLIC_E2E_HOOKS: '1',
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      // Pinned to the origin the browser uses: the magic link's emailRedirectTo
+      // is built from it, and the PKCE verifier cookie only exists on the host
+      // that asked for the link (127.0.0.1 and localhost are different hosts).
+      // NEXT_PUBLIC_SYNC_ENABLED and the rest of process.env pass through.
+      NEXT_PUBLIC_APP_URL: baseURL,
+    },
   },
 });
