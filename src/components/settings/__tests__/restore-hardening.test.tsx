@@ -5,7 +5,7 @@ import { DEFAULT_PROFILE_SETTINGS, type Profile } from '@/contracts/domain';
 import type { Repository } from '@/contracts/repo';
 import { parseBackupText } from '../backup-io';
 import { localBackupService } from '../backup-service';
-import { emptyBackup, installRepo, oneSetLog, renderWithProviders, seedLogs, toastMessages, type Holder } from './settings-harness';
+import { emptyBackup, installRepo, rawDb, oneSetLog, renderWithProviders, seedLogs, toastMessages, type Holder } from './settings-harness';
 
 const holder = vi.hoisted((): Holder => ({ repo: undefined }));
 vi.mock('@/lib/db', async (importOriginal) => {
@@ -59,7 +59,8 @@ describe('restore: partial profile settings (refuter1 S2)', () => {
   });
 
   it('an already-stored partial profile can still be saved', async () => {
-    await repo.importBackup({ ...emptyBackup(), profiles: [{ ...me, settings: { units: 'kg' } as Profile['settings'] }] });
+    // Stored by an older build: the repository's import now rejects this row, so it is written below it.
+    await rawDb().profiles.put({ ...me, settings: { units: 'kg' } as Profile['settings'] });
     const partial = (await repo.profiles.get(me.id))!;
     renderWithProviders(<LanguageUnitsCard profile={partial} />);
     fireEvent.change(screen.getByTestId('settings-units-select'), { target: { value: 'lb' } });
@@ -68,7 +69,7 @@ describe('restore: partial profile settings (refuter1 S2)', () => {
   });
 
   it('a stored invalid value is repaired on the next save', async () => {
-    await repo.importBackup({ ...emptyBackup(), profiles: [{ ...me, settings: { ...me.settings, theme: 'bogus' } as unknown as Profile['settings'] }] });
+    await rawDb().profiles.put({ ...me, settings: { ...me.settings, theme: 'bogus' } as unknown as Profile['settings'] });
     const broken = (await repo.profiles.get(me.id))!;
     renderWithProviders(<LanguageUnitsCard profile={broken} />);
     fireEvent.change(screen.getByTestId('settings-units-select'), { target: { value: 'lb' } });

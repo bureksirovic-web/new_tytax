@@ -23,17 +23,34 @@ vi.mock('next/navigation', () => ({
 const { ExerciseDetail } = await import('../exercise-detail');
 
 let n = 0;
+type SetSetup = (profileId: string, exerciseId: string, value: MachineSetup | null) => Promise<ExerciseNote | undefined>;
+
 /**
- * Real repository on fake-indexeddb. `withWriter` adds the method requested in
- * G4-W2-20 (`notes.setSetup`), written straight to the same Dexie table so the
- * live `notes.get` query sees it, exactly as the G2 implementation would.
+ * Real repository on fake-indexeddb.
+ * - `withWriter`: when the repository already implements `notes.setSetup`
+ *   (G2's `NotesRepoExt`, merged tree) the real method is used and only wrapped
+ *   to record its arguments. Otherwise (v2-g4 alone) a stand-in of the shape
+ *   requested in G4-W2-20 writes straight to the same Dexie table, so the live
+ *   `notes.get` query sees it, exactly as the G2 implementation does.
+ * - `!withWriter`: `setSetup`/`getSetup` are removed, so the pre-G2 repository
+ *   shape is exercised in both trees.
  */
 async function setup(withWriter: boolean) {
   n += 1;
   const db = new TytaxDatabase(`ex-setup-${n}`);
   const repo = createRepository({ db });
   const calls: Array<MachineSetup | null> = [];
-  if (withWriter) {
+  const native = (repo.notes as { setSetup?: unknown }).setSetup;
+  if (!withWriter) {
+    Object.assign(repo.notes, { setSetup: undefined, getSetup: undefined });
+  } else if (typeof native === 'function') {
+    Object.assign(repo.notes, {
+      setSetup(profileId: string, exerciseId: string, value: MachineSetup | null) {
+        calls.push(value);
+        return (native as SetSetup).call(repo.notes, profileId, exerciseId, value);
+      },
+    });
+  } else {
     Object.assign(repo.notes, {
       async setSetup(profileId: string, exerciseId: string, value: MachineSetup | null): Promise<ExerciseNote | undefined> {
         calls.push(value);

@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { csvHonorsUnits, loadCsvApi } from '../export-adapter';
 
 describe('CSV units claim follows the CSV output (refuter1 suspect)', () => {
-  it('is false for the current kg-only module, whatever else it exports', async () => {
+  it('matches the weight header the real module writes for lb, whatever else it exports', async () => {
+    // kg-only module (v2-g4): false; G2's units-aware module (merged tree): true.
     const api = await loadCsvApi();
     expect(api.workouts).toBeTypeOf('function');
-    expect(api.unitsSupported).toBe(false);
+    const mod = (await import('@/lib/export/csv')) as unknown as Record<string, unknown>;
+    const header = (mod.workoutLogsToCSV as (l: never[], o: { units: 'lb' }) => string)([], { units: 'lb' }).split('\n', 1)[0];
+    const writesLb = header.split(',').includes('Weight (lb)');
+    expect(writesLb || header.split(',').includes('Weight (kg)')).toBe(true);
+    expect(api.unitsSupported).toBe(writesLb);
   });
 
   it('reads the header row the function actually produced', () => {

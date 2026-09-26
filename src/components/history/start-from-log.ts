@@ -1,11 +1,16 @@
 /**
  * Adapter for G3's `startFromLog` workout-store action (request G4-25, Wave 2).
- * v2-g4's store does not have it yet, so it is detected at runtime on the store
- * state; the "Repeat workout" button stays hidden until it exists.
+ * v2-g4's store does not have it (it lands with the G3 merge), so it is detected
+ * at runtime on the store state; the "Repeat workout" button stays hidden without it.
  */
 import type { WorkoutDraft, WorkoutLog } from '@/contracts/domain';
 
-/** The G4-25 signature: a new draft from a finished log; null when refused (e.g. a draft exists). */
+/**
+ * The G4-25 signature. G3's store (Wave 2) implements it as a synchronous
+ * `startFromLog(profileId, log): WorkoutDraft` that replaces any draft, so the
+ * caller asks before replacing; null/undefined (a refusing implementation) and
+ * a Promise are tolerated.
+ */
 export type StartFromLog = (
   profileId: string,
   log: WorkoutLog,

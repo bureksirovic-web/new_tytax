@@ -19,7 +19,12 @@ export interface BackupService {
   exportJson(repo: Repository, profileId?: string): Promise<string>;
   /** Read-only pre-flight; throws a coded error for a bad file. */
   inspect(repo: Repository, text: string): Promise<{ profiles: InspectedProfile[] }>;
-  restore(repo: Repository, text: string): Promise<{ inserted: number; updated: number }>;
+  /**
+   * `confirmOverwrite`: the user acknowledged merging into profiles the
+   * inspection found on this device. G2's service refuses (RepoError CONFLICT)
+   * to change an existing profile without it; the local service has no such guard.
+   */
+  restore(repo: Repository, text: string, opts?: { confirmOverwrite?: boolean }): Promise<{ inserted: number; updated: number }>;
 }
 
 /** Thrown by the local service; `code` matches G2's `ImportError.code`. */
@@ -73,7 +78,7 @@ export function fromG2Service(mod: Record<string, unknown>): BackupService | nul
   return {
     exportJson: (repo, profileId) => exp(repo, profileId, { pretty: true }) as Promise<string>,
     inspect: (repo, text) => insp(repo, text) as Promise<{ profiles: InspectedProfile[] }>,
-    restore: (repo, text) => rest(repo, text) as Promise<{ inserted: number; updated: number }>,
+    restore: (repo, text, opts) => rest(repo, text, { confirmOverwrite: opts?.confirmOverwrite === true }) as Promise<{ inserted: number; updated: number }>,
   };
 }
 

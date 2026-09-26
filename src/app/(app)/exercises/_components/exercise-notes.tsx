@@ -7,7 +7,7 @@ import { getRepository } from '@/lib/db';
 import { useT } from '@/lib/i18n/use-t';
 import { useUIStore } from '@/stores/ui-store';
 import { SectionCard } from './section-card';
-import { normalizeSetup, toDraft } from './setup-adapter';
+import { clearKeepsSetup, normalizeSetup, toDraft } from './setup-adapter';
 
 const MAX = 2000;
 
@@ -20,8 +20,9 @@ interface ExerciseNotesProps {
 /**
  * Personal note per profile + exercise. The edit buffer is tagged with the
  * exercise id and profile id, so it never leaks to another exercise.
- * The machine setup lives on the same row and `notes.set(…, '')` removes the
- * whole row (G4-W2-55), so clearing the note while a setup exists asks first.
+ * The machine setup lives on the same row. The pre-G2 repo's `notes.set(…, '')`
+ * removes the whole row, so there clearing the note while a setup exists asks
+ * first; G2's repo keeps the row and its setup (G4-W2-55), so no dialog.
  */
 export function ExerciseNotes({ exerciseId, exerciseName, profileId }: ExerciseNotesProps) {
   const { t } = useT();
@@ -37,7 +38,8 @@ export function ExerciseNotes({ exerciseId, exerciseName, profileId }: ExerciseN
   const [confirming, setConfirming] = useState(false);
   const text = edit?.owner === owner ? edit.text : (stored?.content ?? '');
   const dirty = edit?.owner === owner && edit.text !== (stored?.content ?? '');
-  const losesSetup = text.trim() === '' && normalizeSetup(toDraft(stored?.setup)) !== null;
+  const losesSetup =
+    text.trim() === '' && normalizeSetup(toDraft(stored?.setup)) !== null && !clearKeepsSetup(getRepository().notes);
 
   function requestSave() {
     if (losesSetup) setConfirming(true);

@@ -77,8 +77,13 @@ describe('BackupPanel', () => {
     fireEvent.click(within(preview).getByTestId('settings-restore-confirm'));
     await waitFor(async () => expect(await repo.logs.count(marko.id)).toBe(3));
     expect((await repo.profiles.list()).map((p) => p.name).sort()).toEqual(['Ana', 'Marko']);
-    // the export holds 1 profile row + 3 log rows (no equipment was saved) → 4 inserted
-    expect(toastMessages()).toContain('Backup restored: 4 added, 0 updated');
+    // every row of the file is new here: 1 profile + 3 logs, plus whatever PR rows the source
+    // derived (G3-02 importBackup rebuilds PRs; the pre-G3 repository derives none)
+    const file = JSON.parse(text) as Record<string, unknown>;
+    expect(file).toMatchObject({ profiles: [expect.anything()], workoutLogs: [expect.anything(), expect.anything(), expect.anything()] });
+    const rows = Object.values(file).reduce<number>((sum, v) => sum + (Array.isArray(v) ? v.length : 0), 0);
+    expect(rows).toBe(4 + (file.prRecords as unknown[]).length);
+    expect(toastMessages()).toContain(`Backup restored: ${rows} added, 0 updated`);
   });
 
   it('rejects a file that is not a TYTAX backup without writing anything', async () => {

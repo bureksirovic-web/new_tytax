@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import type { WorkoutLog } from '@/contracts/domain';
-import { getRepository } from '@/lib/db';
+import { getDb, getRepository } from '@/lib/db';
 import HistoryPage from '@/app/(app)/history/page-client';
 import HistoryDetailPage from '@/app/(app)/history/[id]/page-client';
 import { useHistoryUndo } from '../undo-store';
@@ -15,12 +15,14 @@ beforeEach(async () => {
   useHistoryUndo.setState({ pending: null, earlier: [] });
 });
 
-/** Writes rows as an old/hand-edited backup would: straight through importBackup, no validation. */
+/**
+ * Puts rows straight into the Dexie table, below the repository, as data stored
+ * by an older build or a hand-edited backup would sit there. Not through
+ * importBackup: G2's repository (Wave 2) now rightly rejects malformed rows on
+ * import, so the damaged rows can only exist as legacy stored data.
+ */
 async function storeRaw(rows: Record<string, unknown>[]) {
-  await getRepository().importBackup({
-    format: 'tytax-backup', version: 3, exportedAt: NOW.toISOString(), profiles: [],
-    workoutLogs: rows as unknown as WorkoutLog[], programs: [], prRecords: [], bodyweightEntries: [], exerciseNotes: [], arsenal: [], equipment: [],
-  });
+  await getDb().workoutLogs.bulkPut(rows as unknown as WorkoutLog[]);
 }
 
 const BENCH = { exerciseId: 'bench', exerciseName: 'Bench', sets: [{ kg: 100, reps: 5 }] };

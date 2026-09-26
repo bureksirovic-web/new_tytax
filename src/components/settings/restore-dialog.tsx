@@ -33,7 +33,7 @@ export function RestoreDialog({ pending, service, onClose }: { pending: PendingR
     setBusy(true);
     setFailed(null);
     try {
-      const result = await service.restore(repo, pending.text);
+      const result = await service.restore(repo, pending.text, { confirmOverwrite: needsAck && ack });
       notify(t('set_restore_done', { inserted: result.inserted, updated: result.updated }));
       onClose();
     } catch (error: unknown) {

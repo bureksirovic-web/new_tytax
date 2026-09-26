@@ -32,3 +32,8 @@
 
 - **After the contract lands:** `setupWriter` may become `(repo.notes).setSetup` directly; keep the null-check if the method stays optional on the contract.
 - **G5 check:** `exercise_notes` sync mapping must carry the `setup` column (jsonb) or setups stay device-local.
+
+## Status (2026-09-27, Wave 2 integration check)
+- **Delivered by G2** (G2-W2-01): `NotesRepoExt` in `src/lib/db/repo/notes.ts` has `getSetup` and `setSetup(p, e, MachineSetup | null) → ExerciseNote | undefined`, exactly the requested shape. G2 validates too: it rejects unknown keys and values longer than 40 characters with `RepoError('VALIDATION')`. G4 trims and caps each field at 40 before calling, so the editor never hits that rejection.
+- `setupWriter` needed no rename. In the merged tree the editor turns itself on and saves through the real method. `machine-setup.test.tsx` now wraps the real `setSetup` when the repo has one and only falls back to the stand-in on v2-g4 alone. The read-only test removes `setSetup`/`getSetup`, so the pre-G2 shape is still tested in both trees.
+- Open: the contract (`src/contracts/repo.ts`) still lacks `setSetup`. Once it is added, `setupWriter` can become a direct call.

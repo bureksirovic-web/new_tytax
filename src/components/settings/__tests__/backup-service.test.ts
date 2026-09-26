@@ -22,7 +22,9 @@ describe('fromG2Service', () => {
     expect(mod.exportBackupJson).toHaveBeenCalledWith(repo, 'p1', { pretty: true });
     expect(await service?.inspect(repo, 'text')).toEqual({ profiles: [], rows: 0, warnings: [] });
     expect(await service?.restore(repo, 'text')).toMatchObject({ inserted: 2, updated: 1 });
-    expect(mod.restoreBackupJson).toHaveBeenCalledWith(repo, 'text');
+    expect(mod.restoreBackupJson).toHaveBeenCalledWith(repo, 'text', { confirmOverwrite: false });
+    await service?.restore(repo, 'text', { confirmOverwrite: true });
+    expect(mod.restoreBackupJson).toHaveBeenLastCalledWith(repo, 'text', { confirmOverwrite: true });
   });
 });
 

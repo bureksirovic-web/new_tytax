@@ -12,3 +12,8 @@
   4. Test in G2's suite: set setup → set note → `set(p, e, '')` → `get(p, e)` deep-equals `{ content: '', setup: {...} }`, outbox last op is an upsert.
 - **What G4 did meanwhile (no data hacks):** `exercise-notes.tsx` asks before saving an empty note when the stored row carries a setup: dialog "Clear the note?" / "Clearing the note also clears the saved setup." (`ex_notes_clear_*`, hr+en). Cancel keeps both; confirm calls `notes.set(p, e, '')` as today.
 - **After this lands:** G4 removes the confirmation (the `losesSetup` branch in `exercise-notes.tsx`) and flips the "clears only after the user confirms" test to assert the setup survives. Integration switch: none, the dialog is merely redundant until then.
+
+## Status (2026-09-27, Wave 2 integration check)
+- **Delivered by G2** (`src/lib/db/repo/notes.ts`): `set(p, e, '')` keeps a row that has a setup (content `''`) and queues an upsert. `setSetup(p, e, null)` soft-deletes the row only when its content is empty.
+- G4 kept the dialog but made it conditional, so it still protects a repo that deletes the whole row. `clearKeepsSetup(repo.notes)` in `setup-adapter.ts` is true when the repo has G2's `getSetup` + `setSetup` pair. G2 shipped that pair together with this semantics. When it is true, `exercise-notes.tsx` skips the dialog.
+- Test changes in `w2-hardening.test.tsx`: the confirm test runs the path of whichever repo the tree has. On the pre-G2 repo it confirms and the row is deleted. On the G2 repo there is no dialog and the row equals `{content: '', setup: {seat: '4'}}`. The cancel test forces the pre-G2 shape, so it runs in both trees.

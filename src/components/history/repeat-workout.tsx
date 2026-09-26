@@ -27,6 +27,12 @@ export function RepeatWorkout({ log }: { log: WorkoutLog }) {
   const block = repeatBlock(draft, log.profileId);
 
   const run = async (replace: boolean) => {
+    // G3's real startFromLog replaces any draft: a draft that appeared since this
+    // render (another tab) must go through the dialog, never be dropped silently.
+    if (!replace && useWorkoutStore.getState().draft) {
+      setAsking(true);
+      return;
+    }
     setAsking(false);
     setFailed(false);
     setBusy(true);
