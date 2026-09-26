@@ -1,10 +1,8 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { Exercise } from '@/contracts/domain';
-import { TYTAX_EXERCISES } from '@/data/tytax';
-import { BODYWEIGHT_EXERCISES } from '@/data/bodyweight';
-import { KB_EXERCISES } from '@/data/kettlebell';
+import { catalog } from '@/lib/catalog';
 import { LocaleProvider } from '@/components/providers/locale-provider';
 import { SlotResults } from '@/components/programs/slot-editor/slot-results';
 import type { SlotEditorState } from '@/components/programs/slot-editor/use-slot-editor';
@@ -15,7 +13,11 @@ import { ExerciseHeader } from '../exercise-header';
 
 const BENCH = 'tytax_smith-machine_smith-flat-bench-press';
 const noop = async () => true;
-const ALL_EXERCISES: Exercise[] = [...TYTAX_EXERCISES, ...BODYWEIGHT_EXERCISES, ...KB_EXERCISES];
+// Loaded through the lazy catalog (never '@/data/**' directly), so the test follows G1's data.
+let ALL_EXERCISES: readonly Exercise[] = [];
+beforeAll(async () => {
+  ALL_EXERCISES = (await catalog.loadCatalog()).exercises;
+});
 
 function header(ex: Exercise) {
   return render(
@@ -44,11 +46,12 @@ describe('movement pattern label (hr)', () => {
 
   it('exercise header shows the Croatian pattern, not the raw catalog string', () => {
     const bench = ALL_EXERCISES.find((e) => e.id === BENCH)!;
-    expect(bench.pattern).toBe('Horizontal Press');
+    const key = patternKey(bench.pattern)!;
+    expect(key).toBeTruthy();
     header(bench);
     const text = screen.getByText(/Obrazac pokreta/).textContent ?? '';
-    expect(text).toContain(hr.pat_horizontal_press);
-    expect(text).not.toContain('Horizontal Press');
+    expect(text).toContain(hr[key]);
+    expect(text).not.toContain(bench.pattern);
   });
 
   it('kettlebell hyphenated pattern is localised in the header', () => {
