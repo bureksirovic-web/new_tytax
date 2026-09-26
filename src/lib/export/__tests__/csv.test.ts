@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { workoutLogsToCSV } from '../csv';
 import type { WorkoutLog } from '@/types/workout';
 
+// Legacy columns are kept stable; v2 only appends columns after them.
+const LEGACY_HEADER = 'Date,Duration (min),Exercise,Set #,Weight (kg),Reps,Volume,Modality';
+
 function makeLog(
   date: string,
   exercises: Array<{
@@ -45,7 +48,8 @@ describe('workoutLogsToCSV', () => {
   it('generates valid CSV header row', () => {
     const result = workoutLogsToCSV([]);
     const lines = result.split('\n');
-    expect(lines[0]).toBe('Date,Duration (min),Exercise,Set #,Weight (kg),Reps,Volume,Modality');
+    expect(lines[0]).toBe(`${LEGACY_HEADER},RIR,Set type,Done`);
+    expect(lines[0].startsWith(LEGACY_HEADER)).toBe(true);
   });
 
   it('includes all workout data (exercises, sets, volume)', () => {
@@ -79,7 +83,7 @@ describe('workoutLogsToCSV', () => {
     const result = workoutLogsToCSV([]);
     const lines = result.split('\n');
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toBe('Date,Duration (min),Exercise,Set #,Weight (kg),Reps,Volume,Modality');
+    expect(lines[0]).toBe(`${LEGACY_HEADER},RIR,Set type,Done`);
   });
 
   it('escapes special characters in exercise names', () => {
