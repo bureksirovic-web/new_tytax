@@ -99,6 +99,19 @@ Copy `.env.example` to `.env.local`. All variables are optional; with none set, 
   ```
 
   Details (ports, SQL tests, RLS checks) are in `supabase/README.md`.
+- **Turning it on locally:** export `NEXT_PUBLIC_SYNC_ENABLED=true`, `NEXT_PUBLIC_SUPABASE_URL` (= `API_URL`) and
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` (= `ANON_KEY`) from `supabase status -o env`, then `PORT=3105 npm run dev` and open
+  `http://127.0.0.1:3105/auth/account` (same host as the app URL: the sign-in link must return to the host that asked for it).
+  Sign in with the magic link from Mailpit (`http://127.0.0.1:54424`). The account page and Settings show the sync panel:
+  status, last sync, pending changes, the last error and **Sync now**.
+- **How it runs in the app:** the providers install sync into the repository before the first write, so every change is
+  queued in the local outbox even while signed out; the sync code and supabase-js load on demand (outside the first-load
+  bundle). A first sync runs at start, then on sign-in, back online, tab visible again, and 1.5 s after local changes.
+  Signed out, nothing is sent and the queue waits for a sign-in.
+- **Known gaps until the integration requests land:** `next.config.ts` CSP allows only `https://*.supabase.co`
+  (`docs/v2/requests/G5-02.md`), and `public/sw.js` intercepts cross-origin Supabase GETs (`docs/v2/requests/G5-03.md`).
+  Both block sync against a local Supabase in a normal browser; the sync e2e runs with `bypassCSP` and blocked service
+  workers until then.
 - Only local Supabase is used in development and CI. No cloud project is required or configured by this repo.
 
 ## Data and privacy
@@ -115,10 +128,24 @@ Copy `.env.example` to `.env.local`. All variables are optional; with none set, 
 npm test                                            # unit
 npm run test:coverage                               # unit + coverage (target ≥70 % lines on src/lib, src/stores)
 PORT=3100 npx playwright test --project=chromium    # e2e; always pass PORT
-npm run test:sync                                   # v2 (in progress): needs `supabase start` + NEXT_PUBLIC_SYNC_ENABLED=true
+npm run test:sync                                   # sync against local Supabase (env below); fails, never skips, without it
 ```
 
+Sync suites (the CI `sync-e2e` job; `scripts/ci-local.sh --only sync-e2e` runs the same locally):
+
+```bash
+eval "$(npx -y supabase@2.118.0 status -o env | sed 's/^/export /')"
+export NEXT_PUBLIC_SUPABASE_URL=$API_URL NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY \
+       SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY NEXT_PUBLIC_SYNC_ENABLED=true
+npm run test:sync                                                        # two devices, RLS, tombstones, LWW, retry cursor, re-push
+PORT=3105 npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium   # magic link via Mailpit, A → B
+```
+
+Specs tagged `@sync` need that env; the plain e2e job runs `--grep-invert @sync`.
+
 Rules for the suites: no skipped or `.only` tests, no conditional-visibility guards in e2e, and at least three expects per e2e test.
+
+The e2e server gets `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` from your shell only, never from `.env.local`: `playwright.config.ts` pins them (empty when unset), so specs know which auth branch runs. Export them to run e2e against local Supabase.
 
 ## CI
 
@@ -155,7 +182,7 @@ the old app's storage.
 
 ```
 src/
-  app/          Next.js routes: (app)/ screens, auth/, api/ (health, profile, sync, workout)
+  app/          Next.js routes: (app)/ screens, auth/, api/health (the only API route)
   components/   UI primitives, layout, workout, sync
   contracts/    v2 (in progress): frozen domain / repo / training / catalog / sync interfaces
   data/         exercise data: tytax, bodyweight, kettlebell

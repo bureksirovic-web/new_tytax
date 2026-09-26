@@ -21,18 +21,35 @@ v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the inten
 - Optional Supabase sync behind `NEXT_PUBLIC_SYNC_ENABLED`: push and pull per table with cursors, tombstones, last-write-wins on server `updated_at`.
 - Supabase migration 002: profile-on-signup trigger, `updated_at`/`deleted_at` columns and triggers, cursor indexes, SQL RLS tests.
 - Supabase 002 hardening after refuters: no client hard DELETE (tombstones only) and sticky tombstones with an explicit `undelete_row` RPC; `profiles.active_*` composite FKs; deferrable composite FKs; server-derived `profiles.is_anonymous`; closed default privileges for future `public` objects; the upgrade from a populated 001 no longer fails on oversized old data (`supabase/upgrade_test/run.sh`).
+- Supabase migration 003 (wire schema of `docs/v2/sync-schema.md`): the new sync columns, `extra jsonb` for unknown fields on every synced table (object, <= 64 KiB), `profile_id` defaulting to `auth.uid()`, new `arsenal` and `equipment` tables with RLS/caps/composite FKs, and a same-account FK for `family_members.active_program_id`; pgTAP matrix and upgrade test extended to 003.
 - Local Supabase setup with its own `project_id` and ports 5442x.
 - CI: coverage, bundle check, Playwright with browsers installed, mandatory `sync-e2e` job, gitleaks, `npm audit --audit-level=high`.
 - e2e fixtures API, per-goal `PORT` isolation, `/api/health` returning the git SHA.
 - PWA manifest and offline precache of the app shell and catalog chunks.
 - CHANGELOG and a rewritten README (true stack, env, sync, privacy, deploy and rollback).
+- Sync wired into the app: the providers install a deferred sync adapter into the repository before the first write (sync code and supabase-js load on demand, +0.8 kB gz on `/dashboard`), start auto-sync (online, visible, sign-in) and run a first sync.
+- Sync panel (`src/components/sync/sync-panel.tsx`): status, last sync, pending count, last error, Sync now, sign-in / sign-out; also on the new `/auth/account` page. `useSyncState()` / `useAccount()` hooks.
+- `npm run test:sync`: live suite against local Supabase (signup profile row, two-device round trip of every table, cross-user SELECT/INSERT/UPDATE/DELETE denial, tombstone, LWW conflict, retry cursor, idempotent re-push, no `local` ids on the wire). Fails with instructions when the env is missing.
+- `e2e/sync-roundtrip.spec.ts` (`@sync`): magic-link sign-in through the real UI on two browser contexts, a workout logged on A reaches B; signed out with sync on, the app works and sends nothing.
+- Supabase migration 004 (quotas): size caps on the columns 003 left open (gender, experience level, split and periodization type, session order, modalities), at most 200 rows per INSERT/UPDATE statement, and a per-account quota of 100,000 rows and 64 MiB over every client-writable table (`public.sync_usage`, limits in `public.sync_quota()`, error PT413 / HTTP 413). pgTAP `08_quotas`, `05_size_caps` and the upgrade test cover it.
+
+### Fixed
+- Sync no longer compares server time with the device clock on pull: a device whose clock runs ahead now takes other devices' newer edits and no longer pushes its stale copy back; a local edit made while a page is applied is never overwritten (the pending-op check and the apply share one IndexedDB transaction and read the whole outbox). Workaround for `requests/G5-04.md`.
+- Undo delete, re-adding to the arsenal and rewriting a cleared note now reach the server and other devices (the push calls `undelete_row` when the server kept a tombstone).
+- The first-push snapshot (first sign-in, or after localStorage was lost while IndexedDB kept the data) pulls first and pushes only records the server does not have, so it never overwrites newer server rows.
+- A backlog over 200 ops drains in one run instead of waiting for later triggers.
+- Ops of another account's profile (e.g. an imported backup) now show `error` / `other_account` instead of `idle`, and `lastSyncedAt` is not written (`requests/G5-05.md`).
+- With sync off, the Settings page no longer loads supabase-js or refreshes a stale session against the auth server (`getSession`/`signOut` are gated on the flag and load the client lazily; `requests/G5-06.md` for the account section itself).
+- pgTAP now pins the exact RLS policy expressions (a `WITH CHECK (true)` on UPDATE was not caught); e2e covers the open-redirect check on a successful sign-in, not only on a failed exchange; the live suite proves a non-uuid id is never sent.
 
 ### Changed
 - Croatian is the default language; every UI string goes through the hr/en dictionary with a key-parity test.
 - Workout sessions store `SessionExercise[]` with nested sets (Dexie v2→v3 migration, additive and idempotent).
 - The active program is `activeProgramId` on the profile instead of a boolean index.
-- `src/middleware.ts` renamed to `src/proxy.ts` (Next 16), which also refreshes the session.
-- Playwright reads `PORT` and never reuses an existing server.
+- `src/middleware.ts` renamed to `src/proxy.ts` (Next 16). It refreshes the session only when Supabase is configured and sync is on; otherwise it makes no network call. Its matcher skips static assets, the service worker, the manifest, icons and `/api/health`.
+- Playwright reads `PORT` and never reuses an existing server; its web server's `NEXT_PUBLIC_APP_URL` is pinned to its own base URL (the PKCE verifier cookie lives on that host).
+- CI: zero-skip checks read the vitest/Playwright JSON reports (`.github/scripts/check-no-skips.mjs`) instead of grepping logs; the plain e2e job excludes `@sync` specs, which run in `sync-e2e`; `vitest.sync.config.ts` no longer passes with no tests.
+- Local Supabase redirect allow-list covers `localhost` and `127.0.0.1` on ports 3100 and 3105, with the `?next=` query.
 - Unit coverage target ≥70 % lines on `src/lib` and `src/stores`; ESLint forbids literal UI strings and conditional-visibility guards in e2e.
 
 ### Fixed
@@ -42,6 +59,7 @@ v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the inten
 - A workout in progress survives a reload; the same exercise twice in one session no longer collides.
 - Sync: camelCase↔snake_case mapping, no `local` ids on the wire, working `updated_at` triggers, pull as well as push.
 - Auth callback handles `{error}` by redirecting to `/auth/login?error=…`; a missing env shows an error instead of a spinner.
+- Auth callback redirects with a relative `Location`, so it stays on the public origin (it used the server's own host, e.g. `localhost`, which drops the session cookie).
 - Dead nav links (arsenal, plate calculator, 1RM calculator); settings and profile writes persist; the units setting is applied.
 - Presets reference only exercise IDs that exist.
 - Analytics: recovery uses a real 48 h window; ACWR, volume and impact count only done working sets and skip soft-deleted logs.
@@ -50,10 +68,10 @@ v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the inten
 
 ### Security
 - RLS on every table with both `using` and `with check`; cross-user SELECT/INSERT/UPDATE/DELETE denied by tests.
-- Auth callback `next` parameter restricted to an allow-list (no open redirect).
+- Auth callback `next` parameter restricted to an allow-list (no open redirect); `/auth/account` is allowed as an exact path only.
 - Imports are schema-validated, size-capped and guarded against prototype pollution.
 - CSV export escapes spreadsheet formulas.
-- API routes validate input, cap body size and log only status plus request id.
+- Removed `/api/profile`, `/api/workout` and `/api/sync` with `src/lib/validation.ts`: nothing called them, and sync goes browser → Supabase under RLS. `/api/health` is the only API route (decision in `docs/v2/sync-schema.md`).
 - The Supabase service-role key is used by tests only and never reaches the client.
 - README states that family profiles are not a security boundary.
 
