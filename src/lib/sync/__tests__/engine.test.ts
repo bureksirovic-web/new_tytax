@@ -6,16 +6,22 @@ const mockSyncQueue = vi.hoisted(() => ({
   update: vi.fn(),
 }));
 
-const mockSyncMetadata = vi.hoisted(() => ({
-  where: vi.fn(),
+const mockMeta = vi.hoisted(() => ({
+  put: vi.fn(),
+}));
+
+// v3 outbox rows carry no payload; the engine reads the local record at push time.
+const mockLocalTable = vi.hoisted(() => ({
+  get: vi.fn(),
   update: vi.fn(),
 }));
 
 vi.mock('@/lib/db/dexie', () => ({
-  db: {
+  getDb: () => ({
     syncQueue: mockSyncQueue,
-    syncMetadata: mockSyncMetadata,
-  },
+    meta: mockMeta,
+    table: () => mockLocalTable,
+  }),
 }));
 
 const { SyncEngine } = await import('../engine');
@@ -26,16 +32,18 @@ describe('SyncEngine', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocalTable.get.mockResolvedValue({ id: 'rec-1', name: 'Test', updatedAt: '2024-01-01T00:00:00.000Z' });
+    mockMeta.put.mockResolvedValue(undefined);
     engine = new SyncEngine();
   });
 
   function makeOp(overrides: Partial<SyncOperation> = {}): SyncOperation {
     return {
       id: 'op-1',
-      tableName: 'workout_logs',
-      operationType: 'create',
+      table: 'workout_logs',
+      op: 'upsert',
       recordId: 'rec-1',
-      payload: { id: 'rec-1', name: 'Test' },
+      profileId: 'profile-1',
       createdAt: '2024-01-01T00:00:00.000Z',
       retryCount: 0,
       ...overrides,
@@ -64,18 +72,12 @@ describe('SyncEngine', () => {
 
   it('sync() processes pending operations', async () => {
     const ops: SyncOperation[] = [
-      makeOp({ id: 'op-1', operationType: 'create' }),
-      makeOp({ id: 'op-2', operationType: 'update' }),
+      makeOp({ id: 'op-1', op: 'upsert' }),
+      makeOp({ id: 'op-2', op: 'upsert' }),
     ];
     mockSyncQueue.toArray.mockResolvedValue(ops);
-    const { mockClient } = setupSupabaseResponse(null, null);
+    const { mockClient, mockUpsert } = setupSupabaseResponse(null, null);
     mockSyncQueue.delete.mockResolvedValue(undefined);
-    mockSyncMetadata.where.mockReturnValue({
-      equals: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue({ id: 'meta-1', deviceId: 'server' }),
-      }),
-    });
-    mockSyncMetadata.update.mockResolvedValue(undefined);
 
     const result = await engine.sync(mockClient as any);
 
@@ -83,15 +85,26 @@ describe('SyncEngine', () => {
     expect(result.synced).toBe(2);
     expect(result.failed).toBe(0);
     expect(mockSyncQueue.delete).toHaveBeenCalledTimes(2);
+    // the pushed payload is the record's current local state
+    expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({ id: 'rec-1', name: 'Test' }));
+    expect(mockMeta.put).toHaveBeenCalledWith(expect.objectContaining({ key: expect.stringMatching(/^lastSyncedAt:/) }));
+  });
+
+  it('drops an upsert whose local record no longer exists', async () => {
+    mockSyncQueue.toArray.mockResolvedValue([makeOp()]);
+    mockLocalTable.get.mockResolvedValue(undefined);
+    const { mockClient, mockUpsert } = setupSupabaseResponse(null, null);
+    mockSyncQueue.delete.mockResolvedValue(undefined);
+
+    const result = await engine.sync(mockClient as any);
+
+    expect(result.synced).toBe(1);
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockSyncQueue.delete).toHaveBeenCalledWith('op-1');
   });
 
   it('respects isSyncing guard (no double-sync)', async () => {
     mockSyncQueue.toArray.mockResolvedValue([]);
-    mockSyncMetadata.where.mockReturnValue({
-      equals: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
 
     const result1 = engine.sync({} as any);
     const result2 = engine.sync({} as any);
@@ -108,11 +121,6 @@ describe('SyncEngine', () => {
     mockSyncQueue.toArray.mockResolvedValue(ops);
     const { mockClient } = setupSupabaseResponse(new Error('Supabase error'), null);
     mockSyncQueue.update.mockResolvedValue(undefined);
-    mockSyncMetadata.where.mockReturnValue({
-      equals: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
 
     const result = await engine.sync(mockClient as any);
 
@@ -132,11 +140,6 @@ describe('SyncEngine', () => {
     mockSyncQueue.toArray.mockResolvedValue(ops);
     const { mockClient } = setupSupabaseResponse(null, null);
     mockSyncQueue.delete.mockResolvedValue(undefined);
-    mockSyncMetadata.where.mockReturnValue({
-      equals: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
 
     const syncPromise = engine.sync(mockClient as any);
 
@@ -153,11 +156,6 @@ describe('SyncEngine', () => {
   it('stops retrying after MAX_RETRIES', async () => {
     const ops: SyncOperation[] = [makeOp({ retryCount: 5 })];
     mockSyncQueue.toArray.mockResolvedValue(ops);
-    mockSyncMetadata.where.mockReturnValue({
-      equals: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
 
     const result = await engine.sync({} as any);
 
@@ -166,7 +164,7 @@ describe('SyncEngine', () => {
   });
 
   it('processes delete operations with soft delete', async () => {
-    const ops: SyncOperation[] = [makeOp({ operationType: 'delete' })];
+    const ops: SyncOperation[] = [makeOp({ op: 'delete' })];
     mockSyncQueue.toArray.mockResolvedValue(ops);
 
     const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
@@ -183,11 +181,6 @@ describe('SyncEngine', () => {
     };
 
     mockSyncQueue.delete.mockResolvedValue(undefined);
-    mockSyncMetadata.where.mockReturnValue({
-      equals: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
 
     const result = await engine.sync(mockClient as any);
 

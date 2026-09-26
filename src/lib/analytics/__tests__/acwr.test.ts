@@ -1,32 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeACWR, getACWRZone } from '../acwr';
-import type { WorkoutLog } from '@/types/workout';
-
-function makeLog(date: string, volumeKg: number): WorkoutLog {
-  return {
-    id: date,
-    profileId: 'test',
-    sessionName: 'Test Session',
-    date,
-    startedAt: new Date().toISOString(),
-    durationSeconds: 3600,
-    exercises: [{
-      exerciseRef: 'test_ex',
-      exerciseName: 'Test',
-      modality: 'tytax',
-      sets: [{ id: 'set1', setNumber: 1, type: 'working', done: true, timestamp: new Date().toISOString(), kg: volumeKg, reps: 1 }],
-      muscleImpactSnapshot: [],
-    }],
-    totalVolumeKg: volumeKg,
-    totalSets: 1,
-    prCount: 0,
-    modalitiesUsed: ['tytax'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    syncedAt: undefined,
-    deletedAt: undefined,
-  };
-}
+import { makeLog, volumeLog } from './fixtures';
 
 describe('computeACWR', () => {
   it('returns [] for empty logs', () => {
@@ -34,26 +8,43 @@ describe('computeACWR', () => {
   });
 
   it('returns ratio of 1.0 for a single workout', () => {
-    const logs = [makeLog('2024-01-01', 1000)];
-    const result = computeACWR(logs);
+    const result = computeACWR([volumeLog('2024-01-01', 1000)]);
     expect(result).toHaveLength(1);
+    // single training day → ratio fixed at 1
     expect(result[0].ratio).toBe(1.0);
+    // acute = 1000/7, chronic = 1000/28
+    expect(result[0].acute).toBeCloseTo(1000 / 7, 10);
+    expect(result[0].chronic).toBeCloseTo(1000 / 28, 10);
   });
 
   it('calculates higher ratio for high recent volume', () => {
-    // 3 weeks of low volume
     const logs = [
-      makeLog('2024-01-01', 1000),
-      makeLog('2024-01-08', 1000),
-      makeLog('2024-01-15', 1000),
-      // 1 week of very high volume
-      makeLog('2024-01-22', 4000),
+      volumeLog('2024-01-01', 1000),
+      volumeLog('2024-01-08', 1000),
+      volumeLog('2024-01-15', 1000),
+      volumeLog('2024-01-22', 4000),
     ];
+    const last = computeACWR(logs).at(-1);
+    // acute = 4000/7; chronic (2023-12-26..2024-01-22) = 7000/28 = 250 → ratio (4000/7)/250 = 16/7 ≈ 2.2857
+    expect(last?.ratio).toBeCloseTo(16 / 7, 10);
+    expect(last?.zone).toBe('danger');
+    // 2024-01-22 is a Monday: its week holds only that session → 4000
+    expect(last?.weeklyVolume).toBe(4000);
+  });
 
+  it('counts only done working sets and skips soft-deleted logs', () => {
+    const logs = [
+      makeLog('2024-01-01', [
+        { id: 'x', sets: [{ kg: 100, reps: 10 }, { kg: 40, reps: 10, type: 'warmup' }, { kg: 120, reps: 5, done: false }] },
+      ]),
+      makeLog('2024-01-02', [{ id: 'x', sets: [{ kg: 500, reps: 10 }] }], { deletedAt: '2024-01-03T00:00:00.000Z' }),
+    ];
     const result = computeACWR(logs);
-    const lastResult = result[result.length - 1];
-
-    expect(lastResult.ratio).toBeGreaterThan(1.3);
+    // deleted log dropped → 1 row; volume = 100×10 = 1000 → acute 1000/7
+    expect(result).toHaveLength(1);
+    expect(result[0].acute).toBeCloseTo(1000 / 7, 10);
+    // week of Mon 2024-01-01 → 1000
+    expect(result[0].weeklyVolume).toBe(1000);
   });
 });
 

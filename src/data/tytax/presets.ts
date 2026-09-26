@@ -1,14 +1,17 @@
-import type { Program } from '@/types/program';
+import type { ProgramTemplate } from '@/contracts/domain';
+
+/** Stable preset id of the default TYTAX program. */
+export const TYTAX_ELITE_V3_PRESET_ID = 'tytax-elite-v3';
 
 // The classic Tytax Elite v3.0 - 6-day + 1 rest rotation
-export const TYTAX_ELITE_V3: Omit<Program, 'id' | 'profileId' | 'createdAt' | 'updatedAt'> = {
+export const TYTAX_ELITE_V3: ProgramTemplate = {
+  presetId: TYTAX_ELITE_V3_PRESET_ID,
   name: 'Tytax Elite v3.0',
   splitType: 'custom',
   frequency: 6,
   periodizationType: 'none',
   sessionOrder: ['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Upper C', 'Lower C', 'Rest'],
   modalitiesUsed: ['tytax'],
-  isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
   sessions: [
@@ -102,8 +105,9 @@ export const TYTAX_ELITE_V3: Omit<Program, 'id' | 'profileId' | 'createdAt' | 'u
       name: 'Rest',
       dayIndex: 6,
       exercises: [],
+      isRest: true,
     },
   ],
 };
 
-export const TYTAX_PRESETS = [TYTAX_ELITE_V3];
+export const TYTAX_PRESETS: ProgramTemplate[] = [TYTAX_ELITE_V3];

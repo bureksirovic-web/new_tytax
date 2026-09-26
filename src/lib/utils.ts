@@ -1,4 +1,29 @@
 import type { ClassValue } from 'clsx';
+import type { Units } from '@/contracts/domain';
+
+export { localDay } from '@/contracts/fixtures';
+
+/** Kilograms per pound factor used for display: 1 kg = 2.20462 lb. */
+export const LB_PER_KG = 2.20462;
+
+/** Stored kg → display value in `units` (lb rounded to 0.1; kg passes through). */
+export function kgToDisplay(kg: number, units: Units): number {
+  if (units === 'lb') return Math.round(kg * LB_PER_KG * 10) / 10;
+  return kg;
+}
+
+/** Entered value in `units` → kg to store (lb ÷ 2.20462, unrounded; kg passes through). */
+export function displayToKg(value: number, units: Units): number {
+  if (units === 'lb') return value / LB_PER_KG;
+  return value;
+}
+
+/** 'YYYY-MM-DD' → local midnight of that calendar day (not UTC). Invalid → Invalid Date. */
+export function parseLocalDay(day: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!m) return new Date(Number.NaN);
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
 
 export function cn(...inputs: ClassValue[]) {
   // Simple class merger without tailwind-merge dependency
@@ -46,6 +71,7 @@ export function getWeekKey(date: Date = new Date()): string {
   return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
+/** @deprecated UTC calendar day. Contract `date` fields are the LOCAL day: use `localDay`. */
 export function isoDate(date: Date = new Date()): string {
   return date.toISOString().split('T')[0];
 }

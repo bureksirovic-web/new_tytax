@@ -1,17 +1,54 @@
 'use client';
 import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { findExerciseById, ALL_EXERCISES } from '@/data';
+import { catalog } from '@/lib/catalog';
+import { getRepository } from '@/lib/db';
 import { PROGRESSION_CHAINS } from '@/data/bodyweight/progressions';
-import { db } from '@/lib/db/dexie';
-import { useWorkoutStore } from '@/stores/workout-store';
+import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AddToWorkoutButton } from '@/components/workout/add-to-workout-button';
 import { useLocale } from '@/components/providers';
-import { generateId, isoDate } from '@/lib/utils';
-import type { Exercise } from '@/types/exercise';
-import type { ExerciseLog } from '@/types/workout';
+import type { Exercise } from '@/contracts/domain';
+
+interface Loaded {
+  id: string;
+  exercise?: Exercise;
+  prev?: Exercise;
+  next?: Exercise;
+}
+
+/** The exercise and its progression neighbours, from the lazy catalog. */
+function useExerciseWithChain(id: string) {
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async (): Promise<Loaded> => {
+      const exercise = await catalog.getById(id);
+      const chain = PROGRESSION_CHAINS.find((c) => c.exercises.includes(id));
+      if (!exercise || !chain) return { id, exercise };
+      const i = chain.exercises.indexOf(id);
+      const [prev, next] = await Promise.all([
+        i > 0 ? catalog.getById(chain.exercises[i - 1]) : Promise.resolve(undefined),
+        i < chain.exercises.length - 1 ? catalog.getById(chain.exercises[i + 1]) : Promise.resolve(undefined),
+      ]);
+      return { id, exercise, prev, next };
+    })().then(
+      (value) => {
+        if (!cancelled) setLoaded(value);
+      },
+      () => {
+        if (!cancelled) setLoaded({ id });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+  return loaded && loaded.id === id ? loaded : null;
+}
 
 function MuscleBar({ muscle, score }: { muscle: string; score: number }) {
   return (
@@ -36,22 +73,29 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const router = useRouter();
   const { t } = useLocale();
+  const loaded = useExerciseWithChain(id);
+  const { profileId } = useActiveProfile();
+  const { data: storedNote } = useRepoQuery(
+    (repo) => (profileId ? repo.notes.get(profileId, id) : Promise.resolve(undefined)),
+    [profileId, id],
+  );
 
-  const exercise = findExerciseById(id);
-
-  const workoutState = useWorkoutStore((s) => s.status);
-  const workoutExercises = useWorkoutStore((s) => s.exercises);
-
-  const [note, setNote] = useState('');
+  // Tagged with the id: the page stays mounted when navigating between exercises.
+  const [editedNote, setEditedNote] = useState<{ id: string; text: string } | null>(null);
   const [noteSaved, setNoteSaved] = useState(false);
+  const note = editedNote?.id === id ? editedNote.text : (storedNote?.content ?? '');
+  const setNote = (text: string) => setEditedNote({ id, text });
 
-  useEffect(() => {
-    if (!exercise) return;
-    db.exerciseNotes.where('exerciseId').equals(exercise!.id).first()
-      .then((n) => { if (n) setNote(n.content); })
-      .catch(() => {});
-  }, [exercise]);
+  if (!loaded) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-2/3 rounded" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    );
+  }
 
+  const exercise = loaded.exercise;
   if (!exercise) {
     return (
       <EmptyState
@@ -72,49 +116,12 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
       ? PROGRESSION_CHAINS.find((c) => c.exercises.includes(safeExercise.id))
       : null;
   const chainIndex = chain ? chain.exercises.indexOf(safeExercise.id) : -1;
-  const prevId = chain && chainIndex > 0 ? chain.exercises[chainIndex - 1] : null;
-  const nextId =
-    chain && chainIndex < chain.exercises.length - 1 ? chain.exercises[chainIndex + 1] : null;
-  const prevExercise = prevId ? ALL_EXERCISES.find((e) => e.id === prevId) : null;
-  const nextExercise = nextId ? ALL_EXERCISES.find((e) => e.id === nextId) : null;
-
-  const isWorkoutActive = workoutState === 'active';
-  const alreadyInWorkout = workoutExercises.some((e) => e.exerciseRef === safeExercise.id);
-
-  function handleAddToWorkout() {
-    const newLog: ExerciseLog = {
-      exerciseRef: safeExercise.id,
-      exerciseName: safeExercise.name,
-      modality: safeExercise.modality,
-      sets: [
-        {
-          id: generateId(),
-          setNumber: 1,
-          type: 'working' as const,
-          kg: 0,
-          reps: 0,
-          done: false,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      restSeconds: safeExercise.restSeconds,
-    };
-    useWorkoutStore.setState((s) => ({ exercises: [...s.exercises, newLog] }));
-  }
+  const prevExercise = loaded.prev ?? null;
+  const nextExercise = loaded.next ?? null;
 
   async function saveNote() {
-    const existing = await db.exerciseNotes.where('exerciseId').equals(safeExercise.id).first();
-    if (existing) {
-      await db.exerciseNotes.update(existing.id, { content: note, updatedAt: isoDate() });
-    } else {
-      await db.exerciseNotes.add({
-        id: generateId(),
-        profileId: 'local',
-        exerciseId: safeExercise.id,
-        content: note,
-        updatedAt: isoDate(),
-      });
-    }
+    if (!profileId) return;
+    await getRepository().notes.set(profileId, safeExercise.id, note);
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 2000);
   }
@@ -286,19 +293,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
       </section>
 
       <div className="fixed bottom-20 left-0 right-0 px-4 md:relative md:bottom-auto md:px-0">
-        <Button
-          fullWidth
-          variant="primary"
-          size="lg"
-          disabled={!isWorkoutActive || alreadyInWorkout}
-          onClick={handleAddToWorkout}
-        >
-          {!isWorkoutActive
-            ? t('workout_no_active')
-            : alreadyInWorkout
-            ? t('workout_already_added')
-            : t('workout_add_to_workout')}
-        </Button>
+        <AddToWorkoutButton exercise={safeExercise} />
       </div>
     </div>
   );

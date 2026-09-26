@@ -1,3 +1,4 @@
+// `src/types` is a re-export of the frozen contracts (src/contracts). One source of truth.
 export * from './exercise';
 export * from './workout';
 export * from './program';
