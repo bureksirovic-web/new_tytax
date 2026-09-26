@@ -3,8 +3,8 @@
  */
 import type { Modality, SplitType } from '@/contracts/domain';
 import type { TranslationKey } from '@/lib/i18n';
-import type { LoadGroup } from './load';
-import type { MuscleChip } from './slot-filter';
+import type { LoadGroup } from '@/lib/programs/load';
+import type { MuscleChip } from '@/lib/programs/session-kind';
 
 export const SPLIT_KEYS: Record<SplitType, TranslationKey> = {
   full_body: 'prog_split_full_body',
@@ -45,6 +45,9 @@ const STATION_KEYS: Record<string, TranslationKey> = {
   'leg-extension': 'prog_station_leg_extension',
   'leg-curl': 'prog_station_leg_curl',
   tytax: 'prog_station_tytax',
+  // App-level stations added by G1 (catalog.stations FRAME / FREE_WEIGHT): G1's station_* keys.
+  frame: 'station_FRAME',
+  'free-weight': 'station_FREE_WEIGHT',
 };
 
 /** Key for a station id (catalog ids are lower-case; the library's upper-case keys map too). */

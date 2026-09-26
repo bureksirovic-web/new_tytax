@@ -3,8 +3,8 @@ import { useMemo } from 'react';
 import type { Units, WorkoutLog } from '@/contracts/domain';
 import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
+import { E1RM_MAX_REPS } from '@/lib/training';
 import { e1rmPoints, exerciseSeries } from './exercise-series';
-import { e1rmMaxReps } from './g1-adapters';
 import { dayLabel, sessionsLabel } from './labels';
 import { LineChart } from './line-chart';
 
@@ -62,7 +62,7 @@ export function ExerciseProgress({ logs, exerciseId, units, headingLevel: H = 'h
           <LineChart title={t('ana_e1rm_progress')} points={ranked.map((p) => ({ day: p.date, value: p.e1rm }))} format={fmt} />
         ) : (
           <p className="text-sm text-fg-muted" data-testid="ana-e1rm-none">
-            {t('ana_e1rm_none', { n: e1rmMaxReps() })}
+            {t('ana_e1rm_none', { n: E1RM_MAX_REPS })}
           </p>
         )}
       </section>

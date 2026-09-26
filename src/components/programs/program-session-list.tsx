@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import { ExerciseRow } from './manager/exercise-row';
 import { MUSCLE_KEYS } from './lib/labels';
-import { focusGroup } from './lib/load';
+import { projectedFocus } from '@/lib/programs/load';
 import { moveExercise, patchExerciseAt, removeExerciseAt } from './lib/session-edit';
 
 /** Icon glyph (not copy); the button's name comes from aria-label. */
@@ -87,7 +87,7 @@ export function ProgramSessionList({ program, lookup, onSessionChange, hrefSuffi
       <ol className="flex flex-col gap-4">
         {training.map((session, i) => {
           const exs = session.exercises.map((e) => lookup(e.exerciseId)).filter((e): e is Exercise => e !== undefined);
-          const focus = focusGroup(exs);
+          const focus = projectedFocus(exs);
           const editHref = `/programs/${program.id}/session/${session.id}${hrefSuffix}`;
           const keys = rowKeys(session);
           const count = session.exercises.length;

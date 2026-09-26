@@ -1,8 +1,6 @@
 /** Pure helpers for the dashboard's pinned-exercises card. */
-import type { SetEntry, WorkoutLog } from '@/contracts/domain';
-import { localRankableE1rm, rankableE1rmG1 } from '@/components/analytics/g1-adapters';
-
-export { e1rmMaxReps } from '@/components/analytics/g1-adapters';
+import type { WorkoutLog } from '@/contracts/domain';
+import { rankableE1rm } from '@/lib/training';
 
 export interface LatestBest {
   /** Best e1RM of the latest qualifying session, kg. */
@@ -20,15 +18,9 @@ function startedMs(log: WorkoutLog): number {
 /**
  * Best e1RM (kg) of `exerciseId` in the newest live log that has a rankable set of it,
  * or null. Warm-ups, undone sets, time sets and sets above the rep cap never count.
- * Ranked by G1's `rankableE1rm` when exported (local copy otherwise); an explicit
- * `maxReps` forces the local rule with that cap.
+ * Ranked by `rankableE1rm` from `@/lib/training` (cap `E1RM_MAX_REPS`).
  */
-export function latestBestE1rm(
-  logs: readonly WorkoutLog[],
-  exerciseId: string,
-  maxReps?: number,
-): LatestBest | null {
-  const rank = maxReps === undefined ? rankableE1rmG1 : (s: SetEntry) => localRankableE1rm(s, maxReps);
+export function latestBestE1rm(logs: readonly WorkoutLog[], exerciseId: string): LatestBest | null {
   const newestFirst = logs
     .filter((l) => !l.deletedAt)
     .slice()
@@ -38,7 +30,7 @@ export function latestBestE1rm(
     for (const ex of log.exercises) {
       if (ex.exerciseId !== exerciseId) continue;
       for (const s of ex.sets) {
-        best = Math.max(best, rank(s) ?? 0);
+        best = Math.max(best, rankableE1rm(s) ?? 0);
       }
     }
     if (best > 0) return { e1rm: best, date: log.date, logId: log.id };

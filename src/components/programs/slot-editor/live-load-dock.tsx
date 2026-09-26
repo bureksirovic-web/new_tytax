@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import { MUSCLE_KEYS } from '../lib/labels';
-import { liveLoad, pushPull } from '../lib/load';
+import { liveLoadByGroup, pushPullRatio } from '@/lib/programs/load';
 import type { SlotEditorState } from './use-slot-editor';
 
 const BAR_H = 48;
@@ -10,8 +10,8 @@ const BAR_H = 48;
 /** Sticky dock: selected count, 10 live-load bars (tap = muscle filter), push:pull ratio, save. */
 export function LiveLoadDock({ ed, saving, onSave }: { ed: SlotEditorState; saving: boolean; onSave: () => void }) {
   const { t } = useT();
-  const loads = liveLoad(ed.selectedExercises);
-  const pp = pushPull(ed.selectedExercises);
+  const loads = liveLoadByGroup(ed.selectedExercises);
+  const pp = pushPullRatio(ed.selectedExercises);
   const loaded = loads.filter((l) => l.score > 0).sort((a, b) => b.score - a.score);
   const summary = loaded.length
     ? t('prog_slot_load_summary', {

@@ -7,6 +7,7 @@ import { createRepository, TytaxDatabase } from '@/lib/db';
 import { LocaleProvider } from '@/components/providers/locale-provider';
 import { catalog, loadCatalog } from '@/lib/catalog';
 import { en } from '@/lib/i18n/en';
+import { stationKey } from '../labels';
 import { createNavStore } from './nav-mock';
 
 const holder = vi.hoisted(() => ({ repo: undefined as unknown, nav: undefined as unknown as ReturnType<typeof createNavStore> }));
@@ -79,7 +80,7 @@ describe('Station chip row', () => {
     expect(smithChest).toBeGreaterThan(0);
     await setup('mg=CHEST');
     await waitFor(() => expect(count(smith.id)).toBe(String(smithChest)));
-    expect(chip(smith.id)).toHaveAccessibleName(`${en.ex_station_smith}, ${smithChest} exercises`);
+    expect(chip(smith.id)).toHaveAccessibleName(`${en.station_SMITH}, ${smithChest} exercises`);
     fireEvent.click(chip(smith.id));
     expect(holder.nav.get()).toBe(`mg=CHEST&st=${smith.id}`);
     await waitFor(() => expect(chip(smith.id)).toHaveAttribute('aria-pressed', 'true'));
@@ -108,7 +109,13 @@ describe('Station chip row', () => {
     vi.spyOn(catalog, 'loadCatalog').mockImplementation(async (chunks) => (chunks?.length === 1 && chunks[0] === 'tytax' ? withFrame : origLoad(chunks)));
     vi.spyOn(catalog, 'search').mockImplementation(async (q) => (q.stationId === 'FRAME' ? frameEx : origSearch(q)));
     await setup();
-    await waitFor(() => expect(chip('FRAME')).toHaveTextContent(en.ex_station_frame));
+    await waitFor(() => expect(chip('FRAME')).toHaveTextContent(en.station_FRAME));
     expect(count('FRAME')).toBe('3');
+  });
+
+  it('labels all seven catalog stations, FRAME and FREE_WEIGHT included, with G1 station_* keys', async () => {
+    const real = await loadCatalog(['tytax']);
+    expect(real.stations.map((s) => s.id)).toEqual(expect.arrayContaining(['FRAME', 'FREE_WEIGHT']));
+    for (const s of real.stations) expect(stationKey(s.id)).toBe(`station_${s.id}`);
   });
 });

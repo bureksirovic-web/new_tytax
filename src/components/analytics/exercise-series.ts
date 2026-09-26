@@ -2,14 +2,14 @@
  * Per-exercise derivations: e1RM / top-set / volume series, best lifts,
  * pinned-metric summaries and movement-pattern balance. Only done working
  * kg sets of live logs count (warm-ups, undone and time-measured sets never do).
- * e1RM figures come only from rankable sets (`rankableE1rmG1`: at most
+ * e1RM figures come only from rankable sets (`rankableE1rm`: at most
  * `E1RM_MAX_REPS` reps, G4-41); higher-rep sets still count for top set and
  * volume but never for e1RM.
  */
 import type { WorkoutLog } from '@/contracts/domain';
 import { logTimeMs } from './analytics-dates';
 import { isKgSet, liveLogs } from './analytics-math';
-import { rankableE1rmG1 } from './g1-adapters';
+import { rankableE1rm } from '@/lib/training';
 
 export interface SessionPoint {
   logId: string;
@@ -35,7 +35,7 @@ export function exerciseSeries(logs: readonly WorkoutLog[], exerciseId: string):
       for (const s of ex.sets) {
         if (!isKgSet(s)) continue;
         point ??= { logId: log.id, date: log.date, e1rm: 0, topKg: 0, volumeKg: 0, bestKg: 0, bestReps: 0, t: logTimeMs(log) };
-        const e = rankableE1rmG1(s) ?? 0;
+        const e = rankableE1rm(s) ?? 0;
         if (e > point.e1rm) Object.assign(point, { e1rm: e, bestKg: s.kg, bestReps: s.reps });
         point.topKg = Math.max(point.topKg, s.kg);
         point.volumeKg += s.kg * s.reps;
@@ -88,7 +88,7 @@ export function bestLifts(logs: readonly WorkoutLog[]): BestLift[] {
     for (const ex of log.exercises) {
       for (const s of ex.sets) {
         if (!isKgSet(s)) continue;
-        const e = rankableE1rmG1(s);
+        const e = rankableE1rm(s);
         if (e === undefined) continue;
         const cur = best.get(ex.exerciseId);
         if (!cur || e > cur.e1rm) best.set(ex.exerciseId, { exerciseId: ex.exerciseId, e1rm: e, kg: s.kg, reps: s.reps, date: log.date });

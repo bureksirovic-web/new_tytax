@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '@/contracts/domain';
-import { DEFAULT_SLOT_FILTER, filterSlotExercises, ownershipFrom } from '../slot-filter';
+import { ownershipFrom } from '@/lib/programs/equipment';
+import { DEFAULT_SLOT_FILTER, filterSlotExercises } from '../slot-filter';
 
 function bw(id: string, over: Partial<Exercise> = {}): Exercise {
   return { id, name: id, modality: 'bodyweight', muscleGroup: 'BACK_VERTICAL', pattern: '', isUnilateral: false, defaultSets: 3, defaultReps: '8', impact: [], ...over };

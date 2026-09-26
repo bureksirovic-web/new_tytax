@@ -47,16 +47,16 @@ const MUSCLE_GROUP_KEYS: Record<MuscleGroup, TranslationKey> = {
   CORE: 'ex_muscle_core',
 };
 
+/** The seven catalog stations use G1's `station_*` keys; `tytax` is a pre-library id. */
 const STATION_KEYS: Record<string, TranslationKey> = {
-  smith: 'ex_station_smith',
-  'back-upper': 'ex_station_back_upper',
-  'back-lower': 'ex_station_back_lower',
-  'leg-extension': 'ex_station_leg_extension',
-  'leg-curl': 'ex_station_leg_curl',
+  smith: 'station_SMITH',
+  'back-upper': 'station_BACK_UPPER',
+  'back-lower': 'station_BACK_LOWER',
+  'leg-extension': 'station_LEG_EXTENSION',
+  'leg-curl': 'station_LEG_CURL',
+  frame: 'station_FRAME',
+  'free-weight': 'station_FREE_WEIGHT',
   tytax: 'ex_station_tytax',
-  // Wave 2 (G1 F1): translated names for the FRAME / FREE_WEIGHT stations; the chip list itself comes from the catalog.
-  frame: 'ex_station_frame',
-  'free-weight': 'ex_station_free_weight',
 };
 
 const ATTACHMENT_KEYS: Record<string, TranslationKey> = {

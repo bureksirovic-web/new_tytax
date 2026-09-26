@@ -4,7 +4,7 @@ import { FilterChips } from '@/components/ui/filter-chips';
 import { SearchBar } from '@/components/ui/search-bar';
 import { useT } from '@/lib/i18n/use-t';
 import { MODALITY_KEYS, MUSCLE_KEYS, stationKey } from '../lib/labels';
-import { MUSCLE_CHIPS, type MuscleChip } from '../lib/slot-filter';
+import { MUSCLE_CHIPS, type MuscleChip } from '@/lib/programs/session-kind';
 import type { SlotEditorState } from './use-slot-editor';
 
 const MODALITIES: ReadonlyArray<Modality | 'all'> = ['all', 'tytax', 'bodyweight', 'kettlebell'];

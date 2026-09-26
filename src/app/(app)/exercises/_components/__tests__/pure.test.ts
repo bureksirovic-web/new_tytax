@@ -4,7 +4,7 @@ import { buildWorkoutLog, sequentialIds } from '@/contracts/fixtures';
 import { EMPTY_FILTER, hasActiveFilters, parseLibraryParams, serializeLibraryParams, toCatalogQuery } from '../library-params';
 import { attachmentKey, impactLevel, impactMuscleKey, stationKey } from '../labels';
 import { bestE1rm, bestPoint, doneWorkingSets, e1rmSeries } from '../history-stats';
-import { buildVideoLinks } from '../video-links';
+import { videoLinksFor } from '../video-links';
 import { chartCoords } from '../e1rm-chart';
 
 describe('library params', () => {
@@ -33,9 +33,9 @@ describe('labels', () => {
     expect([impactLevel(90), impactLevel(89), impactLevel(50), impactLevel(49)]).toEqual(['primary', 'secondary', 'secondary', 'tertiary']);
     expect(impactMuscleKey('ANTERIOR DELT')).toBe('ex_mdetail_front_delts');
     expect(impactMuscleKey('Something odd')).toBeUndefined();
-    expect(stationKey('back-upper')).toBe('ex_station_back_upper');
+    expect(stationKey('back-upper')).toBe('station_BACK_UPPER');
     // tytax_library.json keys resolve to the same labels as the older ids
-    expect(stationKey('BACK_UPPER')).toBe('ex_station_back_upper');
+    expect(stationKey('BACK_UPPER')).toBe('station_BACK_UPPER');
     expect(attachmentKey('TRICEPS_ROPE')).toBe(attachmentKey('rope'));
     expect(attachmentKey('EZ_LAT_BAR')).toBe('ex_att_ez_bar');
     expect(attachmentKey('UNKNOWN_THING')).toBeUndefined();
@@ -74,23 +74,26 @@ describe('history stats', () => {
 });
 
 describe('video links', () => {
-  it('labels by host, numbers YouTube links, drops non-http urls, appends a search', () => {
-    const links = buildVideoLinks(
-      [
-        { url: 'https://app.tytax.com/en/x', label: 'TYTAX' },
+  it('labels G1 catalog links by kind with the ex_video_* keys, numbering youtube and other links', () => {
+    const links = videoLinksFor({
+      name: 'Smith Bench & Press',
+      modality: 'tytax',
+      videos: [
         { url: 'https://www.youtube.com/watch?v=a', label: 'a' },
+        { url: 'https://app.tytax.com/en/x', label: 'TYTAX' },
         { url: 'javascript:alert(1)', label: 'bad' },
+        { url: 'https://vimeo.com/1', label: 'v' },
         { url: 'https://youtu.be/b', label: 'b' },
       ],
-      'Smith Bench & Press',
-    );
-    expect(links.map((l) => [l.labelKey, l.vars?.n])).toEqual([
-      ['ex_video_tytax', undefined],
-      ['ex_video_youtube', 1],
-      ['ex_video_youtube', 2],
-      ['ex_video_search', undefined],
+    });
+    expect(links.map((l) => [l.kind, l.labelKey, l.vars?.n])).toEqual([
+      ['tytax', 'ex_video_tytax', undefined],
+      ['youtube', 'ex_video_youtube', 1],
+      ['youtube', 'ex_video_youtube', 2],
+      ['other', 'ex_video_n', 1],
+      ['search', 'ex_video_search', undefined],
     ]);
-    expect(links[3].href).toBe('https://www.youtube.com/results?search_query=Smith%20Bench%20%26%20Press');
-    expect(buildVideoLinks(undefined, 'X')).toHaveLength(1);
+    expect(links.at(-1)?.href).toMatch(/^https:\/\/www\.youtube\.com\/results\?search_query=/);
+    expect(videoLinksFor({ name: 'X', modality: 'tytax' })).toHaveLength(1);
   });
 });

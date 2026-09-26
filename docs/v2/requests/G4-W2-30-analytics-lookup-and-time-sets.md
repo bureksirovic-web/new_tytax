@@ -10,3 +10,5 @@
 - **Optional after G1 merges:**
   - (a) Drop the snapshot filling in `prepareExercise` (`muscle-volume.ts`), because G1's `impactWeights` already prefers the catalog.
   - (b) If G1 exports a time-set predicate from `@/lib/training`, `isKgSet` can delegate to it. The behaviour is the same, so neither change is required.
+
+- **Update (2026-09-27, after merging v2-g1):** (b) done: `isKgSet` is `isDoneWorkingSet(s) && !isTimeSet(s)` with G1's `isTimeSet` from `@/lib/training` (a duration > 0 s; a recorded 0 s now counts as a kg set, as in G1). (a) not done: `muscle-volume.ts` snapshot filling is unchanged.

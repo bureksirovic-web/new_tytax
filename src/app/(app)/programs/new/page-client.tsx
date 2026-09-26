@@ -7,7 +7,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { StepFrequency, StepSplit } from '@/components/programs/builder-steps';
 import { buildBuilderTemplate, type BuilderSplit } from '@/components/programs/lib/builder';
 import { SPLIT_KEYS } from '@/components/programs/lib/labels';
-import { todayLocal } from '@/components/programs/lib/rotation';
+import { todayLocal } from '@/lib/programs/calendar';
 import { useMutationRunner } from '@/components/programs/use-program';
 
 /**

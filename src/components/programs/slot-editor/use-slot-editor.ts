@@ -4,16 +4,9 @@ import type { Exercise, Modality, Program, ProgramSession } from '@/contracts/do
 import { useCatalog } from '@/hooks/use-exercises';
 import { useRepoQuery } from '@/hooks/use-repo';
 import { matchesAttachment } from '@/lib/catalog/query';
-import {
-  DEFAULT_SLOT_FILTER,
-  defaultOwnedAttachments,
-  filterSlotExercises,
-  hiddenChips,
-  ownershipFrom,
-  sessionKind,
-  sortIdsByStation,
-  type SlotFilterState,
-} from '../lib/slot-filter';
+import { defaultOwnedAttachments, ownershipFrom } from '@/lib/programs/equipment';
+import { hiddenMuscleChips, sessionKind } from '@/lib/programs/session-kind';
+import { DEFAULT_SLOT_FILTER, filterSlotExercises, sortIdsByStation, type SlotFilterState } from '../lib/slot-filter';
 import { selectedIdsOf } from '../lib/session-edit';
 
 export const PAGE_SIZE = 30;
@@ -53,7 +46,7 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     (patch: Partial<SlotFilterState>) => {
       setFilterState((f) => {
         const next = { ...f, ...patch };
-        return next.smart && !f.smart && hiddenChips(kind).has(next.muscle) ? { ...next, muscle: 'ALL' } : next;
+        return next.smart && !f.smart && hiddenMuscleChips(kind).has(next.muscle) ? { ...next, muscle: 'ALL' } : next;
       });
       setVisible(PAGE_SIZE);
     },
@@ -66,7 +59,7 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     setVisible(PAGE_SIZE);
   }, [baseFilter]);
 
-  const hidden = useMemo(() => (filter.smart ? hiddenChips(kind) : new Set<string>()), [filter.smart, kind]);
+  const hidden = useMemo(() => (filter.smart ? hiddenMuscleChips(kind) : new Set<string>()), [filter.smart, kind]);
 
   const results = useMemo<Exercise[]>(() => {
     if (!catalog) return [];

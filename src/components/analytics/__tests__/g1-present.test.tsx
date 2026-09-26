@@ -36,7 +36,6 @@ vi.mock('@/lib/catalog', async (importOriginal) => ({
 
 const { bestLifts } = await import('../exercise-series');
 const { isKgSet } = await import('../analytics-math');
-const { e1rmMaxReps, isTimeSetG1, rankableE1rmG1 } = await import('../g1-adapters');
 const { bestE1rm, isTimedSet } = await import('@/app/(app)/exercises/_components/history-stats');
 const { videoLinksFor } = await import('@/app/(app)/exercises/_components/video-links');
 const { VideoList } = await import('@/app/(app)/exercises/_components/video-list');
@@ -48,14 +47,6 @@ const set = (over: Partial<SetEntry>): SetEntry => ({ id: 's', type: 'working', 
 const NOW = new Date(2026, 8, 26, 18, 0);
 
 describe('G1 training exports present', () => {
-  it('adapters delegate', () => {
-    expect(e1rmMaxReps()).toBe(5);
-    expect(rankableE1rmG1(set({ kg: 50, reps: 5 }))).toBe(1050);
-    expect(rankableE1rmG1(set({ kg: 50, reps: 6 }))).toBeUndefined();
-    expect(isTimeSetG1(set({ durationSeconds: 0 }))).toBe(false);
-    expect(g1.isTimeSet).toHaveBeenCalled();
-  });
-
   it('analytics best lifts and kg-set filter use them', () => {
     const logs = logsAt(NOW, [{ daysAgo: 1, exercises: [{ exerciseId: 'a', sets: [{ kg: 80, reps: 3 }, { kg: 100, reps: 8 }] }] }]);
     expect(bestLifts(logs)).toEqual([{ exerciseId: 'a', e1rm: 1080, kg: 80, reps: 3, date: logs[0].date }]);
@@ -110,9 +101,4 @@ describe('G1 catalog buildVideoLinks present', () => {
     expect(links[1].textContent).toContain('YouTube 1');
   });
 
-  it('falls back to the local builder when the G1 result is malformed', () => {
-    g1.buildVideoLinks.mockReturnValueOnce([{ href: 1 }] as never);
-    expect(videoLinksFor(ex).at(-1)?.kind).toBe('search');
-    expect(videoLinksFor(ex, {}).at(-1)?.href).toBe(`https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name)}`);
-  });
 });

@@ -10,12 +10,15 @@ export function normalizeEquipmentId(id: string): string {
   return id.toLowerCase().replace(/_/g, '-');
 }
 
+/** The seven catalog stations use G1's `station_*` keys; `tytax` is a pre-library id. */
 const STATION_LABEL: Readonly<Record<string, TranslationKey>> = {
-  smith: 'set_station_smith',
-  'back-upper': 'set_station_back_upper',
-  'back-lower': 'set_station_back_lower',
-  'leg-extension': 'set_station_leg_extension',
-  'leg-curl': 'set_station_leg_curl',
+  smith: 'station_SMITH',
+  'back-upper': 'station_BACK_UPPER',
+  'back-lower': 'station_BACK_LOWER',
+  'leg-extension': 'station_LEG_EXTENSION',
+  'leg-curl': 'station_LEG_CURL',
+  frame: 'station_FRAME',
+  'free-weight': 'station_FREE_WEIGHT',
   tytax: 'set_station_tytax',
 };
 

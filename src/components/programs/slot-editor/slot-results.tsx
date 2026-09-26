@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import { patternKey } from '@/lib/i18n/pattern';
 import { MODALITY_KEYS, MUSCLE_KEYS, stationKey } from '../lib/labels';
-import { stationIdOf } from '../lib/slot-filter';
+import { stationIdOf } from '@/lib/programs/equipment';
 import type { SlotEditorState } from './use-slot-editor';
 
 /** Icon glyphs (not copy); the button's name comes from aria-label. */

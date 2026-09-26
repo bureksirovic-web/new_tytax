@@ -4,14 +4,11 @@ import { buildBuilderTemplate, slotNames, splitOptions } from '../builder';
 import {
   addRestDay,
   addTrainingDay,
-  daysBetweenLocal,
   isIncomplete,
   moveSession,
   programProgress,
   removeRestDay,
   removeTrainingDay,
-  rotationIndexForDate,
-  todayLocal,
 } from '../rotation';
 import { sequentialIds } from '@/contracts/fixtures';
 
@@ -63,22 +60,6 @@ function prog(sessions: ProgramSession[], currentSessionIndex = 0): Pick<Program
 }
 
 describe('rotation', () => {
-  it('counts local days and wraps the calendar formula (spec hand-checks)', () => {
-    expect(daysBetweenLocal('2026-09-20', '2026-09-26')).toBe(6);
-    // start 20th, today 26th, 7 sessions → 6 → the 7th (Rest)
-    expect(rotationIndexForDate('2026-09-20', '2026-09-26', 7)).toBe(6);
-    // start in the future: diff −2 → ((−2 % 7) + 7) % 7 = 5 → Lower C
-    expect(rotationIndexForDate('2026-09-28', '2026-09-26', 7)).toBe(5);
-    // across the CET DST change (25 Oct 2026): still whole days
-    expect(daysBetweenLocal('2026-10-24', '2026-10-26')).toBe(2);
-    expect(rotationIndexForDate('bad', '2026-09-26', 7)).toBeNull();
-    expect(rotationIndexForDate('2026-09-20', '2026-09-26', 0)).toBeNull();
-  });
-
-  it('formats today as the local day', () => {
-    expect(todayLocal(new Date(2026, 0, 5, 0, 30))).toBe('2026-01-05');
-  });
-
   it('moves a session and keeps the pointer on the same session id', () => {
     const p = prog([session('a'), session('b'), session('c')], 1); // pointer on b
     const moved = moveSession(p, 1, 0);

@@ -1,18 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise, ProgramExercise, ProgramSession } from '@/contracts/domain';
-import { focusGroup, liveLoad, pushPull } from '../load';
-import {
-  contextAllows,
-  filterSlotExercises,
-  hiddenChips,
-  defaultOwnedAttachments,
-  ownershipFrom,
-  ownsExercise,
-  sessionKind,
-  sortIdsByStation,
-  stationIdOf,
-  DEFAULT_SLOT_FILTER,
-} from '../slot-filter';
+import { ownershipFrom, stationIdOf } from '@/lib/programs/equipment';
+import { filterSlotExercises, sortIdsByStation, DEFAULT_SLOT_FILTER } from '../slot-filter';
 import { isValidReps, mergeSelection, moveExercise, removeExerciseAt, patchExerciseAt } from '../session-edit';
 
 function ex(id: string, over: Partial<Exercise> = {}): Exercise {
@@ -20,68 +9,21 @@ function ex(id: string, over: Partial<Exercise> = {}): Exercise {
 }
 
 const FLAT = ex('flat', { pattern: 'Horizontal Press', impact: [{ muscle: 'Chest', score: 95 }, { muscle: 'Triceps', score: 65 }, { muscle: 'Front Delts', score: 35 }] });
-const INCLINE = ex('incline', { pattern: 'Horizontal Press', impact: [{ muscle: 'Upper Chest', score: 95 }, { muscle: 'Front Delts', score: 65 }, { muscle: 'Triceps', score: 35 }] });
-const OHP = ex('ohp', { pattern: 'Seated Shoulder Press', muscleGroup: 'SHOULDERS', impact: [{ muscle: 'Front Delts', score: 95 }] });
 const PULLDOWN = ex('pulldown', { pattern: 'Vertical Pull', muscleGroup: 'BACK_VERTICAL', impact: [{ muscle: 'lats', score: 95 }, { muscle: 'Biceps', score: 50 }] });
 const SQUAT = ex('squat', { pattern: 'Squat', muscleGroup: 'QUADS', station: 'Smith Machine', impact: [{ muscle: 'Quads', score: 95 }, { muscle: 'Glutes', score: 70 }] });
 const CRUNCH = ex('crunch', { pattern: 'Crunch', muscleGroup: 'CORE', impact: [{ muscle: 'Core', score: 95 }, { muscle: 'Quads', score: 92 }] });
-const KICK = ex('kick', { pattern: 'Hip Extension', muscleGroup: 'GLUTES', isUnilateral: true, impact: [{ muscle: 'Glutes', score: 90 }] });
-
-describe('live load / focus / push:pull', () => {
-  it('matches the P18 hand-check for flat + incline', () => {
-    const byGroup = Object.fromEntries(liveLoad([FLAT, INCLINE]).map((g) => [g.group, g]));
-    // Chest 95 + 95 ("Upper Chest" contains chest) = 190 → 190/300 = 63.33 %
-    expect(byGroup.CHEST.score).toBe(190);
-    expect(byGroup.CHEST.pct).toBeCloseTo(63.33, 2);
-    // Triceps 65 + 35 = 100 → 33.3 %; Shoulders (Front Delts) 35 + 65 = 100 → 33.3 %
-    expect(byGroup.TRICEPS.score).toBe(100);
-    expect(byGroup.SHOULDERS.pct).toBeCloseTo(33.33, 2);
-    expect(focusGroup([FLAT, INCLINE])).toBe('CHEST');
-    expect(focusGroup([])).toBeNull();
-  });
-
-  it('doubles unilateral exercises, matches case-insensitively and caps at 100 %', () => {
-    const glutes = liveLoad([KICK]).find((g) => g.group === 'GLUTES');
-    expect(glutes?.score).toBe(180); // 90 × 2
-    expect(liveLoad([PULLDOWN]).find((g) => g.group === 'BACK')?.score).toBe(95); // "lats"
-    expect(liveLoad([KICK, KICK]).find((g) => g.group === 'GLUTES')?.pct).toBe(100); // 360 → capped
-  });
-
-  it('computes push:pull as legacy (P17 hand-check 3:1 → imbalanced)', () => {
-    expect(pushPull([FLAT, INCLINE, OHP, PULLDOWN])).toEqual({ push: 3, pull: 1, ratio: 3, imbalanced: true });
-    expect(pushPull([FLAT, PULLDOWN])).toMatchObject({ push: 1, pull: 1, imbalanced: false });
-    expect(pushPull([FLAT]).ratio).toBe(1); // pull 0 → ratio = push
-  });
-});
 
 function sess(name: string, id = name, isRest = false): ProgramSession {
   return { id, programId: 'p', name, dayIndex: 0, exercises: [], isRest };
 }
 
-describe('session kind and smart filter', () => {
-  it('derives kind from name (en/hr), then split+position', () => {
-    const custom = { splitType: 'custom' as const, sessions: [] };
-    expect(sessionKind(custom, sess('Upper A'))).toBe('upper');
-    expect(sessionKind(custom, sess('Donji B'))).toBe('lower');
-    expect(sessionKind(custom, sess('Povlačenje A'))).toBe('pull');
-    expect(sessionKind(custom, sess('Rest', 'r', true))).toBeNull();
-    const renamed = [sess('Monday', 'a'), sess('Tuesday', 'b'), sess('Wed', 'c')];
-    expect(sessionKind({ splitType: 'push_pull_legs', sessions: renamed }, renamed[1])).toBe('pull');
-    expect(sessionKind(custom, sess('Monday'))).toBeNull();
-  });
-
-  it('excludes by primary muscle per kind; core-primary always allowed', () => {
-    expect(contextAllows('upper', SQUAT)).toBe(false);
-    expect(contextAllows('upper', FLAT)).toBe(true);
-    expect(contextAllows('lower', FLAT)).toBe(false);
-    expect(contextAllows('lower', SQUAT)).toBe(true);
-    expect(contextAllows('pull', FLAT)).toBe(false);
-    expect(contextAllows('pull', PULLDOWN)).toBe(true);
-    expect(contextAllows('upper', CRUNCH)).toBe(true); // Quads 92 primary, but Core primary wins
-    expect(contextAllows(null, SQUAT)).toBe(true);
-    expect([...hiddenChips('upper')].sort()).toEqual(['CALVES', 'GLUTES', 'HAMSTRINGS', 'QUADS']);
-    expect(hiddenChips('lower').has('BACK')).toBe(true);
-    expect(hiddenChips('pull').has('CHEST')).toBe(true);
+describe('slot filter', () => {
+  it('applies the smart context filter only when it is on', () => {
+    const all = [FLAT, SQUAT, CRUNCH];
+    const ctx = { kind: 'upper' as const, stations: [], own: ownershipFrom(undefined), favourites: new Set<string>(), requiredAttachments: () => [] };
+    const base = { ...DEFAULT_SLOT_FILTER, modality: 'all' as const };
+    expect(filterSlotExercises(all, base, ctx).map((e) => e.id)).toEqual(['flat', 'crunch']);
+    expect(filterSlotExercises(all, { ...base, smart: false }, ctx).map((e) => e.id)).toEqual(['flat', 'squat', 'crunch']);
   });
 
   it('filters by muscle chip (BACK meta), station, favourites, ownership and text', () => {
@@ -96,30 +38,6 @@ describe('session kind and smart filter', () => {
     expect(filterSlotExercises(all, { ...base, ownedOnly: true }, ctx).map((e) => e.id)).toEqual(['flat', 'pulldown', 'squat']);
     expect(filterSlotExercises(all, { ...base, text: 'cable' }, ctx).map((e) => e.id)).toEqual(['row']);
     expect(stationIdOf(SQUAT, stations)).toBe('smith');
-  });
-
-  it('defaults to the catalog\'s "Owned" attachments, else the pre-library defaults', () => {
-    const library = [
-      { id: 'LAT_BAR', name: 'Lat bar', priority: 'Owned' },
-      { id: 'EZ_LAT_BAR', name: 'EZ/angled lat bar', priority: 'Owned' },
-      { id: 'TRICEPS_ROPE', name: 'Triceps rope', priority: 'High' },
-    ];
-    expect(defaultOwnedAttachments(library)).toEqual(['LAT_BAR', 'EZ_LAT_BAR']);
-    const own = ownershipFrom(undefined, defaultOwnedAttachments(library));
-    expect(ownsExercise(['LAT_BAR'], 'SMITH', own)).toBe(true);
-    expect(ownsExercise(['TRICEPS_ROPE'], 'SMITH', own)).toBe(false);
-    // a catalog with priorities but none owned owns nothing by default
-    expect(defaultOwnedAttachments([{ id: 'X', name: 'X', priority: 'High' }])).toEqual([]);
-    // pre-library catalog (no priority): the legacy defaults that exist in it
-    expect(defaultOwnedAttachments([{ id: 'rope', name: 'Rope' }, { id: 'lat-bar', name: 'Lat bar' }])).toEqual(['lat-bar']);
-  });
-
-  it('respects a stored inventory (attachments and stations)', () => {
-    const own = ownershipFrom({ attachmentIds: ['rope'], stationIds: ['smith'] });
-    expect(ownsExercise(['rope'], 'smith', own)).toBe(true);
-    expect(ownsExercise(['lat-bar'], 'smith', own)).toBe(false); // defaults do not apply once set up
-    expect(ownsExercise([], 'back-upper', own)).toBe(false);
-    expect(ownsExercise([], undefined, own)).toBe(true);
   });
 
   it('sorts selection by station, stable, station-less last', () => {

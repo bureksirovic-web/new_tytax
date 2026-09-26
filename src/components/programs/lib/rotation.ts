@@ -1,42 +1,11 @@
 /**
- * Pure rotation/session-order helpers for the program manager.
+ * Pure rotation/session-order edits for the program manager (G4-only; the
+ * calendar alignment lives in `@/lib/programs/calendar`).
  * Every edit keeps the rotation pointer on the same session id.
  */
 import type { Program, ProgramSession } from '@/contracts/domain';
 
 export type RotationPatch = Pick<Program, 'sessions' | 'sessionOrder' | 'currentSessionIndex'>;
-
-const DAY_MS = 86_400_000;
-
-/** 'YYYY-MM-DD' → local midnight (never `new Date('YYYY-MM-DD')`, which is UTC). */
-export function parseLocalDate(day: string): Date | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-/** The local calendar day of `now` as 'YYYY-MM-DD'. */
-export function todayLocal(now: Date = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
-}
-
-/** Whole local days from `a` to `b` (negative when b is earlier). DST-safe via rounding. */
-export function daysBetweenLocal(a: string, b: string): number | null {
-  const da = parseLocalDate(a);
-  const db = parseLocalDate(b);
-  if (!da || !db) return null;
-  return Math.round((db.getTime() - da.getTime()) / DAY_MS);
-}
-
-/** Legacy calendar rotation (getPredictedSession L6157-6161): ((diff % n) + n) % n. */
-export function rotationIndexForDate(start: string, today: string, n: number): number | null {
-  if (n <= 0) return null;
-  const diff = daysBetweenLocal(start, today);
-  if (diff === null) return null;
-  return ((diff % n) + n) % n;
-}
 
 function finish(sessions: ProgramSession[], pointerId: string | undefined): RotationPatch {
   const renumbered = sessions.map((s, i) => ({ ...s, dayIndex: i }));

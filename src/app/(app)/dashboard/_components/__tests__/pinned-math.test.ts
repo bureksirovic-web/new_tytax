@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutLog } from '@/contracts/domain';
 import { buildWorkoutLog, sequentialIds } from '@/contracts/fixtures';
-import { e1rmMaxReps, latestBestE1rm } from '../pinned-math';
+import { E1RM_MAX_REPS } from '@/lib/training';
+import { latestBestE1rm } from '../pinned-math';
 
 const NOW = new Date(2026, 8, 23, 12, 0, 0);
 const ids = sequentialIds('pm');
@@ -11,21 +12,12 @@ function log(daysAgo: number, sets: Array<{ kg: number; reps: number }>, extra: 
   return { ...buildWorkoutLog('p1', { daysAgo, exercises: [{ exerciseId: EX, sets }] }, NOW, ids), ...extra };
 }
 
-describe('e1rmMaxReps', () => {
-  it("uses the training module's E1RM_MAX_REPS when exported, else 12", () => {
-    expect(e1rmMaxReps({ E1RM_MAX_REPS: 10 })).toBe(10);
-    expect(e1rmMaxReps({})).toBe(12);
-    expect(e1rmMaxReps({ E1RM_MAX_REPS: 'x' })).toBe(12);
-    expect(e1rmMaxReps()).toBe(12);
-  });
-});
-
 describe('latestBestE1rm', () => {
   it('takes the best set of the newest session regardless of input order', () => {
     const older = log(5, [{ kg: 200, reps: 1 }]);
     // 80 × 8 → 80 × 36 / 29 = 99.310…; 100 × 3 → 100 × 36 / 34 = 105.882…
     const newer = log(1, [{ kg: 80, reps: 8 }, { kg: 100, reps: 3 }]);
-    const r = latestBestE1rm([older, newer], EX, 12);
+    const r = latestBestE1rm([older, newer], EX);
     expect(r?.logId).toBe(newer.id);
     expect(r?.e1rm).toBeCloseTo(3600 / 34, 2);
   });
@@ -36,14 +28,15 @@ describe('latestBestE1rm', () => {
     const timed = log(1, [{ kg: 40, reps: 1 }]);
     timed.exercises[0].sets[0].durationSeconds = 60;
     const highReps = log(0.5, [{ kg: 60, reps: 13 }]);
-    expect(latestBestE1rm([highReps, timed, deleted, base], EX, 12)?.e1rm).toBeCloseTo(1800 / 35, 2);
-    // With a cap of 13 the 13-rep set ranks: 60 × 36 / 24 = 90.
-    expect(latestBestE1rm([highReps, timed, deleted, base], EX, 13)?.e1rm).toBe(90);
+    expect(E1RM_MAX_REPS).toBe(12);
+    expect(latestBestE1rm([highReps, timed, deleted, base], EX)?.e1rm).toBeCloseTo(1800 / 35, 2);
+    // At the cap a set still ranks: 60 × 36 / 25 = 86.4.
+    expect(latestBestE1rm([log(0.5, [{ kg: 60, reps: 12 }]), base], EX)?.e1rm).toBe(86.4);
   });
 
   it('is null without a rankable set', () => {
-    expect(latestBestE1rm([], EX, 12)).toBeNull();
-    expect(latestBestE1rm([log(1, [{ kg: 0, reps: 5 }])], EX, 12)).toBeNull();
-    expect(latestBestE1rm([log(1, [{ kg: 100, reps: 5 }])], 'other', 12)).toBeNull();
+    expect(latestBestE1rm([], EX)).toBeNull();
+    expect(latestBestE1rm([log(1, [{ kg: 0, reps: 5 }])], EX)).toBeNull();
+    expect(latestBestE1rm([log(1, [{ kg: 100, reps: 5 }])], 'other')).toBeNull();
   });
 });
