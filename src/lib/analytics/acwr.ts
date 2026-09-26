@@ -1,5 +1,7 @@
-import type { WorkoutLog } from '@/types/workout';
+import type { WorkoutLog } from '@/contracts/domain';
 import { ACWR_THRESHOLDS } from '@/lib/constants';
+import { parseLocalDay } from '@/lib/utils';
+import { dayCutoff, liveLogs, logVolume } from './sets';
 
 export interface ACWRWorkoutResult {
   date: string;
@@ -24,67 +26,52 @@ export const ACWR_ZONE_COLORS: Record<ACWRWorkoutResult['zone'], string> = {
   danger: '#ef4444',
 };
 
-function dailyVolume(log: WorkoutLog): number {
-  return log.exercises.reduce((sum, ex) => {
-    return sum + ex.sets.reduce((s, set) => s + set.kg * set.reps, 0);
-  }, 0);
-}
-
-function rollingAvg(volumeByDate: Map<string, number>, targetDate: Date, days: number): number {
+/** Mean daily volume over the `days` local calendar days ending on `day` (inclusive). */
+function rollingAvg(volumeByDate: ReadonlyMap<string, number>, day: string, days: number): number {
+  const d = parseLocalDay(day);
   let total = 0;
-  for (let i = 0; i < days; i++) {
-    const d = new Date(targetDate);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    total += volumeByDate.get(key) ?? 0;
-  }
+  for (let i = 0; i < days; i++) total += volumeByDate.get(dayCutoff(d, i)) ?? 0;
   return total / days;
 }
 
-function getWeekStart(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
+/** Monday of the local week containing `day`, 'YYYY-MM-DD'. */
+function getWeekStart(day: string): string {
+  const d = parseLocalDay(day);
+  const dow = d.getDay();
+  const back = dow === 0 ? 6 : dow - 1;
+  return dayCutoff(d, back);
 }
 
-export function computeACWR(logs: WorkoutLog[]): ACWRWorkoutResult[] {
-  const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+/**
+ * Session-level ACWR on daily volume (Σ kg × reps over done working sets of
+ * live logs): acute = mean daily volume over 7 days, chronic = over 28 days,
+ * both ending on the log's local day. A single training day → ratio 1.
+ */
+export function computeACWR(logs: readonly WorkoutLog[]): ACWRWorkoutResult[] {
+  const sorted = liveLogs(logs).sort((a, b) => a.date.localeCompare(b.date));
 
   const volumeByDate = new Map<string, number>();
   for (const log of sorted) {
-    const prev = volumeByDate.get(log.date) ?? 0;
-    volumeByDate.set(log.date, prev + dailyVolume(log));
+    volumeByDate.set(log.date, (volumeByDate.get(log.date) ?? 0) + logVolume(log));
   }
 
-  // Weekly volume per week-start
   const weeklyVolume = new Map<string, number>();
   for (const [date, vol] of volumeByDate.entries()) {
-    const wk = getWeekStart(new Date(date));
+    const wk = getWeekStart(date);
     weeklyVolume.set(wk, (weeklyVolume.get(wk) ?? 0) + vol);
   }
 
-  const results: ACWRWorkoutResult[] = [];
-  for (const log of sorted) {
-    const d = new Date(log.date);
-    const acute = rollingAvg(volumeByDate, d, 7);
-    const chronic = rollingAvg(volumeByDate, d, 28);
-    // For a single workout without enough history, acute could be, for instance, dailyVolume / 7
-    // and chronic dailyVolume / 28. Their ratio would be (dailyVolume / 7) / (dailyVolume / 28) = 4.0
-    // If chronic is simply based on a very short history, the user wants ratio of 1.0 for a single point.
-    // If only one unique workout date exists, ratio = 1.0
-    const ratio = volumeByDate.size === 1 ? 1.0 : (chronic > 0 ? acute / chronic : 1.0);
-    const wk = getWeekStart(d);
-    results.push({
+  return sorted.map((log) => {
+    const acute = rollingAvg(volumeByDate, log.date, 7);
+    const chronic = rollingAvg(volumeByDate, log.date, 28);
+    const ratio = volumeByDate.size === 1 ? 1.0 : chronic > 0 ? acute / chronic : 1.0;
+    return {
       date: log.date,
       acute,
       chronic,
       ratio,
       zone: getACWRZone(ratio),
-      weeklyVolume: weeklyVolume.get(wk) ?? 0,
-    });
-  }
-
-  return results;
+      weeklyVolume: weeklyVolume.get(getWeekStart(log.date)) ?? 0,
+    };
+  });
 }

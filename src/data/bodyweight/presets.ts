@@ -1,6 +1,7 @@
-import type { Program } from '@/types/program';
+import type { ProgramTemplate } from '@/contracts/domain';
 
-export const BW_FUNDAMENTALS: Omit<Program, 'id' | 'profileId' | 'createdAt' | 'updatedAt'> = {
+export const BW_FUNDAMENTALS: ProgramTemplate = {
+  presetId: 'bw-fundamentals',
   name: 'BW Fundamentals',
   splitType: 'full_body',
   frequency: 3,
@@ -12,7 +13,6 @@ export const BW_FUNDAMENTALS: Omit<Program, 'id' | 'profileId' | 'createdAt' | '
   },
   sessionOrder: ['Full Body A', 'Full Body B', 'Full Body C'],
   modalitiesUsed: ['bodyweight'],
-  isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
   sessions: [
@@ -58,4 +58,4 @@ export const BW_FUNDAMENTALS: Omit<Program, 'id' | 'profileId' | 'createdAt' | '
   ],
 };
 
-export const BW_PRESETS = [BW_FUNDAMENTALS];
+export const BW_PRESETS: ProgramTemplate[] = [BW_FUNDAMENTALS];
