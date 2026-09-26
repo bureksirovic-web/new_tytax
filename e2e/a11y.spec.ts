@@ -51,3 +51,32 @@ test('pinch zoom is allowed and the document language is set', async ({ page, ty
   expect(viewport).not.toMatch(/maximum-scale\s*=\s*1(\.0)?\b/i);
   await expect(page.locator('html')).toHaveAttribute('lang', /^(hr|en)$/);
 });
+
+// Wave 2: axe on the remaining G4 screens, with data, including detail pages.
+test('secondary G4 screens have no serious axe violations', async ({ page, tytax }) => {
+  test.setTimeout(120_000);
+  const { activeProfileId } = await tytax.snapshot();
+  const [log] = await tytax.listLogs(activeProfileId!);
+  expect(log).toBeDefined();
+
+  const targets = [
+    { path: '/programs', heading: 'page-heading-programs' },
+    { path: '/analytics', heading: 'page-heading-analytics' },
+    { path: `/analytics/${BENCH_ID}`, heading: 'page-heading-analytics-exercise' },
+    { path: `/exercises/${BENCH_ID}`, heading: 'page-heading-exercise-detail' },
+    { path: `/history/${log.id}`, heading: 'page-heading-history-detail' },
+    { path: `/history/${log.id}/edit`, heading: 'page-heading-history-edit' },
+  ];
+  const problems: string[] = [];
+  for (const target of targets) {
+    await tytax.gotoApp(target.path);
+    await expect(page.getByTestId(target.heading)).toBeVisible();
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    for (const v of results.violations) {
+      if (v.impact === 'serious' || v.impact === 'critical') {
+        problems.push(`${target.path} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`);
+      }
+    }
+  }
+  expect(problems).toEqual([]);
+});
