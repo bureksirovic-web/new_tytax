@@ -44,7 +44,7 @@ describe('edit model', () => {
     const set = toPatch(draft, 'lb').exercises[0].sets[1];
     // 225 / 2.20462 = 102.058… → rounded to 0.01 → 102.06 kg
     expect(set.kg).toBe(102.06);
-    expect(set.e1rm).toBe(training.e1rm(102.06, 5));
+    expect(set.e1rm).toBe(Math.round(training.e1rm(102.06, 5) * 100) / 100); // rankableE1rm: 0.01 kg
   });
 
   it('clears notes and RPE when emptied; keeps RIR empty as undefined', () => {

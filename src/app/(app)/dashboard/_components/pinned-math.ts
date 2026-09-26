@@ -1,24 +1,8 @@
 /** Pure helpers for the dashboard's pinned-exercises card. */
 import type { SetEntry, WorkoutLog } from '@/contracts/domain';
-import * as trainingModule from '@/lib/training';
-import { isDoneWorkingSet, training } from '@/lib/training';
+import { localRankableE1rm, rankableE1rmG1 } from '@/components/analytics/g1-adapters';
 
-/** Local copy of G1's F3 cap, used only while `@/lib/training` does not export `E1RM_MAX_REPS`. */
-const FALLBACK_E1RM_MAX_REPS = 12;
-
-/**
- * Highest rep count an e1RM is ranked for. Reads G1's `E1RM_MAX_REPS` at runtime
- * when the training module exports it (Wave 2, F3), else the same value locally.
- */
-export function e1rmMaxReps(mod: unknown = trainingModule): number {
-  const value = (mod as { E1RM_MAX_REPS?: unknown } | undefined)?.E1RM_MAX_REPS;
-  return typeof value === 'number' && value > 0 ? value : FALLBACK_E1RM_MAX_REPS;
-}
-
-/** A done working set that yields a rankable e1RM: reps-measured, kg > 0, 1..maxReps reps. */
-function rankable(s: SetEntry, maxReps: number): boolean {
-  return isDoneWorkingSet(s) && s.durationSeconds === undefined && s.kg > 0 && s.reps <= maxReps;
-}
+export { e1rmMaxReps } from '@/components/analytics/g1-adapters';
 
 export interface LatestBest {
   /** Best e1RM of the latest qualifying session, kg. */
@@ -35,13 +19,16 @@ function startedMs(log: WorkoutLog): number {
 
 /**
  * Best e1RM (kg) of `exerciseId` in the newest live log that has a rankable set of it,
- * or null. Warm-ups, undone sets, time sets and sets above `maxReps` never count.
+ * or null. Warm-ups, undone sets, time sets and sets above the rep cap never count.
+ * Ranked by G1's `rankableE1rm` when exported (local copy otherwise); an explicit
+ * `maxReps` forces the local rule with that cap.
  */
 export function latestBestE1rm(
   logs: readonly WorkoutLog[],
   exerciseId: string,
-  maxReps: number = e1rmMaxReps(),
+  maxReps?: number,
 ): LatestBest | null {
+  const rank = maxReps === undefined ? rankableE1rmG1 : (s: SetEntry) => localRankableE1rm(s, maxReps);
   const newestFirst = logs
     .filter((l) => !l.deletedAt)
     .slice()
@@ -51,7 +38,7 @@ export function latestBestE1rm(
     for (const ex of log.exercises) {
       if (ex.exerciseId !== exerciseId) continue;
       for (const s of ex.sets) {
-        if (rankable(s, maxReps)) best = Math.max(best, training.e1rm(s.kg, s.reps));
+        best = Math.max(best, rank(s) ?? 0);
       }
     }
     if (best > 0) return { e1rm: best, date: log.date, logId: log.id };

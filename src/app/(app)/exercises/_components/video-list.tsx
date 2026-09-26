@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react';
 import type { Exercise } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { SectionCard } from './section-card';
-import { buildVideoLinks } from './video-links';
+import { videoLinksFor } from './video-links';
 
 const ICON_SEARCH = '⌕';
 const ICON_PLAY = '▶';
@@ -26,7 +26,7 @@ const linkBase =
 export function VideoList({ exercise }: { exercise: Exercise }) {
   const { t } = useT();
   const online = useSyncExternalStore(subscribe, getOnline, getServerOnline);
-  const links = buildVideoLinks(exercise.videos, exercise.name);
+  const links = videoLinksFor(exercise);
 
   return (
     <SectionCard title={t('ex_videos')} id="ex-videos" testId="exercise-videos">

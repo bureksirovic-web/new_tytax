@@ -32,21 +32,21 @@ describe('exerciseSeries', () => {
     expect(pts[0]).toMatchObject({ e1rm: 112.5, topKg: 100, bestKg: 100, bestReps: 5 });
     // volume 100×5 + 90×8 = 1220
     expect(pts[0].volumeKg).toBe(1220);
-    // 105×5 → 105×36/32 = 118.125
-    expect(pts[1]).toMatchObject({ e1rm: 118.125, topKg: 105, volumeKg: 525 });
+    // 105×5 → 105×36/32 = 118.125 → rankableE1rm rounds to 0.01 kg: 118.13
+    expect(pts[1]).toMatchObject({ e1rm: 118.13, topKg: 105, volumeKg: 525 });
   });
 
   it('pinned summary: best, latest and change vs the previous session', () => {
     const s = pinnedSummary(logs, 'bench');
-    expect(s.best).toBe(118.125);
-    expect(s.latest).toBe(118.125);
-    expect(s.delta).toBeCloseTo(5.625, 6); // 118.125 − 112.5
+    expect(s.best).toBe(118.13);
+    expect(s.latest).toBe(118.13);
+    expect(s.delta).toBeCloseTo(5.63, 6); // 118.13 − 112.5 (0.01 kg rounding of rankableE1rm)
     expect(pinnedSummary(logs, 'nothing')).toMatchObject({ best: null, latest: null, delta: null, points: [] });
   });
 
   it('trained exercises skip exercises with only warm-ups; best lifts ignore deleted logs', () => {
     expect(trainedExercises(logs, (id) => id.toUpperCase())).toEqual([{ id: 'bench', name: 'BENCH' }]);
-    expect(bestLifts(logs)).toEqual([{ exerciseId: 'bench', e1rm: 118.125, kg: 105, reps: 5, date: '2026-09-24' }]);
+    expect(bestLifts(logs)).toEqual([{ exerciseId: 'bench', e1rm: 118.13, kg: 105, reps: 5, date: '2026-09-24' }]);
   });
 });
 

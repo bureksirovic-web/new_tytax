@@ -1,9 +1,10 @@
 /**
  * Per-exercise history math (pure). Counting rule: only done sets that are not
- * warm-ups, in logs without `deletedAt`. e1RM via `training.e1rm`, shown to 0.1 kg.
+ * warm-ups, in logs without `deletedAt`. e1RM only from rankable sets
+ * (`rankableE1rmG1`: G1's `rankableE1rm`, ≤ `E1RM_MAX_REPS` reps), shown to 0.1 kg.
  */
 import type { SetEntry, WorkoutLog } from '@/contracts/domain';
-import { training } from '@/lib/training';
+import { isTimeSetG1, rankableE1rmG1 } from '@/components/analytics/g1-adapters';
 
 export const round1 = (n: number): number => Math.round(n * 10) / 10;
 
@@ -16,13 +17,13 @@ export function doneWorkingSets(log: WorkoutLog, exerciseId: string): SetEntry[]
     .filter((s) => s.done && s.type !== 'warmup');
 }
 
-/** A set logged as a hold/duration (Wave 2 F2): no e1RM, no kg volume. */
-export const isTimedSet = (s: SetEntry): boolean => typeof s.durationSeconds === 'number';
+/** A set logged as a hold/duration (Wave 2 F2): no e1RM, no kg volume. G1's `isTimeSet` when exported. */
+export const isTimedSet = (s: SetEntry): boolean => isTimeSetG1(s);
 
-/** Best e1RM (kg, 0.1) over the given sets; 0 when none qualifies. Time sets never qualify. */
+/** Best e1RM (kg, 0.1) over the given sets; 0 when none qualifies. Time sets and sets above the rep cap never qualify. */
 export function bestE1rm(sets: readonly SetEntry[]): number {
   let best = 0;
-  for (const s of sets) if (!isTimedSet(s)) best = Math.max(best, training.e1rm(s.kg, s.reps));
+  for (const s of sets) best = Math.max(best, rankableE1rmG1(s) ?? 0);
   return round1(best);
 }
 

@@ -27,7 +27,7 @@ describe('latestBestE1rm', () => {
     const newer = log(1, [{ kg: 80, reps: 8 }, { kg: 100, reps: 3 }]);
     const r = latestBestE1rm([older, newer], EX, 12);
     expect(r?.logId).toBe(newer.id);
-    expect(r?.e1rm).toBeCloseTo(3600 / 34, 6);
+    expect(r?.e1rm).toBeCloseTo(3600 / 34, 2);
   });
 
   it('skips deleted logs, time sets and sets above the rep cap', () => {
@@ -36,7 +36,7 @@ describe('latestBestE1rm', () => {
     const timed = log(1, [{ kg: 40, reps: 1 }]);
     timed.exercises[0].sets[0].durationSeconds = 60;
     const highReps = log(0.5, [{ kg: 60, reps: 13 }]);
-    expect(latestBestE1rm([highReps, timed, deleted, base], EX, 12)?.e1rm).toBeCloseTo(1800 / 35, 6);
+    expect(latestBestE1rm([highReps, timed, deleted, base], EX, 12)?.e1rm).toBeCloseTo(1800 / 35, 2);
     // With a cap of 13 the 13-rep set ranks: 60 × 36 / 24 = 90.
     expect(latestBestE1rm([highReps, timed, deleted, base], EX, 13)?.e1rm).toBe(90);
   });

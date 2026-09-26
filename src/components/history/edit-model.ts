@@ -4,7 +4,7 @@
  */
 import type { SessionExercise, SetEntry, SetType, Units, WorkoutLog } from '@/contracts/domain';
 import { fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
-import { training } from '@/lib/training';
+import { rankableE1rmG1 } from '@/components/analytics/g1-adapters';
 import { localDay } from '@/lib/utils';
 import { MAX_DURATION_SECONDS, formatClock, isTimeSet, parseClock } from './duration';
 
@@ -149,7 +149,9 @@ function toSetEntry(s: EditSet, units: Units): SetEntry {
   const rir = s.rir === '' ? undefined : Number(s.rir);
   const working = s.type !== 'warmup';
   const sameLoad = o !== undefined && o.kg === kg && o.reps === reps;
-  const e1rm = working && s.done ? (sameLoad && o?.e1rm != null ? o.e1rm : training.e1rm(kg, reps)) : undefined;
+  // Stored e1RM only for rankable sets (G1's `rankableE1rm`, ≤ E1RM_MAX_REPS reps, G4-41).
+  const rankable = working && s.done ? rankableE1rmG1({ kg, reps, done: s.done, type: s.type }) : undefined;
+  const e1rm = rankable === undefined ? undefined : sameLoad && o?.e1rm != null ? o.e1rm : rankable;
   const base: SetEntry = o ? { ...o } : { id: s.id, type: s.type, kg, reps, done: s.done };
   const next: SetEntry = { ...base, type: s.type, kg, reps, rir, done: s.done, e1rm };
   if (!next.done || !working || !sameLoad) delete next.isPR;

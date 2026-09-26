@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { SessionExercise, Units } from '@/contracts/domain';
 import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
-import { training } from '@/lib/training';
+import { rankableE1rmG1 } from '@/components/analytics/g1-adapters';
 import { StarIcon } from './icons';
 import { formatClock, isTimeSet } from './duration';
 import { countsAsWork, doneWorkingSets, exerciseHoldSeconds, exerciseVolumeKg, hasTimeSets, setRows } from './log-math';
@@ -68,7 +68,9 @@ export function ExerciseLog({ ex, units, showUndone }: Props) {
             const work = countsAsWork(set);
             const tone = work ? TONE_WORK : TONE_REST;
             const timeSet = isTimeSet(set);
-            const e1rm = work && !timeSet ? (set.e1rm ?? training.e1rm(set.kg, set.reps)) : 0;
+            // Only rankable sets (≤ E1RM_MAX_REPS reps, G4-41) show an e1RM; a stored value never overrides the cap.
+            const rankable = work && !timeSet ? rankableE1rmG1(set) : undefined;
+            const e1rm = rankable === undefined ? 0 : (set.e1rm ?? rankable);
             return (
               <tr
                 key={set.id}

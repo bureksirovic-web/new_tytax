@@ -1,5 +1,6 @@
 /** Video link list for an exercise (pure). */
-import type { Video } from '@/contracts/domain';
+import type { Exercise, Video } from '@/contracts/domain';
+import * as catalogModule from '@/lib/catalog';
 import type { TranslationKey, TranslationVars } from '@/lib/i18n';
 
 export interface VideoLink {
@@ -43,4 +44,47 @@ export function buildVideoLinks(videos: readonly Video[] | undefined, name: stri
     kind: 'search',
   });
   return out;
+}
+
+/** G1's link shape (`@/lib/catalog` `buildVideoLinks`, request G4-22): i18n-free. */
+interface G1VideoLink {
+  href: string;
+  kind: VideoLink['kind'];
+  n?: number;
+}
+
+const LABEL_KEY: Record<VideoLink['kind'], TranslationKey> = {
+  tytax: 'ex_video_tytax',
+  youtube: 'ex_video_youtube',
+  other: 'ex_video_n',
+  search: 'ex_video_search',
+};
+
+function isG1Link(l: unknown): l is G1VideoLink {
+  const v = l as G1VideoLink | null;
+  return typeof v?.href === 'string' && typeof v.kind === 'string' && v.kind in LABEL_KEY;
+}
+
+/**
+ * Video links of an exercise: G1's shared `buildVideoLinks(exercise)` from
+ * `@/lib/catalog` when that module exports it (G4-22), labelled with the
+ * `ex_video_*` keys; otherwise the local `buildVideoLinks` above.
+ */
+export function videoLinksFor(
+  exercise: Pick<Exercise, 'name' | 'videos' | 'modality'>,
+  mod: unknown = catalogModule,
+): VideoLink[] {
+  const fn = (mod as Record<string, unknown> | undefined)?.buildVideoLinks;
+  if (typeof fn === 'function') {
+    const links: unknown = (fn as (e: typeof exercise) => unknown)(exercise);
+    if (Array.isArray(links) && links.every(isG1Link)) {
+      return links.map((l) => ({
+        href: l.href,
+        kind: l.kind,
+        labelKey: LABEL_KEY[l.kind],
+        ...((l.kind === 'youtube' || l.kind === 'other') && { vars: { n: l.n ?? 1 } }),
+      }));
+    }
+  }
+  return buildVideoLinks(exercise.videos, exercise.name);
 }

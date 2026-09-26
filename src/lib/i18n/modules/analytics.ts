@@ -74,6 +74,7 @@ export const analyticsEn = {
   ana_exercise_not_found: 'Exercise not found',
   ana_exercise_not_found_desc: 'This exercise does not exist or is not in your library.',
   ana_no_history: 'No logged sets for this exercise yet.',
+  ana_e1rm_none: 'No e1RM yet: only sets of up to {n} reps are ranked.',
 
   // Pinned metrics
   ana_trophy_case: 'Pinned lifts',
@@ -216,6 +217,7 @@ export const analyticsHr: Record<keyof typeof analyticsEn, string> = {
   ana_exercise_not_found: 'Vježba nije pronađena',
   ana_exercise_not_found_desc: 'Ova vježba ne postoji ili nije u tvojoj biblioteci.',
   ana_no_history: 'Za ovu vježbu još nema zapisanih serija.',
+  ana_e1rm_none: 'Još nema e1RM-a: rangiraju se samo serije do {n} ponavljanja.',
 
   ana_trophy_case: 'Istaknuta dizanja',
   ana_edit_pinned: 'Uredi istaknuto',

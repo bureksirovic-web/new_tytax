@@ -8,6 +8,7 @@ import type { SetEntry, WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup, LaggingResult } from '@/contracts/training';
 import { ACWR_FRESH_BELOW, ACWR_FRIED_ABOVE, isDoneWorkingSet, training } from '@/lib/training';
 import { daysBetween, localDay, logTimeMs, mondayOf, shiftDay } from './analytics-dates';
+import { isTimeSetG1 } from './g1-adapters';
 import { muscleVolumeKg } from './muscle-volume';
 
 export function liveLogs(logs: readonly WorkoutLog[]): WorkoutLog[] {
@@ -21,10 +22,11 @@ export function newestFirst(logs: readonly WorkoutLog[]): WorkoutLog[] {
 
 /**
  * A done working set measured in kg × reps. Time-measured sets (holds, carries,
- * stretches: `durationSeconds` recorded) never enter e1RM or kg volume.
+ * stretches: G1's `isTimeSet`, locally `durationSeconds` recorded) never enter
+ * e1RM or kg volume.
  */
 export function isKgSet(s: SetEntry): boolean {
-  return isDoneWorkingSet(s) && typeof s.durationSeconds !== 'number';
+  return isDoneWorkingSet(s) && !isTimeSetG1(s);
 }
 
 /** Σ kg × reps over done working kg sets. */

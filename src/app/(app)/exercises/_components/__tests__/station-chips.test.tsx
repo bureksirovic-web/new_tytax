@@ -100,7 +100,9 @@ describe('Station chip row', () => {
   it('is data-driven: a new catalog station (e.g. FRAME) gets a translated chip with no code change', async () => {
     const real = await loadCatalog(['tytax']);
     const frameEx = real.exercises.slice(0, 3);
-    const withFrame: Catalog = { ...real, stations: [...real.stations, { id: 'FRAME', name: 'Frame' }] };
+    // G1 Wave 2 ships FRAME in `catalog.stations`; add it only where the catalog does not have it yet.
+    const stations = real.stations.some((s) => s.id === 'FRAME') ? real.stations : [...real.stations, { id: 'FRAME', name: 'Frame' }];
+    const withFrame: Catalog = { ...real, stations };
     const origLoad = catalog.loadCatalog;
     const origSearch = catalog.search;
     vi.spyOn(catalog, 'loadCatalog').mockImplementation(async (chunks) => (chunks?.length === 1 && chunks[0] === 'tytax' ? withFrame : origLoad(chunks)));

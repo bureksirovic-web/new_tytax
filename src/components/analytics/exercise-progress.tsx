@@ -3,7 +3,8 @@ import { useMemo } from 'react';
 import type { Units, WorkoutLog } from '@/contracts/domain';
 import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
-import { exerciseSeries } from './exercise-series';
+import { e1rmPoints, exerciseSeries } from './exercise-series';
+import { e1rmMaxReps } from './g1-adapters';
 import { dayLabel, sessionsLabel } from './labels';
 import { LineChart } from './line-chart';
 
@@ -34,27 +35,36 @@ export function ExerciseProgress({ logs, exerciseId, units, headingLevel: H = 'h
   if (points.length === 0) {
     return <p className="text-sm text-fg-muted" data-testid="ana-no-history">{t('ana_no_history')}</p>;
   }
-  const best = points.reduce((a, b) => (b.e1rm > a.e1rm ? b : a));
-  const latest = points.at(-1)!;
-  const prev = points.at(-2);
-  const delta = prev ? latest.e1rm - prev.e1rm : null;
+  const ranked = e1rmPoints(points);
+  const best = ranked.length ? ranked.reduce((a, b) => (b.e1rm > a.e1rm ? b : a)) : null;
+  const latest = ranked.at(-1);
+  const prev = ranked.at(-2);
+  const delta = latest && prev ? latest.e1rm - prev.e1rm : null;
   const sign = delta !== null && delta > 0 ? '+' : delta !== null && delta < 0 ? '−' : '';
   const titleCls = 'mb-2 font-display text-sm font-semibold uppercase tracking-wider text-fg-2';
 
   return (
     <div className="space-y-4" data-testid="ana-exercise-progress">
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Stat
-          label={t('ana_best_e1rm')}
-          value={fmt(best.e1rm)}
-          sub={t('ana_best_lift_row', { weight: fmt(best.bestKg), reps: best.bestReps, date: dayLabel(best.date, locale) })}
-        />
-        <Stat label={t('ana_latest')} value={fmt(latest.e1rm)} sub={sessionsLabel(t, locale, points.length)} />
-        {delta !== null && <Stat label={t('ana_change')} value={`${sign}${fmt(Math.abs(delta))}`} />}
-      </dl>
+      {best && latest ? (
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Stat
+            label={t('ana_best_e1rm')}
+            value={fmt(best.e1rm)}
+            sub={t('ana_best_lift_row', { weight: fmt(best.bestKg), reps: best.bestReps, date: dayLabel(best.date, locale) })}
+          />
+          <Stat label={t('ana_latest')} value={fmt(latest.e1rm)} sub={sessionsLabel(t, locale, ranked.length)} />
+          {delta !== null && <Stat label={t('ana_change')} value={`${sign}${fmt(Math.abs(delta))}`} />}
+        </dl>
+      ) : null}
       <section>
         <H className={titleCls}>{t('ana_e1rm_progress')}</H>
-        <LineChart title={t('ana_e1rm_progress')} points={points.map((p) => ({ day: p.date, value: p.e1rm }))} format={fmt} />
+        {ranked.length ? (
+          <LineChart title={t('ana_e1rm_progress')} points={ranked.map((p) => ({ day: p.date, value: p.e1rm }))} format={fmt} />
+        ) : (
+          <p className="text-sm text-fg-muted" data-testid="ana-e1rm-none">
+            {t('ana_e1rm_none', { n: e1rmMaxReps() })}
+          </p>
+        )}
       </section>
       <section>
         <H className={titleCls}>{t('ana_top_set')}</H>
