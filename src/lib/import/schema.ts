@@ -4,7 +4,7 @@
  * arrays are typed as unknown[] on purpose: their items are validated one by
  * one so a single bad record is skipped with a warning, not the whole file.
  */
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { ImportWarning, ImportWarningCode } from './types';
 
 /** Legacy numeric input: number, numeric string, '' or null. Coerced later by parseNumeric. */
