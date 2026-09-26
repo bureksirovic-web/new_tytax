@@ -1,7 +1,8 @@
 'use client';
 /**
  * Stable hook path for analytics data. Implementation lives next to the
- * analytics components (`src/components/analytics/use-analytics-data.ts`).
+ * analytics components (`src/components/analytics/use-analytics-data.ts`,
+ * pins in `src/components/analytics/pinned-storage.ts`).
  */
 export {
   useAnalyticsData,

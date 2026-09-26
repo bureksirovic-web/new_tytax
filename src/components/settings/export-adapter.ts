@@ -1,4 +1,5 @@
 import type { BodyweightEntry, WorkoutLog } from '@/contracts/domain';
+import type { LegacyImportApi } from './legacy-import-api';
 
 /**
  * Adapter over G2's `@/lib/export` and `@/lib/import`, loaded on demand so
@@ -34,12 +35,13 @@ export async function loadCsvApi(): Promise<CsvApi> {
 }
 
 /**
- * Legacy (tytax-autonomous) import. `@/lib/import` does not exist in this
- * branch yet; importing a missing module would break the build, so this
- * reports "unavailable" until G2's entry points (request G4-35) land. Then:
- * `const mod = await import('@/lib/import'); return { parse: mod.parseLegacy, commit: mod.commitLegacyImport }`.
+ * Legacy (tytax-autonomous) import through G2's service. `@/lib/import` does
+ * not exist in branch v2-g4 and importing a missing module breaks the build,
+ * so this returns null here (the UI shows a disabled control). At integration
+ * (request G4-35) the body becomes:
+ * `const mod = await import('@/lib/import'); return { preview: mod.previewLegacyImport, run: mod.importLegacy };`
  */
-export async function loadLegacyImportApi(): Promise<null> {
+export async function loadLegacyImportApi(): Promise<LegacyImportApi | null> {
   return null;
 }
 

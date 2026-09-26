@@ -4,24 +4,23 @@ import type { Profile } from '@/contracts/domain';
 import { useRepo } from '@/hooks/use-repo';
 import { Button } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
-import { csvFilename, loadCsvApi, loadLegacyImportApi, type CsvApi } from './export-adapter';
+import { csvFilename, loadCsvApi, type CsvApi } from './export-adapter';
+import { LegacyImport } from './legacy-import';
 import { FieldLabel, Hint } from './settings-section';
 import { downloadText, localDay, notify } from './settings-utils';
 
 type Kind = 'workouts' | 'bodyweight';
 
-/** CSV export (current profile only, always kg) and the legacy-app import (pending G2's API). */
+/** CSV export (current profile only, always kg) and the legacy-app import. */
 export function ExportPanel({ profile }: { profile: Profile }) {
   const { t } = useT();
   const repo = useRepo();
   const [api, setApi] = useState<CsvApi | null>(null);
-  const [legacyReady, setLegacyReady] = useState(false);
   const [busy, setBusy] = useState<Kind | null>(null);
 
   useEffect(() => {
     let live = true;
     void loadCsvApi().then((a) => live && setApi(a));
-    void loadLegacyImportApi().then((l) => live && setLegacyReady(l !== null));
     return () => {
       live = false;
     };
@@ -81,18 +80,7 @@ export function ExportPanel({ profile }: { profile: Profile }) {
       </div>
       {(bwMissing || workoutsMissing) && <Hint id="settings-csv-unavailable">{t('set_feature_pending')}</Hint>}
 
-      <FieldLabel>{t('set_legacy_import')}</FieldLabel>
-      <Hint>{t('set_legacy_import_hint')}</Hint>
-      <Button
-        variant="secondary"
-        size="md"
-        disabled={!legacyReady}
-        aria-describedby={legacyReady ? undefined : 'settings-legacy-unavailable'}
-        data-testid="settings-legacy-import"
-      >
-        {t('set_legacy_import_btn')}
-      </Button>
-      {!legacyReady && <Hint id="settings-legacy-unavailable">{t('set_feature_pending')}</Hint>}
+      <LegacyImport />
     </div>
   );
 }
