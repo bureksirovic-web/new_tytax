@@ -26,25 +26,35 @@ export interface NumberFieldProps {
   /**
    * Typed text within this distance of the stored value is left alone on a
    * resync (a rounded display, e.g. lb shown to 0.1, must not rewrite "102.25").
+   * Inclusive, with float slack: a half-step round trip lands exactly on it (21.25 → 21.3).
    */
   matchTolerance?: number;
 }
+
+/** Float slack for the tolerance: |21.25 − 21.3| is 0.05000000000000071, not 0.05. */
+const ROUND_TRIP_EPS = 1e-9;
 
 function format(value: number | undefined, zeroIsEmpty: boolean): string {
   if (value === undefined || (zeroIsEmpty && value === 0)) return '';
   return String(value);
 }
 
-function parse(text: string): number | undefined | null {
+/** Digits with one optional '.' or ',' decimal separator ("62,5" is 62.5); a sign is parsed and clamped. */
+const NUMERIC_TEXT = /^-?\d*(?:[.,]\d*)?$/;
+
+export function parse(text: string): number | undefined | null {
   const trimmed = text.trim();
   if (trimmed === '') return undefined;
+  if (!NUMERIC_TEXT.test(trimmed)) return null;
   const n = Number(trimmed.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 }
 
 /**
- * Controlled number input that keeps the typed text locally (so "62." or an
- * empty field survive while typing) and pushes every valid value to the store.
+ * Controlled numeric text input (type="text" + inputMode, so a decimal comma
+ * survives browser sanitization, unlike type="number") that keeps the typed
+ * text locally (so "62." or an empty field survive while typing) and pushes
+ * every valid value to the store.
  */
 export function NumberField({
   value,
@@ -73,7 +83,7 @@ export function NumberField({
     const typed = parse(text);
     const typedMeansValue =
       typed === value ||
-      (typeof typed === 'number' && value !== undefined && Math.abs(typed - value) < matchTolerance) ||
+      (typeof typed === 'number' && value !== undefined && matchTolerance > 0 && Math.abs(typed - value) <= matchTolerance + ROUND_TRIP_EPS) ||
       (zeroIsEmpty && typed === undefined && value === 0);
     if (!typedMeansValue) setText(format(value, zeroIsEmpty));
   }
@@ -97,16 +107,20 @@ export function NumberField({
       {...dataAttrs}
       ref={inputRef}
       list={list}
-      type="number"
+      type="text"
       inputMode={inputMode}
-      step={step}
-      min={min}
-      max={max}
+      autoComplete="off"
+      pattern={inputMode === 'decimal' ? '[0-9]*[.,]?[0-9]*' : '[0-9]*'}
+      data-step={step}
       value={text}
       placeholder={placeholder}
       aria-label={label}
       data-testid={testId}
       onChange={(e) => handleChange(e.target.value)}
+      // Leaving the field shows what is stored (unparsable text never replaces the last good value).
+      onBlur={() => {
+        if (parse(text) === null) setText(format(value, zeroIsEmpty));
+      }}
       onKeyDown={(e) => {
         if (e.key !== 'Enter' || !onEnter) return;
         e.preventDefault();

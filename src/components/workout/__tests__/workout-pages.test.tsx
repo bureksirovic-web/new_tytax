@@ -5,9 +5,24 @@ import type { WorkoutDebrief, WorkoutDraft } from '@/contracts/domain';
 const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 
-const finishWorkout = vi.fn<(d: WorkoutDraft, debrief?: WorkoutDebrief) => Promise<unknown>>();
-// watch: useWorkout() (active page) subscribes to live queries; never emitting keeps the profile loading.
-vi.mock('@/lib/db', () => ({ getRepository: () => ({ finishWorkout, watch: () => () => undefined }) }));
+const finishWorkout = vi.hoisted(() => vi.fn<(d: WorkoutDraft, debrief?: WorkoutDebrief) => Promise<unknown>>());
+// watch: useWorkout() subscribes to live queries; each one emits once, so the active profile 'p1' (the
+// draft's owner) loads and the pages can tell a draft of this profile from another profile's.
+vi.mock('@/lib/db', () => {
+  const repo = {
+    finishWorkout,
+    profiles: {
+      getActiveId: async () => 'p1',
+      get: async (id: string) => ({ id, name: 'Me', activeProgramId: null, settings: {}, createdAt: '', updatedAt: '' }),
+    },
+    programs: { getActive: async () => undefined },
+    watch: (query: () => Promise<unknown>, onData: (d: unknown) => void) => {
+      void query().then(onData);
+      return () => undefined;
+    },
+  };
+  return { getRepository: () => repo };
+});
 // loadCatalog: the exercise card resolves catalog entries via useExercises(); never resolving keeps it loading.
 vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] }, loadCatalog: () => new Promise(() => undefined) }));
 

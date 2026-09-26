@@ -7,6 +7,7 @@ import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { NextSessionCard } from '@/components/workout/next-session-card';
 import { StartDraftCard } from '@/components/workout/start-draft-card';
+import { foreignInfo } from '@/components/workout/foreign-draft';
 import { useProgramStartFlow } from '@/components/workout/start-program-flow';
 import { useStartStrings } from '@/components/workout/strings/start';
 import { useWorkoutStore } from '@/stores/workout-store';
@@ -16,7 +17,7 @@ export default function WorkoutPage() {
   const locale = useLocale();
   const t = useStartStrings();
   const workout = useWorkout();
-  const { ready, draft, profileId, activeProgram, prepareProgramStart, startProgram, skipRestDay } = workout;
+  const { ready, draft, profileId, activeProgram, activeProgramLoading, prepareProgramStart, startProgram, skipRestDay } = workout;
   const [starting, setStarting] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -80,7 +81,11 @@ export default function WorkoutPage() {
           {locale.t('loading')}
         </p>
       ) : draft ? (
-        <StartDraftCard draft={draft} onDiscard={() => useWorkoutStore.getState().discard()} />
+        <StartDraftCard
+          draft={draft}
+          onDiscard={() => useWorkoutStore.getState().discard()}
+          foreign={workout.foreignDraft ? foreignInfo(workout) : undefined}
+        />
       ) : (
         <>
           <div className="mb-6">
@@ -96,7 +101,13 @@ export default function WorkoutPage() {
             </Button>
             <p className="mt-2 text-center text-xs text-[var(--text-muted)]">{locale.t('training_free_session')}</p>
           </div>
-          {activeProgram ? (
+          {activeProgramLoading ? (
+            <div
+              data-testid="active-program-loading"
+              aria-busy="true"
+              className="h-40 animate-pulse rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]"
+            />
+          ) : activeProgram ? (
             <NextSessionCard
               program={activeProgram}
               starting={busy}

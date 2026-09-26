@@ -17,9 +17,14 @@
  * - `swapExercise(profileId, uid, exercise)` → uid | null (prefilled, takes the
  *   old exercise's working sets still to do; store rule: done work is never
  *   discarded).
- * - `finish(debrief)` → FinishResult. Does NOT discard the draft; the caller
- *   discards after deciding where to navigate. Throws when there is no draft.
- * - `skipRestDay(profileId)` → advances the active program past a rest session.
+ * - `finish(debrief, activeProfileId?)` → FinishResult. Does NOT discard the
+ *   draft; the caller discards after deciding where to navigate. Throws when
+ *   there is no draft, `EmptyWorkoutError` when no working set is done (nothing
+ *   is logged, the rotation stays), and `ForeignDraftError` when `activeProfileId` is given
+ *   (null = no active profile) and the draft belongs to another profile.
+ * - `addExercise`/`swapExercise` return null for a draft of another profile.
+ * - `skipRestDay(profileId)` → advances the active program past a rest session;
+ *   returns the program unchanged when its pointer is not on a rest session.
  */
 import type {
   Exercise,
@@ -40,10 +45,12 @@ import {
   buildSessionExercise,
   deloadOffer,
   weakPoint,
+  wrapIndex,
   type BuiltProgramSession,
   type WeakPointPick,
 } from './session-builder';
 import { remainingWorkingCount } from './draft-ops';
+import { summarizeDraft } from './workout-selectors';
 import { useWorkoutStore } from './workout-store';
 
 export interface WorkoutOrchestratorDeps {
@@ -68,6 +75,27 @@ export interface PreparedProgramStart {
 export interface ProgramStartChoice {
   deload: boolean;
   weakPoint: boolean;
+}
+
+/** The draft has no done working set: nothing to log, and the rotation must not advance. */
+export class EmptyWorkoutError extends Error {
+  constructor() {
+    super('The workout has no done sets to save');
+    this.name = 'EmptyWorkoutError';
+  }
+}
+
+/** The draft was started by another profile than the active one: never add to or save it as this one. */
+export class ForeignDraftError extends Error {
+  constructor(readonly draftProfileId: string) {
+    super('The workout in progress belongs to another profile');
+    this.name = 'ForeignDraftError';
+  }
+}
+
+/** True when a draft exists and was started by a profile other than `activeProfileId`. */
+export function isForeignDraft(draft: Pick<WorkoutDraft, 'profileId'> | null | undefined, activeProfileId: string | null | undefined): boolean {
+  return !!draft && draft.profileId !== activeProfileId;
 }
 
 export function settingsOf(profile: Profile | undefined): ProfileSettings {
@@ -107,6 +135,7 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       historyByExercise: groupByExercise(logs),
       settings,
       lookup,
+      availableKg: inventory.kettlebellsKg,
     });
     if (!session) return null;
     const at = now();
@@ -147,12 +176,20 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
    * is built for the deload to drop.
    */
   async function prefilled(profileId: string, exercise: Exercise, targetSets?: number) {
-    const [settings, history] = await Promise.all([
+    const [settings, history, inventory] = await Promise.all([
       settingsFor(profileId),
       repo.logs.historyFor(profileId, exercise.id),
+      exercise.modality === 'kettlebell' ? repo.equipment.get(profileId) : Promise.resolve(undefined),
     ]);
-    if (!store.getState().draft?.isDeload) return buildSessionExercise({ exercise, history, settings, targetSets });
-    const built = buildSessionExercise({ exercise, history, settings, targetSets: targetSets === undefined ? undefined : targetSets + 1 });
+    const availableKg = inventory?.kettlebellsKg;
+    if (!store.getState().draft?.isDeload) return buildSessionExercise({ exercise, history, settings, targetSets, availableKg });
+    const built = buildSessionExercise({
+      exercise,
+      history,
+      settings,
+      targetSets: targetSets === undefined ? undefined : targetSets + 1,
+      availableKg,
+    });
     return applyDeload([built], settings)[0];
   }
 
@@ -161,24 +198,39 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
     prepareProgramStart,
     startProgram,
     async addExercise(profileId: string, exercise: Exercise): Promise<string | null> {
+      if (isForeignDraft(store.getState().draft, profileId)) return null;
       const se = await prefilled(profileId, exercise);
       return store.getState().addPreparedExercise(se);
     },
     async swapExercise(profileId: string, uid: string, exercise: Exercise): Promise<string | null> {
+      if (isForeignDraft(store.getState().draft, profileId)) return null;
       const old = store.getState().draft?.exercises.find((e) => e.uid === uid);
       if (!old) return null;
       const count = Math.max(1, remainingWorkingCount(old));
       const se = await prefilled(profileId, exercise, count);
       return store.getState().swapExercise(uid, exercise, se.sets);
     },
-    async finish(debrief?: WorkoutDebrief): Promise<FinishResult> {
+    async finish(debrief?: WorkoutDebrief, activeProfileId?: string | null): Promise<FinishResult> {
       const draft = store.getState().draft;
       if (!draft) throw new Error('No workout in progress');
+      if (activeProfileId !== undefined && isForeignDraft(draft, activeProfileId)) throw new ForeignDraftError(draft.profileId);
+      if (summarizeDraft(draft).doneSets === 0) throw new EmptyWorkoutError();
       return repo.finishWorkout(draft, debrief);
     },
+    /**
+     * Skips the rotation pointer past a rest session only: re-reads the program
+     * and returns it unchanged when the pointer is not on a rest session (a
+     * second tap, another tab). The target index is absolute, so concurrent
+     * skips of the same rest day land on the same session instead of two past it.
+     */
     async skipRestDay(profileId: string): Promise<Program | null> {
       const program = await repo.programs.getActive(profileId);
-      return program ? repo.programs.advance(profileId, program.id) : null;
+      if (!program || program.sessions.length === 0) return program ?? null;
+      const index = wrapIndex(program.currentSessionIndex, program.sessions.length);
+      const session = program.sessions[index];
+      if (session.isRest !== true && session.exercises.length > 0) return program;
+      const next = (index + 1) % program.sessions.length;
+      return repo.programs.update(profileId, program.id, { currentSessionIndex: next });
     },
   };
 }

@@ -4,7 +4,18 @@ import type { Exercise, WorkoutDraft } from '@/contracts/domain';
 
 const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
-vi.mock('@/lib/db', () => ({ getRepository: () => ({ watch: () => () => undefined }) }));
+// Active profile p1 (owner of DRAFT) resolves; the page waits for it before showing the draft.
+vi.mock('@/lib/db', () => {
+  const repo = {
+    profiles: { getActiveId: async () => 'p1', get: async (id: string) => ({ id, name: 'Me', settings: {} }) },
+    programs: { getActive: async () => undefined },
+    watch: (query: () => Promise<unknown>, onData: (d: unknown) => void) => {
+      void query().then(onData);
+      return () => undefined;
+    },
+  };
+  return { getRepository: () => repo };
+});
 vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] }, loadCatalog: () => new Promise(() => undefined) }));
 
 import { useWorkoutStore } from '@/stores/workout-store';
@@ -86,29 +97,41 @@ describe('addPicked', () => {
 
   it('uses the prefilled add when it succeeds', async () => {
     const prefilled = vi.fn(async () => 'uid-1');
-    expect(await addPicked(EXERCISE, prefilled)).toBe('uid-1');
+    expect(await addPicked(EXERCISE, prefilled, 'p1')).toBe('uid-1');
     expect(prefilled).toHaveBeenCalledWith(EXERCISE);
     expect(useWorkoutStore.getState().draft?.exercises).toHaveLength(0);
   });
 
-  it('falls back to the store when there is no profile yet (null)', async () => {
-    const uid = await addPicked(EXERCISE, async () => null);
-    expect(uid).toEqual(expect.any(String));
-    const exercises = useWorkoutStore.getState().draft?.exercises ?? [];
-    expect(exercises.map((e) => e.exerciseId)).toEqual([EXERCISE.id]);
+  it('a null result is a refusal: nothing is forced into the draft', async () => {
+    const uid = await addPicked(EXERCISE, async () => null, 'p1');
+    expect(uid).toBeNull();
+    expect(useWorkoutStore.getState().draft?.exercises).toHaveLength(0);
+    expect(useWorkoutStore.getState().draft?.profileId).toBe('p1');
   });
 
   it('falls back to the store when the prefill throws', async () => {
     const uid = await addPicked(EXERCISE, async () => {
       throw new Error('db down');
-    });
+    }, 'p1');
     expect(uid).toEqual(expect.any(String));
     expect(useWorkoutStore.getState().draft?.exercises).toHaveLength(1);
   });
 
+  it('never falls back into another profile\'s draft or without a profile', async () => {
+    const boom = async (): Promise<string | null> => {
+      throw new Error('db down');
+    };
+    expect(await addPicked(EXERCISE, boom, 'p2')).toBeNull();
+    expect(await addPicked(EXERCISE, boom, undefined)).toBeNull();
+    expect(useWorkoutStore.getState().draft?.exercises).toHaveLength(0);
+  });
+
   it('adds nothing without a draft', async () => {
     useWorkoutStore.setState({ draft: null });
-    expect(await addPicked(EXERCISE, async () => null)).toBeNull();
+    expect(await addPicked(EXERCISE, async () => null, 'p1')).toBeNull();
+    expect(await addPicked(EXERCISE, async () => {
+      throw new Error('db down');
+    }, 'p1')).toBeNull();
   });
 });
 

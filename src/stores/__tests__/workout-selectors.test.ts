@@ -32,6 +32,7 @@ describe('workout selectors', () => {
     expect(countsAsWork(set(1, 1, true))).toBe(true);
     expect(countsAsWork(set(1, 1, true, 'warmup'))).toBe(false);
     expect(countsAsWork(set(1, 1, false))).toBe(false);
+    expect(countsAsWork(set(60, 0, true))).toBe(false); // a 0-rep set is never logged work
   });
 
   it('computes per-exercise volume', () => {

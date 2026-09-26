@@ -34,7 +34,7 @@ describe('NumberField', () => {
   it('shows 0 as empty when asked and pushes typed values', () => {
     render(<Harness initial={0} zeroIsEmpty />);
     const input = screen.getByTestId('field');
-    expect(input).toHaveValue(null);
+    expect(input).toHaveValue('');
     fireEvent.change(input, { target: { value: '62.5' } });
     expect(screen.getByTestId('stored')).toHaveTextContent('62.5');
     fireEvent.change(input, { target: { value: '' } });
@@ -47,9 +47,9 @@ describe('NumberField', () => {
     fireEvent.change(input, { target: { value: '7' } });
     // 7 is above max 5 → stored 5, field shows 5.
     expect(screen.getByTestId('stored')).toHaveTextContent('5');
-    expect(input).toHaveValue(5);
+    expect(input).toHaveValue('5');
     fireEvent.click(screen.getByText('external'));
-    expect(input).toHaveValue(42);
+    expect(input).toHaveValue('42');
   });
 });
 

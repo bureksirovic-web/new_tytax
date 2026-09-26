@@ -67,6 +67,8 @@ export interface BuildProgramSessionInput {
   historyByExercise: Readonly<Record<string, readonly WorkoutLog[]>>;
   settings: ProfileSettings;
   lookup: ExerciseLookup;
+  /** Owned kettlebells (kg), passed to kettlebell prefill. */
+  availableKg?: readonly number[];
 }
 
 export interface BuiltProgramSession {
@@ -95,6 +97,7 @@ export function buildProgramSession(input: BuildProgramSessionInput): BuiltProgr
       exercise: lookup(slot.exerciseId),
       history: historyByExercise[slot.exerciseId] ?? [],
       settings,
+      availableKg: input.availableKg,
     }),
   );
   return { sessionName: session.name, programId: program.id, programSessionId: session.id, sessionIndex: idx, exercises };

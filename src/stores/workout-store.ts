@@ -28,6 +28,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { newUuid } from '@/lib/db/ids';
 import type {
   Exercise,
   Program,
@@ -103,7 +104,7 @@ export type WorkoutStore = WorkoutState & WorkoutActions;
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 
-const newId = (): string => crypto.randomUUID();
+const newId = newUuid;
 const nowIso = (): string => new Date().toISOString();
 
 export function emptyWorkingSet(kg = 0): SetEntry {
@@ -292,7 +293,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
         })),
 
       updateSet: (uid, setId, patch) =>
-        set((s) => ({ draft: withSet(s.draft, uid, setId, (entry) => ({ ...entry, ...patch, id: entry.id })) })),
+        set((s) => ({
+          draft: withExercise(s.draft, uid, (ex) => {
+            if (!ex.sets.some((x) => x.id === setId)) return ex;
+            const sets = ex.sets.map((entry) => {
+              if (entry.id !== setId) return entry;
+              const next = { ...entry, ...patch, id: entry.id };
+              // A done set that an edit leaves without reps (or weight, unless bodyweight) is no longer done.
+              const complete = next.reps > 0 && (next.kg > 0 || ex.modality === 'bodyweight');
+              return next.done && !complete ? { ...next, done: false, completedAt: undefined } : next;
+            });
+            return { ...ex, sets };
+          }),
+        })),
 
       removeSet: (uid, setId) =>
         set((s) => ({
@@ -301,11 +314,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       toggleSetDone: (uid, setId) =>
         set((s) => ({
-          draft: withSet(s.draft, uid, setId, (entry) =>
-            entry.done
-              ? { ...entry, done: false, completedAt: undefined }
-              : { ...entry, done: true, completedAt: nowIso() },
-          ),
+          draft: withSet(s.draft, uid, setId, (entry) => {
+            if (entry.done) return { ...entry, done: false, completedAt: undefined };
+            // Empty reps adopt last session's ghost reps; with neither, a set cannot be done.
+            const reps = entry.reps > 0 ? entry.reps : Math.round(entry.ghostReps ?? 0);
+            if (reps <= 0) return entry;
+            return { ...entry, reps, done: true, completedAt: nowIso() };
+          }),
         })),
 
       setNotes: (notes) => set((s) => (s.draft ? { draft: { ...s.draft, notes } } : s)),

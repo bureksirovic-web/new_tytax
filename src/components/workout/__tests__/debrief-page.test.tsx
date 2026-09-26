@@ -13,7 +13,9 @@ const finish = vi.fn<(d?: WorkoutDebrief) => Promise<FinishResult>>();
 const hook = vi.hoisted(() => ({ units: 'kg' as 'kg' | 'lb' }));
 vi.mock('@/hooks/use-workout', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/use-workout')>();
-  return { ...actual, useWorkout: () => ({ finish, settings: { ...DEFAULT_PROFILE_SETTINGS, units: hook.units } }) };
+  return { ...actual, useWorkout: () => ({
+      ready: true, foreignDraft: false, finish, settings: { ...DEFAULT_PROFILE_SETTINGS, units: hook.units },
+    }) };
 });
 
 import { useWorkoutStore } from '@/stores/workout-store';

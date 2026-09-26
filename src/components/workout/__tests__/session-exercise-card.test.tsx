@@ -83,7 +83,7 @@ describe('SessionExerciseCard sets', () => {
     const rows = within(card).getAllByTestId('set-row');
     expect(rows).toHaveLength(3);
     // The new row copies the last set's kg (0 here) → field stays empty.
-    expect(within(rows[2]).getByTestId('set-kg')).toHaveValue(null);
+    expect(within(rows[2]).getByTestId('set-kg')).toHaveValue('');
 
     // Empty set: deleted at once.
     fireEvent.click(within(rows[2]).getByTestId('remove-set'));
@@ -173,13 +173,13 @@ describe('SessionExerciseCard sets', () => {
     render(<Cards />);
     const kg = screen.getAllByTestId('set-kg');
     // 100 kg × 2.20462 = 220.462 → 220.5 lb
-    expect(kg[0]).toHaveValue(220.5);
+    expect(kg[0]).toHaveValue('220.5');
     fireEvent.change(kg[1], { target: { value: '225' } });
     // 225 / 2.20462 = 102.058 kg
     expect(exAt(0).sets[1].kg).toBeCloseTo(102.058, 3);
     // A quarter-pound entry is kept as typed although the display rounds to 0.1 lb.
     fireEvent.change(kg[1], { target: { value: '102.25' } });
-    expect(kg[1]).toHaveValue(102.25);
+    expect(kg[1]).toHaveValue('102.25');
     expect(exAt(0).sets[1].kg).toBeCloseTo(102.25 / 2.20462, 3);
   });
 
@@ -189,11 +189,11 @@ describe('SessionExerciseCard sets', () => {
     fireEvent.change(rir, { target: { value: '5' } });
     fireEvent.change(rir, { target: { value: '57' } });
     expect(exAt(0).sets[0].rir).toBe(5);
-    expect(rir).toHaveValue(5);
+    expect(rir).toHaveValue('5');
     const kg = screen.getAllByTestId('set-kg')[0];
     fireEvent.change(kg, { target: { value: '-5' } });
     expect(exAt(0).sets[0].kg).toBe(0);
-    expect(kg).toHaveValue(null);
+    expect(kg).toHaveValue('');
   });
 });
 

@@ -6,7 +6,7 @@ import type { SessionExercise, SetEntry, WorkoutDraft } from '@/contracts/domain
 
 export interface DraftSummary {
   exerciseCount: number;
-  /** Done working sets (warm-ups and undone sets excluded). */
+  /** Done working sets with reps (warm-ups, undone and 0-rep sets excluded). */
   doneSets: number;
   /** All sets, done or not. */
   totalSets: number;
@@ -14,8 +14,9 @@ export interface DraftSummary {
   volumeKg: number;
 }
 
+/** A done, non-warm-up set with reps: a 0-rep set is never logged work. */
 export function countsAsWork(s: SetEntry): boolean {
-  return s.done && s.type !== 'warmup';
+  return s.done && s.type !== 'warmup' && s.reps > 0;
 }
 
 export function exerciseVolumeKg(ex: SessionExercise): number {

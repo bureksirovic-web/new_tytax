@@ -5,8 +5,9 @@
  * never mutates its input; an unknown uid or a null draft returns the input.
  */
 import type { Exercise, SessionExercise, SetEntry, WorkoutDraft } from '@/contracts/domain';
+import { newUuid } from '@/lib/db/ids';
 
-const newId = (): string => crypto.randomUUID();
+const newId = newUuid;
 
 export interface StartDraftInput {
   profileId: string;

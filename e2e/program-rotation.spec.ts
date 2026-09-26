@@ -1,4 +1,4 @@
-import { DEFAULT_TYTAX_PRESET_ID } from '../src/lib/programs/presets';
+import { DEFAULT_TYTAX_PRESET_ID, getPresetById } from '../src/lib/programs/presets';
 import { test, expect } from './fixtures';
 
 /**
@@ -56,4 +56,34 @@ test('finishing the first program session advances /workout to the second', asyn
   expect(logs[0].programSessionId).toBe(first.id);
   expect(logs[0].sessionName).toBe(first.name);
   expect(logs[0].totalSets).toBe(1);
+});
+
+test('a rest session is completed from /workout and the rotation wraps to the first session', async ({ page, tytax }) => {
+  const preset = getPresetById(DEFAULT_TYTAX_PRESET_ID);
+  expect(preset).toBeDefined();
+  const restIndex = preset!.sessions.findIndex((s) => s.isRest === true);
+  // The TYTAX preset ends with its rest day, so completing it wraps to session 0.
+  expect(restIndex).toBe(preset!.sessions.length - 1);
+
+  await tytax.gotoApp('/workout');
+  await tytax.reset();
+  const { activeProfileId } = await tytax.snapshot();
+  expect(activeProfileId).toEqual(expect.any(String));
+  const program = await tytax.seedProgram(activeProfileId!, { template: { ...preset!, currentSessionIndex: restIndex } });
+  expect(program.currentSessionIndex).toBe(restIndex);
+
+  await tytax.gotoApp('/workout');
+  await expect(page.getByTestId('next-session-name')).toHaveText(program.sessions[restIndex].name);
+  await expect(page.getByTestId('next-session-rest')).toBeVisible();
+  await expect(page.getByTestId('start-program-workout')).toHaveCount(0);
+
+  await page.getByTestId('complete-rest-day').click();
+  await expect(page.getByTestId('next-session-name')).toHaveText(program.sessions[0].name);
+  await expect(page.getByTestId('next-session-rest')).toHaveCount(0);
+  await expect(page.getByTestId('start-program-workout')).toBeEnabled();
+
+  // Persisted: a reload shows the first session again, and no log was written for the rest day.
+  await tytax.gotoApp('/workout');
+  await expect(page.getByTestId('next-session-name')).toHaveText(program.sessions[0].name);
+  expect(await tytax.listLogs(activeProfileId!)).toHaveLength(0);
 });

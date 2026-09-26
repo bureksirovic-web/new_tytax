@@ -5,6 +5,9 @@ import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { DebriefSummary } from '@/components/workout/debrief-summary';
 import { DebriefRpeField, parseRpe } from '@/components/workout/debrief-rpe-field';
+import { DiscardWorkoutButton } from '@/components/workout/discard-workout-button';
+import { useFinishStrings } from '@/components/workout/strings/finish';
+import { summarizeDraft } from '@/stores/workout-selectors';
 
 export { parseRpe } from '@/components/workout/debrief-rpe-field';
 
@@ -15,10 +18,15 @@ export interface DebriefFormProps {
    * a resolve keeps the button disabled (the page navigates away).
    */
   onSave: (debrief: WorkoutDebrief) => Promise<void>;
+  /** Drops the draft (confirmed). Offered instead of saving when no set is done. */
+  onDiscard: () => void;
 }
 
-export function DebriefForm({ draft, onSave }: DebriefFormProps) {
-  const { t } = useLocale();
+export function DebriefForm({ draft, onSave, onDiscard }: DebriefFormProps) {
+  const locale = useLocale();
+  const t = useFinishStrings();
+  // A workout without a done working set is not saved (no empty log, no rotation advance).
+  const empty = summarizeDraft(draft).doneSets === 0;
   const notesId = useId();
   const [rpeText, setRpeText] = useState('');
   const [notes, setNotes] = useState(draft.notes ?? '');
@@ -49,13 +57,13 @@ export function DebriefForm({ draft, onSave }: DebriefFormProps) {
 
       <div>
         <label htmlFor={notesId} className="mb-1 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
-          {t('my_notes')}
+          {locale.t('my_notes')}
         </label>
         <textarea
           id={notesId}
           rows={3}
           value={notes}
-          placeholder={t('notes_placeholder')}
+          placeholder={locale.t('notes_placeholder')}
           data-testid="debrief-notes"
           onChange={(e) => setNotes(e.target.value)}
           className="w-full resize-none rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)]"
@@ -64,22 +72,30 @@ export function DebriefForm({ draft, onSave }: DebriefFormProps) {
 
       {failed && (
         <p data-testid="debrief-error" role="alert" className="rounded-lg border border-red-700 bg-red-950 p-3 text-sm text-red-100">
-          {t('error')}
+          {locale.t('error')}
         </p>
       )}
 
-      <Button
-        data-testid="save-workout"
-        size="lg"
-        fullWidth
-        disabled={saving}
-        loading={saving}
-        aria-busy={saving}
-        onClick={() => void save()}
-        className="font-bold uppercase tracking-widest"
-      >
-        {t('debrief_save_exit')}
-      </Button>
+      {empty ? (
+        <div data-testid="debrief-empty" className="space-y-3 rounded-lg border border-[var(--border-color)] p-3">
+          <p className="font-display font-bold uppercase tracking-wider text-[var(--highlight)]">{t('empty_title')}</p>
+          <p className="text-sm text-[var(--text-secondary)]">{t('empty_body')}</p>
+          <DiscardWorkoutButton sessionName={draft.sessionName} onDiscard={onDiscard} />
+        </div>
+      ) : (
+        <Button
+          data-testid="save-workout"
+          size="lg"
+          fullWidth
+          disabled={saving}
+          loading={saving}
+          aria-busy={saving}
+          onClick={() => void save()}
+          className="font-bold uppercase tracking-widest"
+        >
+          {locale.t('debrief_save_exit')}
+        </Button>
+      )}
     </div>
   );
 }

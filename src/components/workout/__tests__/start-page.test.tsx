@@ -47,6 +47,7 @@ function makeHook(over: Partial<UseWorkoutResult> = {}): UseWorkoutResult {
     startQuick: vi.fn(() => DRAFT), prepareProgramStart: vi.fn(async () => ({ offers: {} })),
     startProgram: vi.fn(async () => DRAFT), addExercise: vi.fn(async () => 'u1'), swapExercise: vi.fn(async () => 'u1'),
     finish: vi.fn(), skipRestDay: vi.fn(async () => null),
+    activeProgramLoading: false, foreignDraft: false, draftOwner: undefined, switchToDraftOwner: vi.fn(async () => undefined),
     ...over,
   };
 }
@@ -89,7 +90,7 @@ describe('workout start page', () => {
     expect(screen.getByTestId('next-session-name')).toHaveTextContent('Recovery');
     expect(screen.getByTestId('next-session-rest')).toHaveTextContent('Rest day');
     expect(screen.queryByTestId('start-program-workout')).toBeNull();
-    await click('skip-rest-day');
+    await click('complete-rest-day');
     expect(h.skipRestDay).toHaveBeenCalledTimes(1);
     expect(h.prepareProgramStart).not.toHaveBeenCalled();
   });

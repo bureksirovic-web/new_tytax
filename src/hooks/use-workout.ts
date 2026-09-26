@@ -18,6 +18,10 @@
  * - `finish(debrief)` → Promise<FinishResult>; the caller calls
  *   `useWorkoutStore.getState().discard()` after deciding where to navigate.
  * - `skipRestDay()` → advances the active program past a rest session.
+ * - `foreignDraft`: the persisted draft was started by another profile (after a
+ *   profile switch). Add/swap return null and `finish` throws
+ *   `ForeignDraftError` for it; show `draftOwner` with `switchToDraftOwner()`
+ *   (null owner: that profile was deleted, so only discarding is possible).
  *
  * Tests: mock `getRepository` from '@/lib/db' (see src/hooks/__tests__), or use
  * `createWorkoutOrchestrator` from '@/stores/workout-orchestrator' directly.
@@ -30,6 +34,7 @@ import { loadCatalog } from '@/lib/catalog';
 import { wrapIndex } from '@/stores/session-builder';
 import {
   createWorkoutOrchestrator,
+  isForeignDraft,
   settingsOf,
   type PreparedProgramStart,
   type ProgramStartChoice,
@@ -50,6 +55,8 @@ export interface UseWorkoutResult {
   settings: ProfileSettings;
   draft: WorkoutDraft | null;
   activeProgram: Program | undefined;
+  /** True until the active-program query resolved (undefined `activeProgram` then means none). */
+  activeProgramLoading: boolean;
   nextSession: NextSession | null;
   startQuick(sessionName: string): WorkoutDraft | null;
   prepareProgramStart(): Promise<{ offers: ProgramStartOffers } | null>;
@@ -58,6 +65,10 @@ export interface UseWorkoutResult {
   swapExercise(uid: string, exercise: Exercise): Promise<string | null>;
   finish(debrief?: WorkoutDebrief): Promise<FinishResult>;
   skipRestDay(): Promise<Program | null>;
+  foreignDraft: boolean;
+  /** Owner of a foreign draft: undefined while loading or when not foreign, null when it no longer exists. */
+  draftOwner: Profile | null | undefined;
+  switchToDraftOwner(): Promise<void>;
 }
 
 export function nextSessionOf(program: Program | undefined): NextSession | null {
@@ -72,12 +83,19 @@ export function useWorkout(): UseWorkoutResult {
   const { profile, profileId, loading } = useActiveProfile();
   const hydrated = useWorkoutHydrated();
   const draft = useWorkoutStore((s) => s.draft);
-  const { data: activeProgram } = useRepoQuery(
+  const { data: activeProgram, loading: programLoading } = useRepoQuery(
     (r) => (profileId ? r.programs.getActive(profileId) : Promise.resolve(undefined)),
     [profileId],
   );
   const orch = useMemo(() => createWorkoutOrchestrator({ repo, loadCatalog: () => loadCatalog() }), [repo]);
   const planRef = useRef<PreparedProgramStart | null>(null);
+  const ready = !loading && hydrated;
+  const foreignDraft = ready && isForeignDraft(draft, profileId ?? null);
+  const ownerId = foreignDraft ? draft?.profileId : undefined;
+  const { data: owner } = useRepoQuery(
+    async (r) => (ownerId ? ((await r.profiles.get(ownerId)) ?? null) : undefined),
+    [ownerId],
+  );
 
   const prepareProgramStart = useCallback(async () => {
     if (!profileId) return null;
@@ -114,23 +132,35 @@ export function useWorkout(): UseWorkoutResult {
     [orch, profileId],
   );
 
+  const finish = useCallback(
+    (debrief?: WorkoutDebrief) => orch.finish(debrief, profileId ?? null),
+    [orch, profileId],
+  );
+  const switchToDraftOwner = useCallback(async () => {
+    if (ownerId) await repo.profiles.setActive(ownerId);
+  }, [repo, ownerId]);
+
   const settings = useMemo(() => settingsOf(profile), [profile]);
   const nextSession = useMemo(() => nextSessionOf(activeProgram), [activeProgram]);
 
   return {
-    ready: !loading && hydrated,
+    ready,
     profile,
     profileId,
     settings,
     draft,
     activeProgram,
+    activeProgramLoading: programLoading,
     nextSession,
     startQuick,
     prepareProgramStart,
     startProgram,
     addExercise,
     swapExercise,
-    finish: orch.finish,
+    finish,
     skipRestDay,
+    foreignDraft,
+    draftOwner: foreignDraft ? owner : undefined,
+    switchToDraftOwner,
   };
 }

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { ProgramTemplate, SetEntry, WorkoutDraft } from '@/contracts/domain';
 import type { Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
-import { createWorkoutOrchestrator, settingsOf } from '../workout-orchestrator';
+import { createWorkoutOrchestrator, EmptyWorkoutError, settingsOf } from '../workout-orchestrator';
 import { useWorkoutStore } from '../workout-store';
 import { ex, fakeCatalog } from './g3-helpers';
 
@@ -130,6 +130,39 @@ describe('workout orchestrator', () => {
     const advanced = await o.skipRestDay(profileId);
     expect(advanced?.id).toBe(p.id);
     expect(advanced?.currentSessionIndex).toBe(0);
+  });
+
+  it('skipRestDay never skips a training session: concurrent taps land on the next one', async () => {
+    const three: ProgramTemplate = {
+      ...template,
+      sessions: [...template.sessions, { id: 'pull', programId: '', name: 'Pull', dayIndex: 2, exercises: [{ exerciseId: 'row', exerciseName: 'Row', modality: 'tytax', sets: 3, reps: '8' }] }],
+      currentSessionIndex: 1,
+    };
+    await repo.programs.create(profileId, three, { activate: true });
+    const o = orch();
+    const [a, b] = await Promise.all([o.skipRestDay(profileId), o.skipRestDay(profileId)]);
+    expect([a?.currentSessionIndex, b?.currentSessionIndex]).toEqual([2, 2]);
+    const again = await o.skipRestDay(profileId);
+    expect(again?.currentSessionIndex).toBe(2);
+    const stored = await repo.programs.getActive(profileId);
+    expect(stored?.sessions[stored.currentSessionIndex].name).toBe('Pull');
+  });
+
+  it('finish refuses a workout with no done working set: no log, rotation stays', async () => {
+    const program = await repo.programs.create(profileId, template, { activate: true });
+    const o = orch();
+    o.startQuick(profileId, 'Quick');
+    const d = draft();
+    useWorkoutStore.setState({ draft: { ...d, programId: program.id, programSessionId: program.sessions[0].id } });
+    useWorkoutStore.getState().addPreparedExercise({ uid: 'u', exerciseId: 'bench', exerciseName: 'Bench', modality: 'tytax', sets: [
+      { id: 'w', type: 'warmup', kg: 40, reps: 10, done: true },
+      { id: 'a', type: 'working', kg: 60, reps: 5, done: false },
+      { id: 'z', type: 'working', kg: 60, reps: 0, done: true },
+    ] });
+    await expect(o.finish({ rpe: 8 })).rejects.toBeInstanceOf(EmptyWorkoutError);
+    expect(await repo.logs.count(profileId)).toBe(0);
+    expect((await repo.programs.getActive(profileId))?.currentSessionIndex).toBe(0);
+    expect(useWorkoutStore.getState().draft).not.toBeNull();
   });
 
   it('finish writes the log and leaves the draft for the caller', async () => {

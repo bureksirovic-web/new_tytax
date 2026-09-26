@@ -3,6 +3,8 @@
  * ./session-builder.ts, which re-exports everything here.
  */
 import type { Exercise, Modality, ProfileSettings, ProgramExercise, SessionExercise, WorkoutLog } from '@/contracts/domain';
+import { newUuid } from '@/lib/db/ids';
+import type { PrefillOptions } from '@/contracts/training';
 import { training } from '@/lib/training';
 
 /** Most sets a freshly added exercise gets without history or a slot. */
@@ -22,7 +24,15 @@ export interface BuildSessionExerciseInput {
   repTarget?: string;
   /** Default true. */
   warmups?: boolean;
+  /** Kettlebells the profile owns (`EquipmentInventory.kettlebellsKg`); prefill snaps to a real bell. */
+  availableKg?: readonly number[];
 }
+
+/**
+ * `availableKg` is additive in `PrefillOptions` (request G1-02, lands with
+ * v2-g1). Typed as an intersection so this compiles before and after that merge.
+ */
+type PrefillOptionsWithBells = PrefillOptions & { availableKg?: readonly number[] };
 
 function snapshotOf(ex: Exercise | undefined): SessionExercise['muscleImpactSnapshot'] {
   return ex ? ex.impact.map((m) => ({ muscle: m.muscle, score: m.score })) : undefined;
@@ -43,16 +53,15 @@ export function buildSessionExercise(input: BuildSessionExerciseInput): SessionE
   if (targetSets === undefined && !hasLoggedSets(exerciseId, history)) {
     targetSets = Math.min(exercise?.defaultSets || MAX_INITIAL_SETS, MAX_INITIAL_SETS);
   }
-  const prefill = training.prefillFromHistory(exerciseId, history, {
-    targetSets,
-    repTarget: input.repTarget ?? slot?.reps,
-  });
+  const options: PrefillOptionsWithBells = { targetSets, repTarget: input.repTarget ?? slot?.reps };
+  if (modality === 'kettlebell' && input.availableKg && input.availableKg.length > 0) options.availableKg = input.availableKg;
+  const prefill = training.prefillFromHistory(exerciseId, history, options);
   const wantWarmups = input.warmups !== false && WARMUP_MODALITIES.has(modality) && prefill.suggestedKg > 0;
   const warm = wantWarmups
     ? training.generateWarmups(prefill.suggestedKg, settings.warmupStrategy, { barKg: settings.barWeightKg })
     : [];
   const out: SessionExercise = {
-    uid: crypto.randomUUID(),
+    uid: newUuid(),
     exerciseId,
     exerciseName: slot?.exerciseName ?? exercise?.name ?? exerciseId,
     modality,

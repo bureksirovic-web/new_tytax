@@ -168,7 +168,13 @@ test('a draft survives a reload with its rest timer still running', async ({ pag
   await expect(remaining).toHaveText('1:20');
 
   await page.reload();
-  await expect(page.getByTestId('active-workout')).toBeVisible();
+  // The page waits for the active profile, whose Dexie liveQuery starts on a
+  // setTimeout(0) that a paused clock holds: tick it in 5 ms steps (far below
+  // the 1 s the ceil-rounded "1:20" allows) until the workout shows.
+  await expect(async () => {
+    await page.clock.runFor(5);
+    await expect(page.getByTestId('active-workout')).toBeVisible({ timeout: 250 });
+  }).toPass({ timeout: 10_000 });
   await expect(row).toHaveAttribute('data-done', 'true');
   await expect(row.getByTestId('set-kg')).toHaveValue('60');
   // Resumed, not restarted (1:30) and not frozen: it keeps counting from 1:20.

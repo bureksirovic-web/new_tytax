@@ -18,7 +18,9 @@ export type FinishKey =
   | 'pr_value_weight'
   | 'pr_value_reps'
   | 'pr_previous_weight'
-  | 'pr_previous_reps';
+  | 'pr_previous_reps'
+  | 'empty_title'
+  | 'empty_body';
 
 export const FINISH_STRINGS: StringTable<FinishKey> = {
   en: {
@@ -38,6 +40,8 @@ export const FINISH_STRINGS: StringTable<FinishKey> = {
     pr_value_reps: '{value} reps',
     pr_previous_weight: 'was {value} {unit}',
     pr_previous_reps: 'was {value} reps',
+    empty_title: 'No sets done',
+    empty_body: 'Nothing in this workout is marked done, so there is nothing to save. Go back and log a set, or discard it.',
   },
   hr: {
     duration: 'Trajanje',
@@ -56,6 +60,8 @@ export const FINISH_STRINGS: StringTable<FinishKey> = {
     pr_value_reps: '{value} pon.',
     pr_previous_weight: 'prije {value} {unit}',
     pr_previous_reps: 'prije {value} pon.',
+    empty_title: 'Nema odrađenih serija',
+    empty_body: 'Ništa u ovom treningu nije označeno kao odrađeno, pa se nema što spremiti. Vrati se i zabilježi seriju ili ga odbaci.',
   },
 };
 

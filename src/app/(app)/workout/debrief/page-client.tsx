@@ -7,6 +7,7 @@ import { useWorkout } from '@/hooks/use-workout';
 import { celebratedPRs } from '@/hooks/use-pr';
 import { useLocale } from '@/components/providers';
 import { DebriefForm } from '@/components/workout/debrief-form';
+import { ForeignDraftScreen } from '@/components/workout/foreign-draft';
 import { PrCelebration } from '@/components/workout/pr-celebration';
 import { useWorkoutHydrated, useWorkoutStore } from '@/stores/workout-store';
 
@@ -15,7 +16,8 @@ export default function DebriefPage() {
   const { t } = useLocale();
   const hydrated = useWorkoutHydrated();
   const draft = useWorkoutStore((s) => s.draft);
-  const { finish, settings } = useWorkout();
+  const workout = useWorkout();
+  const { finish, settings } = workout;
   const [celebrate, setCelebrate] = useState<PRCandidate[] | null>(null);
   // Set once the workout is saved, so the "no draft" redirect cannot race
   // the navigation to /history (or the PR celebration).
@@ -48,13 +50,17 @@ export default function DebriefPage() {
     );
   }
 
-  if (!hydrated || !draft) {
+  // `workout.ready`: the active profile is known, so a foreign draft is never shown as saveable.
+  if (!hydrated || !draft || !workout.ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] p-4" aria-busy="true">
         <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
       </div>
     );
   }
+
+  // Another profile's draft is never saved as the active one (finish also refuses it).
+  if (workout.foreignDraft) return <ForeignDraftScreen workout={workout} />;
 
   return (
     <div data-testid="workout-debrief" className="min-h-screen bg-[var(--bg-primary)] p-4 pb-24">
@@ -65,7 +71,7 @@ export default function DebriefPage() {
         </h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{draft.sessionName}</p>
       </header>
-      <DebriefForm key={draft.id} draft={draft} onSave={save} />
+      <DebriefForm key={draft.id} draft={draft} onSave={save} onDiscard={() => useWorkoutStore.getState().discard()} />
     </div>
   );
 }

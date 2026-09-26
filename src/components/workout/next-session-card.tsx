@@ -66,7 +66,7 @@ export function NextSessionCard({ program, starting, disabled, onStart, onSkipRe
 
       {next && next.isRest && (
         <Button
-          data-testid="skip-rest-day"
+          data-testid="complete-rest-day"
           fullWidth
           variant="ghost"
           disabled={disabled}
@@ -74,7 +74,7 @@ export function NextSessionCard({ program, starting, disabled, onStart, onSkipRe
           onClick={onSkipRest}
           className="border-[var(--border-color)] uppercase tracking-widest"
         >
-          {t('skip_rest_day')}
+          {t('complete_rest_day')}
         </Button>
       )}
 

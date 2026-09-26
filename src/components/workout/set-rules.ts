@@ -4,6 +4,7 @@
  * __tests__/set-rules.test.ts.
  */
 import type { Modality, ProfileSettings, SessionExercise, SetEntry } from '@/contracts/domain';
+import { newUuid } from '@/lib/db/ids';
 import { training } from '@/lib/training';
 import { beatsGhost } from './runtime/ghost';
 import { createRestAlerts, type RestAlerts } from './runtime/rest-alerts';
@@ -22,9 +23,18 @@ export function allowsZeroKg(modality: Modality): boolean {
   return modality === 'bodyweight';
 }
 
-/** A set can be marked done once it has reps and (unless bodyweight) a weight. */
+/**
+ * Reps a done tap records: the typed reps, or last session's ghost reps when
+ * the field was left empty (the store adopts them on done); 0 when neither.
+ */
+export function repsOnDone(set: Pick<SetEntry, 'reps' | 'ghostReps'>): number {
+  if (set.reps > 0) return set.reps;
+  return set.ghostReps !== undefined && set.ghostReps > 0 ? Math.round(set.ghostReps) : 0;
+}
+
+/** A set can be marked done once it has reps (typed or ghost) and (unless bodyweight) a weight. */
 export function canCompleteSet(set: SetEntry, modality: Modality): boolean {
-  return set.reps > 0 && (set.kg > 0 || allowsZeroKg(modality));
+  return repsOnDone(set) > 0 && (set.kg > 0 || allowsZeroKg(modality));
 }
 
 /** The done button is usable to complete a ready set, and always to undo. */
@@ -80,7 +90,7 @@ function roundTo(kg: number, step: number): number {
 export function buildWarmups(
   workingKg: number,
   settings: Pick<ProfileSettings, 'warmupStrategy' | 'barWeightKg'>,
-  newId: () => string = () => crypto.randomUUID(),
+  newId: () => string = () => newUuid(),
 ): SetEntry[] {
   if (!(workingKg > 0)) return [];
   const sets =

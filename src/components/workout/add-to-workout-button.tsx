@@ -13,17 +13,23 @@ import { useWorkoutStore } from '@/stores/workout-store';
  * Adds the exercise (prefilled from history, warm-ups included) to the current
  * workout, starting a quick workout first when there is none, then opens the
  * active workout. Disabled until the profile and the persisted draft are
- * loaded, so it can never overwrite a draft it has not read yet.
+ * loaded, so it can never overwrite a draft it has not read yet. A draft of
+ * another profile is left untouched: the button opens /workout instead.
  */
 export function AddToWorkoutButton({ exercise }: { exercise: Exercise }) {
   const router = useRouter();
   const locale = useLocale();
   const t = useStartStrings();
-  const { ready, profileId, startQuick, addExercise } = useWorkout();
+  const { ready, profileId, foreignDraft, startQuick, addExercise } = useWorkout();
   const [busy, setBusy] = useState(false);
 
   async function add() {
     if (busy) return;
+    // Another profile's workout is in progress: never add to it; /workout offers switch back or discard.
+    if (foreignDraft) {
+      router.push('/workout');
+      return;
+    }
     setBusy(true);
     try {
       const store = useWorkoutStore.getState();
