@@ -24,6 +24,19 @@
  *   non-warm-up set.
  * - `replaceExercises(exercises, opts?: { isDeload?: boolean })` — replaces the
  *   whole exercise list; `isDeload` true marks the draft, false clears it.
+ *
+ * Wave 2:
+ * - Time sets (`measure.ts`): `updateSet` accepts `durationSeconds` (whole,
+ *   non-negative seconds). A set is a time set when `measure === 'time'` is
+ *   passed, or (no measure) when it carries `durationSeconds`; a done time set
+ *   an edit leaves at 0 s is no longer done. `toggleTimeSetDone(uid, setId)`
+ *   marks a time set done only with `durationSeconds > 0` (reps/kg ignored);
+ *   `toggleSetDone` stays the reps rule. `addSet` copies the last set's
+ *   `durationSeconds` too.
+ * - `startFromLog(profileId, log)` → WorkoutDraft: "repeat workout", replaces
+ *   any draft (the caller confirms); rules in `draftFromLog` (./draft-ops.ts).
+ * - `reorderExercises(uids)` → applies an exact permutation of the draft's
+ *   uids; anything else is a no-op.
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
@@ -34,11 +47,14 @@ import type {
   Program,
   ProgramExercise,
   SessionExercise,
+  ExerciseMeasure,
   SetEntry,
   WorkoutDraft,
+  WorkoutLog,
 } from '@/contracts/domain';
 import { useRestTimerStore } from './rest-timer-store';
-import { makeDraft, prependWarmupsTo, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
+import { draftFromLog, makeDraft, prependWarmupsTo, reorderByUids, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
+import { cleanSeconds, isTimeSet } from './measure';
 
 export type { StartDraftInput } from './draft-ops';
 
@@ -81,10 +97,17 @@ export interface WorkoutActions {
   moveExercise(uid: string, direction: -1 | 1): void;
   /** Appends a working set that copies the last set's kg, reps 0. */
   addSet(uid: string): void;
-  updateSet(uid: string, setId: string, patch: SetPatch): void;
+  /** `measure` decides the done rule for an edit (see the file header). */
+  updateSet(uid: string, setId: string, patch: SetPatch, measure?: ExerciseMeasure): void;
   removeSet(uid: string, setId: string): void;
   /** Flips `done`; stamps `completedAt` when it becomes done, clears it otherwise. */
   toggleSetDone(uid: string, setId: string): void;
+  /** Time sets: flips `done`; becomes done only when `durationSeconds > 0`. */
+  toggleTimeSetDone(uid: string, setId: string): void;
+  /** Repeat workout: a new draft from a history log (see `draftFromLog`); replaces any draft. */
+  startFromLog(profileId: string, log: WorkoutLog): WorkoutDraft;
+  /** Reorders the draft to `uids` when it is an exact permutation of its uids; otherwise no-op. */
+  reorderExercises(uids: readonly string[]): void;
   setNotes(notes: string): void;
   /** Drops the draft and stops the rest timer. */
   discard(): void;
@@ -186,7 +209,8 @@ function isSetEntry(v: unknown): v is SetEntry {
     typeof v.type === 'string' &&
     typeof v.kg === 'number' &&
     typeof v.reps === 'number' &&
-    typeof v.done === 'boolean'
+    typeof v.done === 'boolean' &&
+    (v.durationSeconds === undefined || typeof v.durationSeconds === 'number')
   );
 }
 
@@ -288,19 +312,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
         set((s) => ({
           draft: withExercise(s.draft, uid, (ex) => {
             const last = ex.sets[ex.sets.length - 1];
-            return { ...ex, sets: [...ex.sets, emptyWorkingSet(last?.kg ?? 0)] };
+            const next = emptyWorkingSet(last?.kg ?? 0);
+            if (last?.durationSeconds !== undefined) next.durationSeconds = last.durationSeconds;
+            return { ...ex, sets: [...ex.sets, next] };
           }),
         })),
 
-      updateSet: (uid, setId, patch) =>
+      updateSet: (uid, setId, patch, measure) =>
         set((s) => ({
           draft: withExercise(s.draft, uid, (ex) => {
             if (!ex.sets.some((x) => x.id === setId)) return ex;
             const sets = ex.sets.map((entry) => {
               if (entry.id !== setId) return entry;
               const next = { ...entry, ...patch, id: entry.id };
-              // A done set that an edit leaves without reps (or weight, unless bodyweight) is no longer done.
-              const complete = next.reps > 0 && (next.kg > 0 || ex.modality === 'bodyweight');
+              if ('durationSeconds' in patch) next.durationSeconds = cleanSeconds(patch.durationSeconds);
+              // A done set that an edit leaves without reps (or weight, unless bodyweight) is no longer done;
+              // a done time set without seconds neither.
+              const complete = isTimeSet(next, measure)
+                ? (next.durationSeconds ?? 0) > 0
+                : next.reps > 0 && (next.kg > 0 || ex.modality === 'bodyweight');
               return next.done && !complete ? { ...next, done: false, completedAt: undefined } : next;
             });
             return { ...ex, sets };
@@ -322,6 +352,28 @@ export const useWorkoutStore = create<WorkoutStore>()(
             return { ...entry, reps, done: true, completedAt: nowIso() };
           }),
         })),
+
+      toggleTimeSetDone: (uid, setId) =>
+        set((s) => ({
+          draft: withSet(s.draft, uid, setId, (entry) => {
+            if (entry.done) return { ...entry, done: false, completedAt: undefined };
+            if (cleanSeconds(entry.durationSeconds) <= 0) return entry;
+            return { ...entry, done: true, completedAt: nowIso() };
+          }),
+        })),
+
+      startFromLog: (profileId, log) => {
+        const draft = draftFromLog(profileId, log, nowIso());
+        useRestTimerStore.getState().stop();
+        set({ draft });
+        return draft;
+      },
+
+      reorderExercises: (uids) =>
+        set((s) => {
+          const draft = reorderByUids(s.draft, uids);
+          return draft === s.draft ? s : { draft };
+        }),
 
       setNotes: (notes) => set((s) => (s.draft ? { draft: { ...s.draft, notes } } : s)),
 

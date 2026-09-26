@@ -47,6 +47,9 @@ function makeHook(over: Partial<UseWorkoutResult> = {}): UseWorkoutResult {
     addExercise: vi.fn(async () => 'u1'), swapExercise: vi.fn(async () => 'u1'), finish: vi.fn(),
     skipRestDay: vi.fn(async () => null), foreignDraft: false, draftOwner: undefined,
     switchToDraftOwner: vi.fn(async () => undefined),
+    orderByStation: vi.fn(async () => false), repeatLog: vi.fn(() => null), measureOfExercise: vi.fn(() => 'reps' as const),
+    lastDurations: vi.fn(async (): Promise<Array<number | undefined>> => []),
+    setup: { canSave: false, load: vi.fn(async () => undefined), save: vi.fn(async () => ({ saved: false as const, reason: 'unsupported' as const })) },
     ...over,
   };
 }

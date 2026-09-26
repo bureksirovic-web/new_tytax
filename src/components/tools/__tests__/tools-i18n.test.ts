@@ -14,4 +14,11 @@ describe('TOOLS_STRINGS', () => {
       for (const v of Object.values(table)) expect(v.trim()).not.toBe('');
     }
   });
+
+  it('rm_unreliable takes the threshold from {max} in both languages (no typed-in 12)', () => {
+    for (const table of [TOOLS_STRINGS.en, TOOLS_STRINGS.hr]) {
+      expect(table.rm_unreliable).toContain('{max}');
+      expect(table.rm_unreliable).not.toMatch(/\d/);
+    }
+  });
 });

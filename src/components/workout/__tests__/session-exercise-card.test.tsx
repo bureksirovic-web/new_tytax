@@ -6,12 +6,15 @@ import { DEFAULT_PROFILE_SETTINGS } from '@/contracts/domain';
 const h = vi.hoisted(() => ({
   settings: {} as ProfileSettings,
   swapExercise: vi.fn(),
+  measure: 'reps' as 'reps' | 'time',
+  setupApi: { canSave: false, load: async () => undefined, save: async () => ({ saved: false, reason: 'unsupported' }) },
   getById: vi.fn(),
+  lastDurations: vi.fn<(id: string) => Promise<Array<number | undefined>>>(async () => []),
   alerts: { unlock: vi.fn(() => true), vibrate: vi.fn(() => true) },
 }));
 
 vi.mock('@/hooks/use-workout', () => ({
-  useWorkout: () => ({ settings: h.settings, swapExercise: h.swapExercise }),
+  useWorkout: () => ({ settings: h.settings, swapExercise: h.swapExercise, setup: h.setupApi, measureOfExercise: () => h.measure, lastDurations: h.lastDurations }),
 }));
 vi.mock('@/hooks/use-exercises', () => ({
   useCatalog: () => ({ catalog: { getById: h.getById }, loading: false, error: undefined }),
@@ -53,7 +56,10 @@ beforeEach(() => {
   localStorage.clear();
   h.settings = { ...DEFAULT_PROFILE_SETTINGS };
   h.swapExercise.mockReset();
+  h.measure = 'reps';
   h.getById.mockReset();
+  h.lastDurations.mockReset();
+  h.lastDurations.mockImplementation(async () => []);
   h.alerts.unlock.mockClear();
   h.alerts.vibrate.mockClear();
   useRestTimerStore.getState().stop();
@@ -267,5 +273,53 @@ describe('SessionExerciseCard warm-ups and exercise actions', () => {
     render(<Cards />);
     expect(h.getById).toHaveBeenCalledWith('bench');
     expect(screen.getByTestId('video-button')).toHaveAttribute('href', 'https://app.tytax.com/v/9');
+  });
+});
+
+describe('SessionExerciseCard time sets (Wave 2)', () => {
+  it('a time exercise shows duration rows; done needs seconds > 0, completes via toggleTimeSetDone and starts the rest', () => {
+    h.measure = 'time';
+    render(<Cards />);
+    const card = screen.getByTestId('session-exercise');
+    expect(within(card).queryAllByTestId('set-kg')).toHaveLength(0);
+    const duration = within(card).getAllByTestId('set-duration')[0];
+    const done = within(card).getAllByTestId('set-done')[0];
+    expect(done).toBeDisabled();
+
+    fireEvent.change(duration, { target: { value: '45' } });
+    fireEvent.blur(duration);
+    expect(exAt(0).sets[0].durationSeconds).toBe(45);
+    expect(duration).toHaveValue('0:45');
+    expect(done).toBeEnabled();
+
+    fireEvent.click(done);
+    expect(exAt(0).sets[0].done).toBe(true);
+    // 90 s: the profile default (DEFAULT_PROFILE_SETTINGS.restSeconds); the exercise names none.
+    expect(useRestTimerStore.getState().timer?.totalS).toBe(90);
+    // Focus moves to the next set's duration input.
+    expect(within(card).getAllByTestId('set-duration')[1]).toHaveFocus();
+
+    fireEvent.click(done);
+    expect(exAt(0).sets[0].done).toBe(false);
+    expect(exAt(0).sets[0].durationSeconds).toBe(45);
+  });
+
+  it("a time exercise shows last session's duration per working set as the ghost", async () => {
+    h.measure = 'time';
+    // Last session: set 1 held 45 s, set 2 not done (undefined), so only row 1 gets a ghost.
+    h.lastDurations.mockImplementation(async () => [45, undefined]);
+    render(<Cards />);
+    const rows = await screen.findAllByPlaceholderText('0:45');
+    expect(rows).toHaveLength(1);
+    expect(h.lastDurations).toHaveBeenCalledWith('bench');
+    const durations = screen.getAllByTestId('set-duration');
+    expect(durations[0]).toHaveAccessibleName('Set 1: Duration (seconds or m:ss). Last time 0:45');
+    expect(durations[1]).toHaveAttribute('placeholder', 'sec');
+  });
+
+  it('a reps exercise never loads last durations', () => {
+    render(<Cards />);
+    expect(screen.getAllByTestId('set-kg').length).toBeGreaterThan(0);
+    expect(h.lastDurations).not.toHaveBeenCalled();
   });
 });

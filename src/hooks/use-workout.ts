@@ -23,15 +23,49 @@
  *   `ForeignDraftError` for it; show `draftOwner` with `switchToDraftOwner()`
  *   (null owner: that profile was deleted, so only discarding is possible).
  *
+ * Wave 2:
+ * - `orderByStation()` → Promise<boolean>: reorders the draft by TYTAX station
+ *   (see src/stores/order-by-station.ts); false when nothing changed.
+ * - `repeatLog(log, { replace? })` → WorkoutDraft | null: "repeat workout"
+ *   (`startFromLog`, a quick workout, no program). Null without a profile, for
+ *   a log of another profile or in the trash, or while a draft exists unless `replace: true`
+ *   (ask the user first).
+ * - `measureOfExercise(exerciseId)` → 'reps' | 'time': `measureOf` over the
+ *   catalog (loaded once a draft exists); until then, or for an id the catalog
+ *   does not know, 'time' when a draft set of that exercise carries
+ *   `durationSeconds`.
+ * - `lastDurations(exerciseId)` → Promise of last session's working-set
+ *   seconds by working index (undefined: not done / no seconds), from
+ *   `repo.logs.historyFor`; [] without a profile. Feeds the time-set ghost.
+ * - `setup`: `{ canSave, load(exerciseId), save(exerciseId, setup) }` over
+ *   src/stores/setup-adapter.ts for the active profile. Without a profile,
+ *   `load` → undefined and `save` → `{ saved: false, reason: 'unsupported' }`.
+ *   `canSave` false: show the setup read-only (the repo cannot write it yet).
+ *
  * Tests: mock `getRepository` from '@/lib/db' (see src/hooks/__tests__), or use
  * `createWorkoutOrchestrator` from '@/stores/workout-orchestrator' directly.
  */
-import { useCallback, useMemo, useRef } from 'react';
-import type { Exercise, Profile, ProfileSettings, Program, ProgramSession, WorkoutDebrief, WorkoutDraft } from '@/contracts/domain';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  Exercise,
+  ExerciseMeasure,
+  MachineSetup,
+  Profile,
+  ProfileSettings,
+  Program,
+  ProgramSession,
+  WorkoutDebrief,
+  WorkoutDraft,
+  WorkoutLog,
+} from '@/contracts/domain';
+import type { Catalog } from '@/contracts/exercise-catalog';
 import type { FinishResult } from '@/contracts/repo';
 import { useActiveProfile, useRepo, useRepoQuery } from '@/hooks/use-repo';
 import { loadCatalog } from '@/lib/catalog';
+import { measureOf } from '@/stores/measure';
+import { lastDurations as lastDurationsOf } from '@/stores/session-exercise';
 import { wrapIndex } from '@/stores/session-builder';
+import { canSaveSetup, loadSetup, saveSetup, type SaveSetupResult } from '@/stores/setup-adapter';
 import {
   createWorkoutOrchestrator,
   isForeignDraft,
@@ -46,6 +80,13 @@ export interface NextSession {
   index: number;
   session: ProgramSession;
   isRest: boolean;
+}
+
+export interface WorkoutSetupApi {
+  /** False: the repository cannot store a setup yet; show it read-only. */
+  canSave: boolean;
+  load(exerciseId: string): Promise<MachineSetup | undefined>;
+  save(exerciseId: string, setup: MachineSetup | undefined): Promise<SaveSetupResult>;
 }
 
 export interface UseWorkoutResult {
@@ -69,6 +110,11 @@ export interface UseWorkoutResult {
   /** Owner of a foreign draft: undefined while loading or when not foreign, null when it no longer exists. */
   draftOwner: Profile | null | undefined;
   switchToDraftOwner(): Promise<void>;
+  orderByStation(): Promise<boolean>;
+  repeatLog(log: WorkoutLog, opts?: { replace?: boolean }): WorkoutDraft | null;
+  measureOfExercise(exerciseId: string): ExerciseMeasure;
+  lastDurations(exerciseId: string): Promise<Array<number | undefined>>;
+  setup: WorkoutSetupApi;
 }
 
 export function nextSessionOf(program: Program | undefined): NextSession | null {
@@ -140,6 +186,60 @@ export function useWorkout(): UseWorkoutResult {
     if (ownerId) await repo.profiles.setActive(ownerId);
   }, [repo, ownerId]);
 
+  const hasDraft = draft !== null;
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  useEffect(() => {
+    if (!hasDraft || catalog) return;
+    let live = true;
+    loadCatalog().then(
+      (c) => {
+        if (live) setCatalog(c);
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [hasDraft, catalog]);
+
+  const orderByStation = useCallback(
+    async () => (profileId ? orch.orderByStation(profileId) : false),
+    [orch, profileId],
+  );
+  const repeatLog = useCallback(
+    (log: WorkoutLog, opts?: { replace?: boolean }) => {
+      if (!profileId) return null;
+      const res = orch.repeatLog(profileId, log, opts);
+      return res.ok ? res.draft : null;
+    },
+    [orch, profileId],
+  );
+  const measureOfExercise = useCallback(
+    (exerciseId: string): ExerciseMeasure => {
+      const known = catalog?.getById(exerciseId);
+      if (known) return measureOf(known);
+      const timed = draft?.exercises.some(
+        (e) => e.exerciseId === exerciseId && e.sets.some((x) => typeof x.durationSeconds === 'number'),
+      );
+      return timed ? 'time' : 'reps';
+    },
+    [catalog, draft],
+  );
+  const lastDurations = useCallback(
+    async (exerciseId: string) =>
+      profileId ? lastDurationsOf(exerciseId, await repo.logs.historyFor(profileId, exerciseId)) : [],
+    [repo, profileId],
+  );
+  const setup = useMemo<WorkoutSetupApi>(
+    () => ({
+      canSave: canSaveSetup(repo),
+      load: async (exerciseId) => (profileId ? loadSetup(repo, profileId, exerciseId) : undefined),
+      save: async (exerciseId, value) =>
+        profileId ? saveSetup(repo, profileId, exerciseId, value) : { saved: false, reason: 'unsupported' },
+    }),
+    [repo, profileId],
+  );
+
   const settings = useMemo(() => settingsOf(profile), [profile]);
   const nextSession = useMemo(() => nextSessionOf(activeProgram), [activeProgram]);
 
@@ -162,5 +262,10 @@ export function useWorkout(): UseWorkoutResult {
     foreignDraft,
     draftOwner: foreignDraft ? owner : undefined,
     switchToDraftOwner,
+    orderByStation,
+    repeatLog,
+    measureOfExercise,
+    lastDurations,
+    setup,
   };
 }

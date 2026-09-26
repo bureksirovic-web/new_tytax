@@ -15,6 +15,7 @@ import { ExercisePicker } from '@/components/workout/exercise-picker';
 import { ForeignDraftScreen } from '@/components/workout/foreign-draft';
 import { RestTimerBar } from '@/components/workout/rest-timer-bar';
 import { SessionExerciseCard } from '@/components/workout/session-exercise-card';
+import { OrderByStationButton } from '@/components/workout/order-by-station-button';
 import { PlusIcon } from '@/components/workout/icons';
 import { useWakeLock } from '@/components/workout/runtime/use-wake-lock';
 import { useWorkout } from '@/hooks/use-workout';
@@ -47,7 +48,7 @@ export default function ActiveWorkoutPage() {
   const hydrated = useWorkoutHydrated();
   const draft = useWorkoutStore((s) => s.draft);
   const workout = useWorkout();
-  const { settings, addExercise, profileId } = workout;
+  const { settings, addExercise, profileId, orderByStation } = workout;
   const [pickerOpen, setPickerOpen] = useState(false);
   useWakeLock(true);
 
@@ -103,6 +104,7 @@ export default function ActiveWorkoutPage() {
         </div>
       ) : (
         <div className="mb-4 space-y-3">
+          <OrderByStationButton count={count} onOrder={orderByStation} />
           {draft.exercises.map((ex, i) => (
             <SessionExerciseCard key={ex.uid} exercise={ex} isFirst={i === 0} isLast={i === count - 1} />
           ))}

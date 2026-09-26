@@ -25,6 +25,16 @@
  * - `addExercise`/`swapExercise` return null for a draft of another profile.
  * - `skipRestDay(profileId)` → advances the active program past a rest session;
  *   returns the program unchanged when its pointer is not on a rest session.
+ *
+ * Wave 2:
+ * - `orderByStation(profileId)` → boolean: reorders the draft with
+ *   `orderByStation` (./order-by-station.ts) over the catalog; false (nothing
+ *   changed) without a draft, for a foreign draft, or when already in order.
+ * - `repeatLog(profileId, log, { replace? })` → `RepeatLogResult`: starts a
+ *   draft from a history log (`startFromLog`). Refused with `reason:
+ *   'draft-exists'` while a draft exists unless `replace: true`, and with
+ *   `'foreign-log'` for a log of another profile, and `'deleted-log'` for a
+ *   log in the trash (`deletedAt` set).
  */
 import type {
   Exercise,
@@ -50,6 +60,7 @@ import {
   type WeakPointPick,
 } from './session-builder';
 import { remainingWorkingCount } from './draft-ops';
+import { orderByStation } from './order-by-station';
 import { summarizeDraft } from './workout-selectors';
 import { useWorkoutStore } from './workout-store';
 
@@ -97,6 +108,10 @@ export class ForeignDraftError extends Error {
 export function isForeignDraft(draft: Pick<WorkoutDraft, 'profileId'> | null | undefined, activeProfileId: string | null | undefined): boolean {
   return !!draft && draft.profileId !== activeProfileId;
 }
+
+export type RepeatLogResult =
+  | { ok: true; draft: WorkoutDraft }
+  | { ok: false; reason: 'draft-exists' | 'foreign-log' | 'deleted-log' };
 
 export function settingsOf(profile: Profile | undefined): ProfileSettings {
   return { ...DEFAULT_PROFILE_SETTINGS, ...profile?.settings };
@@ -216,6 +231,22 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       if (activeProfileId !== undefined && isForeignDraft(draft, activeProfileId)) throw new ForeignDraftError(draft.profileId);
       if (summarizeDraft(draft).doneSets === 0) throw new EmptyWorkoutError();
       return repo.finishWorkout(draft, debrief);
+    },
+    async orderByStation(profileId: string): Promise<boolean> {
+      const draft = store.getState().draft;
+      if (!draft || isForeignDraft(draft, profileId)) return false;
+      const catalog = await deps.loadCatalog();
+      const current = store.getState().draft;
+      if (!current || current.id !== draft.id) return false;
+      const uids = orderByStation(current.exercises, (id) => catalog.getById(id)).map((e) => e.uid);
+      store.getState().reorderExercises(uids);
+      return store.getState().draft !== current;
+    },
+    repeatLog(profileId: string, log: WorkoutLog, opts: { replace?: boolean } = {}): RepeatLogResult {
+      if (log.profileId !== profileId) return { ok: false, reason: 'foreign-log' };
+      if (log.deletedAt) return { ok: false, reason: 'deleted-log' };
+      if (store.getState().draft && !opts.replace) return { ok: false, reason: 'draft-exists' };
+      return { ok: true, draft: store.getState().startFromLog(profileId, log) };
     },
     /**
      * Skips the rotation pointer past a rest session only: re-reads the program

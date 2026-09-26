@@ -126,7 +126,7 @@ export function NumberField({
         e.preventDefault();
         onEnter();
       }}
-      className={`min-h-11 w-full min-w-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 text-center font-mono text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)] ${className}`}
+      className={`min-h-11 w-full min-w-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-1 text-center font-mono text-base sm:px-2 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)] ${className}`}
     />
   );
 }

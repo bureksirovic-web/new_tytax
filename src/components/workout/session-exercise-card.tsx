@@ -9,6 +9,11 @@ import { SwapSheet } from '@/components/workout/swap-sheet';
 import { SetRow } from './set-row';
 import { ExerciseCardHeader } from './exercise-card-header';
 import { ExerciseCardFooter } from './exercise-card-footer';
+import { SetupSheet } from './setup-sheet';
+import { SetupSummary } from './setup-summary';
+import { useExerciseSetup } from './setup-state';
+import { canToggleTimeDone, ghostSecondsForSets } from './set-time-rules';
+import { useLastDurations } from './last-durations-state';
 import {
   DONE_VIBRATION_MS,
   buildWarmups,
@@ -28,14 +33,15 @@ export interface SessionExerciseCardProps {
 }
 
 /**
- * One exercise of the running workout: header (video, swap, reorder, remove),
- * its set rows and add-set / add-warm-up. Keyed by `uid`, so the same
- * exercise can appear twice. Marking a set done starts the rest timer
+ * One exercise of the running workout: header (video, machine setup, swap,
+ * reorder, remove), the profile's machine setup when stored, its set rows
+ * and add-set / add-warm-up. Keyed by `uid`, so the same exercise can appear
+ * twice. Marking a set done starts the rest timer
  * (exercise → profile → 90 s), unlocks audio, vibrates 50 ms and focuses the
  * next set's kg input.
  */
 export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerciseCardProps) {
-  const { settings, swapExercise } = useWorkout();
+  const { settings, swapExercise, setup: setupApi, measureOfExercise, lastDurations } = useWorkout();
   const { catalog } = useCatalog();
   const moveExercise = useWorkoutStore((s) => s.moveExercise);
   const removeExercise = useWorkoutStore((s) => s.removeExercise);
@@ -43,15 +49,22 @@ export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerci
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const removeSet = useWorkoutStore((s) => s.removeSet);
   const toggleSetDone = useWorkoutStore((s) => s.toggleSetDone);
+  const toggleTimeSetDone = useWorkoutStore((s) => s.toggleTimeSetDone);
   const prependWarmups = useWorkoutStore((s) => s.prependWarmups);
   const startRest = useRestTimerStore((s) => s.start);
   const [swapping, setSwapping] = useState(false);
+  const [editingSetup, setEditingSetup] = useState(false);
+  const machine = useExerciseSetup(setupApi, exercise.exerciseId);
   const kgInputs = useRef(new Map<string, HTMLInputElement>());
 
   const { uid, modality, sets } = exercise;
+  const measure = measureOfExercise(exercise.exerciseId);
+  const timed = measure === 'time';
   const headingId = `exercise-${uid}`;
   const numbers = setNumbers(sets);
   const workingKg = heaviestWorkingKg(sets);
+  const lastSeconds = useLastDurations(lastDurations, exercise.exerciseId, timed);
+  const ghostSeconds = ghostSecondsForSets(sets, lastSeconds);
 
   const kgRefFor = useCallback(
     (setId: string) => (el: HTMLInputElement | null) => {
@@ -62,8 +75,9 @@ export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerci
   );
 
   function toggleDone(set: SetEntry) {
-    if (!canToggleDone(set, modality)) return;
-    toggleSetDone(uid, set.id);
+    if (timed ? !canToggleTimeDone(set) : !canToggleDone(set, modality)) return;
+    if (timed) toggleTimeSetDone(uid, set.id);
+    else toggleSetDone(uid, set.id);
     if (set.done) return; // undo: no timer, no focus move
     startRest(restSecondsFor(exercise, settings));
     const alerts = restAlerts();
@@ -100,7 +114,9 @@ export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerci
         onMove={(direction) => moveExercise(uid, direction)}
         onRemove={() => removeExercise(uid)}
         onSwap={() => setSwapping(true)}
+        onEditSetup={() => setEditingSetup(true)}
       />
+      {machine.setup && <SetupSummary setup={machine.setup} />}
 
       <ol className="space-y-1.5" aria-labelledby={headingId}>
         {sets.map((set, i) => (
@@ -109,9 +125,11 @@ export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerci
             set={set}
             number={numbers[i]}
             modality={modality}
+            measure={measure}
+            ghostSeconds={ghostSeconds[i]}
             units={settings.units}
             kgRef={kgRefFor(set.id)}
-            onChange={(patch) => updateSet(uid, set.id, patch)}
+            onChange={(patch) => updateSet(uid, set.id, patch, measure)}
             onToggleDone={() => toggleDone(set)}
             onRemove={() => removeSet(uid, set.id)}
           />
@@ -126,6 +144,15 @@ export function SessionExerciseCard({ exercise, isFirst, isLast }: SessionExerci
       />
 
       {swapping && <SwapSheet exercise={exercise} onClose={() => setSwapping(false)} onPick={pickSwap} />}
+      {editingSetup && (
+        <SetupSheet
+          exerciseName={exercise.exerciseName}
+          setup={machine.setup}
+          canSave={machine.canSave}
+          onSave={machine.save}
+          onClose={() => setEditingSetup(false)}
+        />
+      )}
     </section>
   );
 }

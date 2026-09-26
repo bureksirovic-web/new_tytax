@@ -11,8 +11,14 @@ export const PERCENTAGES: readonly number[] = [100, 95, 90, 85, 80, 75, 70, 65, 
 export const REP_RANGE_MAX = 12;
 /** Same switch point as `training.e1rm`. */
 const EPLEY_FROM_REPS = 37;
-/** Estimates from more reps than this get the "unreliable" hint. */
-export const UNRELIABLE_ABOVE_REPS = 12;
+/**
+ * Rep cap for a rankable e1RM (Wave 2, G1 item 2). TODO(G1): replace with
+ * `E1RM_MAX_REPS` from '@/lib/training' once G1's branch merges (it is not
+ * exported on this branch yet); the value is the same, 12.
+ */
+export const E1RM_MAX_REPS = 12;
+/** Estimates from more reps than this get the warning (the estimate is still shown). */
+export const UNRELIABLE_ABOVE_REPS = E1RM_MAX_REPS;
 /** The UI rejects rep counts above this; estimates past it are meaningless. */
 export const MAX_REPS = 30;
 

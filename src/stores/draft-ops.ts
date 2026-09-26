@@ -3,8 +3,10 @@
  * actions (`swapExercise`, `addPreparedExercise`, `prependWarmups`,
  * `replaceExercises`, `startDraft`). Every function returns new objects and
  * never mutates its input; an unknown uid or a null draft returns the input.
+ * Wave 2: `draftFromLog` (repeat workout) and `reorderByUids` (order by
+ * station / manual reorder).
  */
-import type { Exercise, SessionExercise, SetEntry, WorkoutDraft } from '@/contracts/domain';
+import type { Exercise, SessionExercise, SetEntry, WorkoutDraft, WorkoutLog } from '@/contracts/domain';
 import { newUuid } from '@/lib/db/ids';
 
 const newId = newUuid;
@@ -111,4 +113,56 @@ export function prependWarmupsTo(ex: SessionExercise, warmups: readonly SetEntry
   const at = ex.sets.findIndex((s) => s.type !== 'warmup');
   const cut = at === -1 ? ex.sets.length : at;
   return { ...ex, sets: [...ex.sets.slice(0, cut), ...copies, ...ex.sets.slice(cut)] };
+}
+
+/**
+ * "Repeat workout" (G4-25): a new draft with the log's exercises in the log's
+ * order. Fresh draft id, uids and set ids; every set is undone (no
+ * `completedAt`, `rir`, `isPR`, `e1rm`); kg/reps/`durationSeconds` stay as the
+ * prefill; a done working set's kg/reps become `ghostKg`/`ghostReps` ("beat
+ * it"), other sets keep no ghost. Warm-ups stay warm-ups. Kept per exercise:
+ * name, modality, rest, superset group, impact snapshot and `tempo` per set;
+ * the exercise `notes` are dropped (they described that day). `sessionName`
+ * comes from the log. NOT carried: `programId` / `programSessionId` (a repeat
+ * is a quick workout and never advances a rotation), `isDeload`, the log notes.
+ */
+export function draftFromLog(profileId: string, log: WorkoutLog, startedAt: string): WorkoutDraft {
+  const exercises = log.exercises.map((ex): SessionExercise => {
+    const out: SessionExercise = {
+      uid: newId(),
+      exerciseId: ex.exerciseId,
+      exerciseName: ex.exerciseName,
+      modality: ex.modality,
+      sets: ex.sets.map(repeatSet),
+    };
+    if (ex.restSeconds !== undefined) out.restSeconds = ex.restSeconds;
+    if (ex.supersetGroup !== undefined) out.supersetGroup = ex.supersetGroup;
+    if (ex.muscleImpactSnapshot) out.muscleImpactSnapshot = ex.muscleImpactSnapshot.map((m) => ({ ...m }));
+    return out;
+  });
+  return makeDraft({ profileId, sessionName: log.sessionName, exercises }, startedAt);
+}
+
+function repeatSet(s: SetEntry): SetEntry {
+  const out: SetEntry = { id: newId(), type: s.type, kg: s.kg, reps: s.reps, done: false };
+  if (s.tempo !== undefined) out.tempo = s.tempo;
+  if (s.durationSeconds !== undefined) out.durationSeconds = s.durationSeconds;
+  if (s.done && s.type !== 'warmup' && s.durationSeconds === undefined) {
+    out.ghostKg = s.kg;
+    out.ghostReps = s.reps;
+  }
+  return out;
+}
+
+/**
+ * The draft with its exercises in `uids` order. `uids` must be an exact
+ * permutation of the draft's uids (same size, no duplicates, none unknown or
+ * missing); anything else returns the input unchanged.
+ */
+export function reorderByUids(draft: WorkoutDraft | null, uids: readonly string[]): WorkoutDraft | null {
+  if (!draft || uids.length !== draft.exercises.length) return draft;
+  const byUid = new Map(draft.exercises.map((e) => [e.uid, e]));
+  if (new Set(uids).size !== uids.length || uids.some((u) => !byUid.has(u))) return draft;
+  if (uids.every((u, i) => draft.exercises[i].uid === u)) return draft;
+  return { ...draft, exercises: uids.map((u) => byUid.get(u) as SessionExercise) };
 }

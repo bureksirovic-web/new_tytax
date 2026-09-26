@@ -124,3 +124,37 @@ describe('RmCalculator', () => {
     expect(screen.getByTestId('rm-unreliable-hint')).toBeInTheDocument();
   });
 });
+
+describe('RmCalculator high-rep warning (Wave 2, G3 item 6)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('E1RM_MAX_REPS is 12 and drives the warning threshold', async () => {
+    const { E1RM_MAX_REPS, UNRELIABLE_ABOVE_REPS } = await import('../rm-math');
+    expect(E1RM_MAX_REPS).toBe(12);
+    expect(UNRELIABLE_ABOVE_REPS).toBe(12);
+  });
+
+  it('warns above 12 reps and still shows the estimate', () => {
+    render(
+      <LocaleProvider>
+        <RmCalculator />
+      </LocaleProvider>,
+    );
+    const reps = screen.getByLabelText('Reps');
+    fireEvent.change(reps, { target: { value: '12' } });
+    expect(screen.queryByTestId('rm-warning')).not.toBeInTheDocument();
+    // The live region is mounted (empty) before the warning appears, so it gets announced.
+    const region = screen.getByTestId('rm-warning-region');
+    expect(region).toHaveAttribute('role', 'status');
+    expect(region).toBeEmptyDOMElement();
+    fireEvent.change(reps, { target: { value: '15' } });
+    // 100 * 36 / (37 - 15) = 163.64; /0.5 = 327.27 -> 327 -> 163.5
+    expect(screen.getByTestId('rm-result')).toHaveTextContent('163.5');
+    const warning = screen.getByTestId('rm-warning');
+    expect(warning).toBeVisible();
+    expect(screen.getByTestId('rm-warning-region')).toBe(region);
+    expect(region).toContainElement(warning);
+    expect(warning).toHaveTextContent('Estimates from more than 12 reps are unreliable');
+    expect(screen.getByTestId('rm-percent-table')).toBeInTheDocument();
+  });
+});

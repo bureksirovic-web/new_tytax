@@ -50,6 +50,20 @@ test('1RM calculator: 100 kg × 5 estimates 112.5 kg', async ({ page, tytax }) =
   await expect(page.getByTestId('rm-result')).toHaveText('100');
 });
 
+test('1RM calculator warns above 12 reps and still shows the estimate', async ({ page, tytax }) => {
+  await tytax.gotoApp('/tools/rm-calculator');
+  await page.getByTestId('rm-weight-input').fill('100');
+  await page.getByTestId('rm-reps-input').fill('15');
+  // Brzycki: 100 × 36 / (37 − 15) = 163.64 → 163.5 (0.5 kg rounding).
+  await expect(page.getByTestId('rm-result')).toHaveText('163.5');
+  await expect(page.getByTestId('rm-warning')).toBeVisible();
+  await expect(page.getByTestId('rm-unreliable-hint')).toBeVisible();
+
+  await page.getByTestId('rm-reps-input').fill('5');
+  await expect(page.getByTestId('rm-result')).toHaveText('112.5');
+  await expect(page.getByTestId('rm-warning')).toHaveCount(0);
+});
+
 test('rest timer starts at the profile default, takes +30 s and counts down', async ({ page, tytax }) => {
   await page.clock.install({ time: new Date('2026-09-20T10:00:00Z') });
   await tytax.gotoApp('/workout');

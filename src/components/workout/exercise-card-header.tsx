@@ -1,9 +1,10 @@
 'use client';
 import type { Exercise, SessionExercise } from '@/contracts/domain';
 import { useSetsStrings } from './strings/sets';
+import { useSetupStrings } from './strings/setup';
 import { VideoButton } from './video-button';
 import { ExerciseRemoveButton } from './exercise-remove-button';
-import { ArrowDownIcon, ArrowUpIcon, SwapIcon } from './icons';
+import { ArrowDownIcon, ArrowUpIcon, SlidersIcon, SwapIcon } from './icons';
 
 export interface ExerciseCardHeaderProps {
   exercise: SessionExercise;
@@ -15,6 +16,8 @@ export interface ExerciseCardHeaderProps {
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
   onSwap: () => void;
+  /** Opens the machine-setup sheet; no button when omitted. */
+  onEditSetup?: () => void;
 }
 
 export const cardIconButton =
@@ -29,9 +32,12 @@ export function ExerciseCardHeader({
   onMove,
   onRemove,
   onSwap,
+  onEditSetup,
 }: ExerciseCardHeaderProps) {
   const t = useSetsStrings();
+  const s = useSetupStrings();
   const name = exercise.exerciseName;
+  const editSetupLabel = `${name}: ${s('setup_edit')}`;
 
   return (
     <div className="mb-2 flex flex-wrap items-start gap-1">
@@ -44,6 +50,18 @@ export function ExerciseCardHeader({
       </h2>
       <div className="flex items-center">
         <VideoButton name={name} exercise={catalogExercise} />
+        {onEditSetup && (
+          <button
+            type="button"
+            data-testid="edit-setup"
+            aria-label={editSetupLabel}
+            aria-haspopup="dialog"
+            onClick={onEditSetup}
+            className={cardIconButton}
+          >
+            <SlidersIcon />
+          </button>
+        )}
         <button
           type="button"
           data-testid="swap-exercise"
