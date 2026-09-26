@@ -1,103 +1,65 @@
 'use client';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useLocale } from '@/components/providers';
-import type { KineticImpactScore } from '@/lib/analytics/kinetic-impact';
-import type { ParityResult } from '@/lib/analytics/volume-parity';
+import { useMemo } from 'react';
+import type { WorkoutLog } from '@/contracts/domain';
+import type { ExerciseLookup } from '@/contracts/training';
+import { Card, CardHeader } from '@/components/ui';
+import { useT } from '@/lib/i18n/use-t';
+import { localDay, shiftDay } from './analytics-dates';
+import { movementParity } from './exercise-series';
+import { num, PATTERN_KEYS } from './labels';
+import { SectionTitle } from './section-title';
 
-/** Score scale suffix (notation, not copy). */
-const OUT_OF_100 = '/ 100';
+interface Props {
+  logs: readonly WorkoutLog[];
+  lookup: ExerciseLookup;
+  now: Date;
+}
 
-/** Percent width for a bar; the only dynamic geometry here, so it stays a style value. */
-const widthPct = (value: number, max: number) => ({ width: `${Math.max(0, Math.min(100, (value / max) * 100))}%` });
-
-export function KineticImpactCard({ kineticImpact }: { kineticImpact: KineticImpactScore | null }) {
-  const { t } = useLocale();
-  const components = kineticImpact
-    ? [
-        { label: 'ACWR', val: kineticImpact.components.acwrScore, max: 30 },
-        { label: t('volume_parity'), val: kineticImpact.components.parityScore, max: 30 },
-        { label: t('history_sessions'), val: kineticImpact.components.consistencyScore, max: 20 },
-        { label: t('volume'), val: kineticImpact.components.volumeScore, max: 20 },
-      ]
-    : [];
-  const badge = kineticImpact?.label === 'excellent' ? 'success' : kineticImpact?.label === 'poor' ? 'danger' : 'default';
+/**
+ * Movement balance over the last 30 days: volume share per movement pattern
+ * against a balanced target (±5 points counts as on target).
+ * Wave 0's KineticImpactCard was dropped: its score and English explanation
+ * came from `lib/analytics`, which imports the eager catalog (`@/data`).
+ */
+export function VolumeParityCard({ logs, lookup, now }: Props) {
+  const { t, locale } = useT();
+  const rows = useMemo(() => movementParity(logs, lookup, shiftDay(localDay(now), -29)), [logs, lookup, now]);
+  const ok = rows.filter((r) => r.onTarget).length;
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle>{t('kinetic_impact')}</CardTitle>
-        {kineticImpact && <Badge variant={badge}>{kineticImpact.label.toUpperCase()}</Badge>}
-      </CardHeader>
-      {kineticImpact ? (
-        <div className="pb-2">
-          <div className="mb-2 flex items-baseline gap-2">
-            <span className="font-display text-5xl font-bold text-[var(--accent)]">{kineticImpact.score}</span>
-            <span className="text-sm text-[var(--text-muted)]">{OUT_OF_100}</span>
-          </div>
-          <p className="mb-4 text-sm text-[var(--text-muted)]">{kineticImpact.explanation}</p>
-          <div className="space-y-2">
-            {components.map((c) => (
-              <div key={c.label}>
-                <div className="mb-1 flex justify-between text-xs text-[var(--text-secondary)]">
-                  <span>{c.label}</span>
-                  <span>
-                    {c.val}/{c.max}
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--border-color)]">
-                  <div className="h-full bg-[var(--accent)]" style={widthPct(c.val, c.max)} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p className="pb-2 text-sm text-[var(--text-muted)]">{t('no_data')}</p>
-      )}
-    </Card>
-  );
-}
-
-function parityTone(delta: number): { bar: string; tint: string } {
-  if (Math.abs(delta) <= 5) return { bar: 'bg-[var(--accent)]', tint: 'bg-[var(--accent)]/20' };
-  if (delta < 0) return { bar: 'bg-[var(--highlight)]', tint: 'bg-[var(--highlight)]/20' };
-  return { bar: 'bg-red-500', tint: 'bg-red-500/20' };
-}
-
-export function VolumeParityCard({ volumeParity }: { volumeParity: readonly ParityResult[] }) {
-  const { t } = useLocale();
-  const optimal = volumeParity.filter((p) => Math.abs(p.delta) <= 5).length;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('volume_parity')} (30d)</CardTitle>
-      </CardHeader>
-      {volumeParity.length > 0 ? (
-        <div className="space-y-3 pb-2">
-          {volumeParity.map((p) => {
-            const tone = parityTone(p.delta);
-            const share = `${p.percentage.toFixed(1)}% (${t('target')}: ${p.targetPercentage}%)`;
-            return (
-              <div key={p.pattern}>
-                <div className="mb-1 flex justify-between text-xs">
-                  <span className="capitalize text-[var(--text-secondary)]">{p.pattern}</span>
-                  <span className="text-[var(--text-muted)]">{share}</span>
-                </div>
-                <div className={`relative h-2 overflow-hidden rounded-full ${tone.tint}`}>
-                  <div className={`relative z-10 h-full rounded-full ${tone.bar}`} style={widthPct(p.percentage, 100)} />
-                </div>
-              </div>
-            );
-          })}
-          <p className="mt-2 border-t border-[var(--border-color)] pt-2 text-xs text-[var(--text-muted)]">
-            {t('overall_balance')}: {optimal} / {volumeParity.length} {t('optimal').toLowerCase()}
-          </p>
-        </div>
-      ) : (
-        <p className="pb-2 text-sm text-[var(--text-muted)]">{t('no_data')}</p>
-      )}
+      <section aria-labelledby="ana-parity-title">
+        <CardHeader>
+          <SectionTitle id="ana-parity-title">{t('ana_parity')}</SectionTitle>
+        </CardHeader>
+        {rows.length === 0 ? (
+          <p className="text-sm text-fg-muted">{t('ana_no_data')}</p>
+        ) : (
+          <>
+            <ul className="space-y-3" data-testid="ana-parity-list">
+              {rows.map((r) => (
+                <li key={r.pattern}>
+                  <div className="mb-1 flex justify-between gap-2 text-xs">
+                    <span className="text-fg">{t(PATTERN_KEYS[r.pattern])}</span>
+                    <span className="text-fg-2">{t('ana_parity_row', { pct: num(r.pct, locale), target: r.target })}</span>
+                  </div>
+                  <svg className="h-2 w-full" aria-hidden="true">
+                    <rect width="100%" height="100%" rx={4} className="fill-line" />
+                    <rect
+                      width={`${Math.min(100, r.pct)}%`}
+                      height="100%"
+                      rx={4}
+                      className={r.onTarget ? 'fill-accent' : r.pct < r.target ? 'fill-highlight' : 'fill-status-fried'}
+                    />
+                    <rect x={`${r.target}%`} width={2} height="100%" className="fill-fg" />
+                  </svg>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 border-t border-line pt-2 text-xs text-fg-2">{t('ana_parity_summary', { ok, total: rows.length })}</p>
+          </>
+        )}
+      </section>
     </Card>
   );
 }

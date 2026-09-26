@@ -1,84 +1,122 @@
 'use client';
-import { useCallback, useMemo } from 'react';
-import type { WorkoutLog } from '@/contracts/domain';
+import { useCallback, useMemo, useState } from 'react';
+import type { BodyweightEntry, ProfileSettings, Units, WorkoutLog } from '@/contracts/domain';
+import type { Repository } from '@/contracts/repo';
 import type { ExerciseLookup } from '@/contracts/training';
 import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
 import { useCatalog } from '@/hooks/use-exercises';
-import { computeACWR } from '@/lib/analytics/acwr';
-import { computeWeeklyVolume, volumeByMuscle } from '@/lib/analytics/volume';
-import { getBestLifts, getE1RMProgression } from '@/lib/analytics/pr-tracker';
-import { analyzeMuscleGaps } from '@/lib/analytics/gap-analysis';
-import { computeVolumeParity } from '@/lib/analytics/volume-parity';
-import { computeKineticImpact } from '@/lib/analytics/kinetic-impact';
+import { localDay } from './analytics-dates';
 
-/** Local calendar day (`'YYYY-MM-DD'`) `days` days before today. */
+/** Local calendar day (`'YYYY-MM-DD'`) `days` days before `now`. */
 export function localDayDaysAgo(days: number, now: Date = new Date()): string {
-  const d = new Date(now);
-  d.setDate(d.getDate() - days);
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
+  return localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - days));
 }
 
-/** The active profile's logs of the last `windowDays` local days, oldest first. */
-function useProfileLogs(windowDays: number): { logs: WorkoutLog[] | undefined } {
-  const { profileId } = useActiveProfile();
-  const { data } = useRepoQuery(
-    // The repository returns newest first; the analytics helpers read oldest first.
-    async (repo) => (profileId ? (await repo.logs.list(profileId, { from: localDayDaysAgo(windowDays) })).reverse() : []),
-    [profileId, windowDays],
-  );
-  return { logs: data };
+/** Clock for one mounted screen: fixed per mount so memoised maths does not churn. */
+function useNow(): Date {
+  const [now] = useState(() => new Date());
+  return now;
 }
 
-/** Exercise name from the lazy catalog, falling back to the id. */
-function useExerciseName(): { lookup: ExerciseLookup | undefined; nameOf: (id: string) => string; catalogLoading: boolean } {
-  const { catalog, loading: catalogLoading } = useCatalog();
+export interface ExerciseNames {
+  lookup: ExerciseLookup | undefined;
+  /** Catalog name, else the log's snapshot name, else the id. */
+  nameOf: (id: string, fallback?: string) => string;
+  catalogLoading: boolean;
+  /** True when the catalog is loaded (or failed) and has no entry for `id`. */
+  isUnknown: (id: string) => boolean;
+}
+
+export function useExerciseNames(): ExerciseNames {
+  const { catalog, loading, error } = useCatalog();
   const lookup = useMemo<ExerciseLookup | undefined>(() => (catalog ? (id) => catalog.getById(id) : undefined), [catalog]);
-  const nameOf = useCallback((id: string) => catalog?.getById(id)?.name ?? id, [catalog]);
-  return { lookup, nameOf, catalogLoading };
+  const nameOf = useCallback((id: string, fallback?: string) => catalog?.getById(id)?.name ?? fallback ?? id, [catalog]);
+  const isUnknown = useCallback((id: string) => !loading && (Boolean(error) || !catalog?.getById(id)), [catalog, loading, error]);
+  return { lookup, nameOf, catalogLoading: loading, isUnknown };
 }
 
-/** Analytics over the active profile's logs (repository) and the lazy catalog. */
-export function useAnalyticsData(windowDays = 90) {
-  const { logs } = useProfileLogs(windowDays);
-  const { lookup, nameOf, catalogLoading } = useExerciseName();
+export interface AnalyticsData {
+  loading: boolean;
+  profileId: string | undefined;
+  units: Units;
+  /** The active profile's live logs, whole history, newest first. */
+  logs: WorkoutLog[];
+  /** Exercise lookup from the lazy catalog; undefined while it loads (sections fall back to log snapshots). */
+  lookup: ExerciseLookup;
+  nameOf: ExerciseNames['nameOf'];
+  catalogLoading: boolean;
+  now: Date;
+}
 
-  const acwr = useMemo(() => (logs ? computeACWR(logs) : []), [logs]);
-  const weeklyVolume = useMemo(() => (logs ? computeWeeklyVolume(logs) : []), [logs]);
-  const muscleGaps = useMemo(() => (logs ? analyzeMuscleGaps(logs) : []), [logs]);
-  const bestLifts = useMemo(() => (logs ? getBestLifts(logs) : {}), [logs]);
-  const muscleVolume = useMemo(() => (logs ? volumeByMuscle(logs) : {}), [logs]);
-  // Pattern-based scores need exercise metadata: wait for the catalog.
-  const volumeParity = useMemo(() => (logs && lookup ? computeVolumeParity(logs, 30, { lookup }) : []), [logs, lookup]);
-  const kineticImpact = useMemo(
-    () => (logs && lookup ? computeKineticImpact(logs, 28, { lookup }) : null),
-    [logs, lookup],
+const EMPTY_LOOKUP: ExerciseLookup = () => undefined;
+
+/** Everything the analytics screen reads: profile, units, logs (repository) and names (lazy catalog). */
+export function useAnalyticsData(): AnalyticsData {
+  const { profile, profileId, loading: profileLoading } = useActiveProfile();
+  const { data: logs } = useRepoQuery(
+    async (repo: Repository) => (profileId ? repo.logs.list(profileId) : []),
+    [profileId],
   );
-
+  const { lookup, nameOf, catalogLoading } = useExerciseNames();
+  const now = useNow();
   return {
+    loading: profileLoading || (profileId !== undefined && logs === undefined),
+    profileId,
+    units: profile?.settings.units ?? 'kg',
     logs: logs ?? [],
-    acwr,
-    weeklyVolume,
-    muscleGaps,
-    bestLifts,
-    muscleVolume,
-    volumeParity,
-    kineticImpact,
+    lookup: lookup ?? EMPTY_LOOKUP,
     nameOf,
-    // A catalog that failed to load leaves the pattern-based cards empty instead of spinning.
-    isLoading: logs === undefined || catalogLoading,
+    catalogLoading,
+    now,
   };
 }
 
-/** e1RM history of one exercise over the active profile's whole history. */
-export function useExerciseAnalyticsData(exerciseId: string) {
-  const { profileId } = useActiveProfile();
-  const { data: logs } = useRepoQuery(
-    async (repo) => (profileId ? (await repo.logs.historyFor(profileId, exerciseId)).reverse() : []),
+/** Live logs containing `exerciseId`, newest first, for the active profile. */
+export function useExerciseHistory(exerciseId: string) {
+  const { profile, profileId, loading: profileLoading } = useActiveProfile();
+  const { data } = useRepoQuery(
+    async (repo: Repository) => (profileId ? repo.logs.historyFor(profileId, exerciseId) : []),
     [profileId, exerciseId],
   );
-  const { nameOf } = useExerciseName();
-  const e1rmProgression = useMemo(() => (logs ? getE1RMProgression(logs, exerciseId) : []), [logs, exerciseId]);
-  return { e1rmProgression, exerciseName: nameOf(exerciseId), isLoading: logs === undefined };
+  return {
+    logs: data ?? [],
+    units: (profile?.settings.units ?? 'kg') as Units,
+    loading: profileLoading || (profileId !== undefined && data === undefined),
+  };
+}
+
+/** Bodyweight entries of the active profile, newest first. */
+export function useBodyweightEntries(profileId: string | undefined) {
+  const { data } = useRepoQuery(
+    async (repo: Repository): Promise<BodyweightEntry[]> => (profileId ? repo.bodyweight.list(profileId) : []),
+    [profileId],
+  );
+  return { entries: data ?? [], loading: data === undefined };
+}
+
+// ─── Pinned exercises ────────────────────────────────────────────────────────
+
+export const MAX_PINNED = 4;
+
+/**
+ * Pins live in `settings.pinnedExerciseIds` (additive optional field proposed
+ * in docs/v2/requests/G4-30-pinned-exercises.md). The repository keeps unknown
+ * settings keys, so this persists per profile before the contract lands.
+ */
+export type SettingsWithPins = ProfileSettings & { pinnedExerciseIds?: string[] };
+
+export function readPins(settings: ProfileSettings | undefined): string[] {
+  const raw = (settings as SettingsWithPins | undefined)?.pinnedExerciseIds;
+  return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string').slice(0, MAX_PINNED) : [];
+}
+
+export async function savePins(repo: Repository, profileId: string, ids: readonly string[]): Promise<void> {
+  const unique = [...new Set(ids)].slice(0, MAX_PINNED);
+  await repo.profiles.updateSettings(profileId, { pinnedExerciseIds: unique } as Partial<SettingsWithPins>);
+}
+
+export function usePinnedExercises(): { pins: string[]; profileId: string | undefined } {
+  const { profile, profileId } = useActiveProfile();
+  const pins = useMemo(() => readPins(profile?.settings), [profile?.settings]);
+  return { pins, profileId };
 }

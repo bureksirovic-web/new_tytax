@@ -1,9 +1,18 @@
 'use client';
 /**
- * Wave 0: analytics now read logs through the repository and the lazy catalog
- * (`src/components/analytics/use-analytics-data.ts`). Kept as the stable hook path.
+ * Stable hook path for analytics data. Implementation lives next to the
+ * analytics components (`src/components/analytics/use-analytics-data.ts`).
  */
 export {
+  useAnalyticsData,
   useAnalyticsData as useAnalytics,
-  useExerciseAnalyticsData as useExerciseAnalytics,
+  useExerciseHistory,
+  useExerciseNames,
+  useBodyweightEntries,
+  usePinnedExercises,
+  readPins,
+  savePins,
+  MAX_PINNED,
+  localDayDaysAgo,
 } from '@/components/analytics/use-analytics-data';
+export type { AnalyticsData, ExerciseNames } from '@/components/analytics/use-analytics-data';
