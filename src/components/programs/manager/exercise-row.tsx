@@ -4,7 +4,7 @@ import type { ProgramExercise } from '@/contracts/domain';
 import { Button } from '@/components/ui/button';
 import { NumberStepper } from '@/components/ui/number-stepper';
 import { useT } from '@/lib/i18n/use-t';
-import { REST_MAX, REST_MIN, REST_STEP, SETS_MAX, SETS_MIN, clamp, isValidReps } from '../lib/session-edit';
+import { REPS_MAX_LENGTH, REST_MAX, REST_MIN, REST_STEP, SETS_MAX, SETS_MIN, clamp, normalizeReps } from '../lib/session-edit';
 
 /** Icon glyph (not copy); the button's name comes from aria-label. */
 const REMOVE_GLYPH = '✕';
@@ -28,7 +28,8 @@ export function ExerciseRow({ slot, index, count, onMove, onRemove, onPatch }: E
   const [sets, setSets] = useState(slot.sets);
   const [reps, setReps] = useState(slot.reps);
   const [rest, setRest] = useState(slot.restSeconds ?? 0);
-  const repsOk = isValidReps(reps);
+  const repsNorm = normalizeReps(reps);
+  const repsOk = repsNorm !== null;
   const repsId = `reps-${slot.exerciseId}-${index}`;
 
   function open() {
@@ -39,8 +40,8 @@ export function ExerciseRow({ slot, index, count, onMove, onRemove, onPatch }: E
   }
 
   function done() {
-    if (!repsOk) return;
-    onPatch(index, { sets: clamp(sets, SETS_MIN, SETS_MAX), reps: reps.trim(), restSeconds: clamp(rest, REST_MIN, REST_MAX) });
+    if (repsNorm === null) return;
+    onPatch(index, { sets: clamp(sets, SETS_MIN, SETS_MAX), reps: repsNorm, restSeconds: clamp(rest, REST_MIN, REST_MAX) });
     setEditing(false);
   }
 
@@ -83,6 +84,7 @@ export function ExerciseRow({ slot, index, count, onMove, onRemove, onPatch }: E
             <input
               id={repsId}
               value={reps}
+              maxLength={REPS_MAX_LENGTH + 8}
               onChange={(e) => setReps(e.target.value)}
               aria-invalid={!repsOk}
               aria-describedby={repsOk ? undefined : `${repsId}-err`}

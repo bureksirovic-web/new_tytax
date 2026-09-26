@@ -1,5 +1,6 @@
 'use client';
 import { use } from 'react';
+import { DamagedLog, isRenderableLog } from '@/components/history/damaged-log';
 import { HistoryDetail } from '@/components/history/history-detail';
 import { HistoryDetailLoading, HistoryNotFound } from '@/components/history/not-found-state';
 import { UndoSnackbar } from '@/components/history/undo-snackbar';
@@ -21,7 +22,8 @@ export default function HistoryDetailPage({ params }: Props) {
     <>
       {view === 'loading' ? <HistoryDetailLoading /> : null}
       {view === 'missing' ? <HistoryNotFound /> : null}
-      {view === 'ready' && log ? <HistoryDetail log={log} units={units} programName={programName} /> : null}
+      {view === 'ready' && log && !isRenderableLog(log) ? <DamagedLog log={log} /> : null}
+      {view === 'ready' && log && isRenderableLog(log) ? <HistoryDetail log={log} units={units} programName={programName} /> : null}
       <UndoSnackbar />
     </>
   );

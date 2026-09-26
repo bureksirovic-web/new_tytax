@@ -19,34 +19,48 @@ export interface PendingUndo {
 }
 
 interface UndoState {
+  /** The most recent delete; Undo restores this one first. */
   pending: PendingUndo | null;
+  /** Older deletes still inside their own window, oldest first (a stack under `pending`). */
+  earlier: PendingUndo[];
   /** Soft-deletes the log and opens the undo window. */
   remove(repo: Repository, profileId: string, logId: string): Promise<void>;
-  /** Restores the pending log; returns true when something was restored. */
+  /** Restores the most recent pending log; the next one (if still in its window) becomes pending. */
   undo(repo: Repository): Promise<boolean>;
   dismiss(token?: number): void;
 }
 
 let counter = 0;
 
+const alive = (entries: PendingUndo[], now: number) => entries.filter((e) => e.expiresAt >= now);
+
 export const useHistoryUndo = create<UndoState>((set, get) => ({
   pending: null,
+  earlier: [],
   async remove(repo, profileId, logId) {
     await repo.logs.softDelete(profileId, logId);
     counter += 1;
-    set({ pending: { profileId, logId, token: counter, expiresAt: Date.now() + UNDO_WINDOW_MS } });
+    const now = Date.now();
+    const { pending, earlier } = get();
+    set({
+      pending: { profileId, logId, token: counter, expiresAt: now + UNDO_WINDOW_MS },
+      earlier: alive(pending ? [...earlier, pending] : earlier, now),
+    });
   },
   async undo(repo) {
-    const pending = get().pending;
+    const { pending, earlier } = get();
     if (!pending) return false;
-    set({ pending: null });
-    if (Date.now() > pending.expiresAt) return false;
+    const now = Date.now();
+    const rest = alive(earlier, now);
+    set({ pending: rest[rest.length - 1] ?? null, earlier: rest.slice(0, -1) });
+    if (now > pending.expiresAt) return false;
     await repo.logs.restore(pending.profileId, pending.logId);
     return true;
   },
   dismiss(token) {
     const pending = get().pending;
     if (!pending || (token !== undefined && pending.token !== token)) return;
-    set({ pending: null });
+    // Older entries expire before the newest one, so nothing is left to undo.
+    set({ pending: null, earlier: [] });
   },
 }));

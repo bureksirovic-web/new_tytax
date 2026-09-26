@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { parseLocalDay } from '@/lib/utils';
+import { DamagedCard, isRenderableLog } from './damaged-log';
 import { HistoryCard } from './history-card';
 import { groupByMonth } from './log-math';
 import { useHistoryUndo } from './undo-store';
@@ -34,7 +35,9 @@ export function HistoryList() {
     async (r) => {
       if (!profileId) return { profileId, logs: [], total: 0 };
       const [logs, total] = await Promise.all([r.logs.list(profileId, { limit }), r.logs.count(profileId)]);
-      return { profileId, logs, total };
+      // A row the list can never return (e.g. a restored row without a date) must
+      // not inflate the count: once a page comes back short, the list is complete.
+      return { profileId, logs, total: logs.length < limit ? logs.length : Math.max(total, logs.length) };
     },
     [profileId, limit],
   );
@@ -61,6 +64,8 @@ export function HistoryList() {
       </p>
     );
   }
+  const listed = page?.logs.filter((l) => typeof l.date === 'string' && /^\d{4}-\d{2}/.test(l.date)) ?? [];
+  const undated = page?.logs.filter((l) => !listed.includes(l)) ?? [];
   if (profileLoading || !page) {
     return (
       <div className="space-y-3" aria-busy="true">
@@ -96,7 +101,7 @@ export function HistoryList() {
           {t('hist_action_failed')}
         </p>
       ) : null}
-      {groupByMonth(page.logs).map((group) => (
+      {groupByMonth(listed).map((group) => (
         <section key={group.key} aria-labelledby={`hist-month-${group.key}`} className="mb-5">
           <h2
             id={`hist-month-${group.key}`}
@@ -105,12 +110,23 @@ export function HistoryList() {
             {formatDate(parseLocalDay(`${group.key}-01`), locale, MONTH_FORMAT)}
           </h2>
           <ul className="space-y-3">
-            {group.logs.map((log) => (
-              <HistoryCard key={log.id} log={log} units={units} onDelete={onDelete} />
-            ))}
+            {group.logs.map((log) =>
+              isRenderableLog(log) ? (
+                <HistoryCard key={log.id} log={log} units={units} onDelete={onDelete} />
+              ) : (
+                <DamagedCard key={log.id} log={log} onDelete={onDelete} />
+              ),
+            )}
           </ul>
         </section>
       ))}
+      {undated.length > 0 ? (
+        <ul className="mb-5 space-y-3">
+          {undated.map((log) => (
+            <DamagedCard key={log.id} log={log} onDelete={onDelete} />
+          ))}
+        </ul>
+      ) : null}
       {page.logs.length < page.total ? (
         <div className="flex flex-col items-center gap-2">
           <p className="text-xs text-fg-muted">{t('hist_showing', { shown: page.logs.length, total: page.total })}</p>

@@ -103,9 +103,9 @@ describe('ExerciseDetail', () => {
     expect(links[1]).not.toHaveTextContent('110.2 lb'); // 50 kg warm-up not listed
     expect(screen.getByTestId('exercise-best-e1rm')).toHaveTextContent('248 lb');
     expect(screen.queryByText(/Deleted|Foreign/)).toBeNull();
-    // Two sessions → chart rendered with a text summary; 105×3 → 105·36/34 = 111.18 → 111.2 kg; 111.2 × 2.20462 = 245.15 → 245.2 lb.
+    // Two sessions → chart rendered with a text summary; 105×3 → 105·36/34 = 111.18 kg (rankableE1rm, not pre-rounded, same as /analytics); 111.18 × 2.20462 = 245.11 → 245.1 lb.
     const chart = screen.getByTestId('exercise-e1rm-chart');
-    expect(within(chart).getByRole('img').getAttribute('aria-label')).toMatch(/2 sessions: from 248 lb .* to 245\.2 lb .* best 248 lb/);
+    expect(within(chart).getByRole('img').getAttribute('aria-label')).toMatch(/2 sessions: from 248 lb .* to 245\.1 lb .* best 248 lb/);
   });
 
   it('keeps notes per exercise: saved on one, empty on another', async () => {

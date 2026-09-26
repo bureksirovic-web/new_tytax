@@ -24,7 +24,7 @@ export interface BackupService {
 
 /** Thrown by the local service; `code` matches G2's `ImportError.code`. */
 export class BackupFileError extends Error {
-  constructor(readonly code: 'TOO_LARGE' | 'INVALID_JSON' | 'UNSAFE_KEYS' | 'UNRECOGNIZED_FORMAT' | 'INVALID_STRUCTURE') {
+  constructor(readonly code: 'TOO_LARGE' | 'INVALID_JSON' | 'UNSAFE_KEYS' | 'UNRECOGNIZED_FORMAT' | 'INVALID_STRUCTURE' | 'INVALID_LOGS' | 'INVALID_SETTINGS') {
     super(`backup file rejected: ${code}`);
     this.name = 'BackupFileError';
   }
@@ -36,6 +36,8 @@ const PROBLEM_CODE = {
   unsafe: 'UNSAFE_KEYS',
   unrecognized: 'UNRECOGNIZED_FORMAT',
   structure: 'INVALID_STRUCTURE',
+  bad_logs: 'INVALID_LOGS',
+  bad_settings: 'INVALID_SETTINGS',
 } as const;
 
 function parseOrThrow(text: string) {
@@ -88,6 +90,8 @@ const ERROR_KEY = {
   UNSAFE_KEYS: 'set_import_error_unsafe',
   UNRECOGNIZED_FORMAT: 'set_import_error_unrecognized',
   INVALID_STRUCTURE: 'set_import_error_structure',
+  INVALID_LOGS: 'set_import_error_logs',
+  INVALID_SETTINGS: 'set_import_error_settings',
   VALIDATION: 'set_restore_error_validation',
   NOT_FOUND: 'set_restore_error_not_found',
   CONFLICT: 'set_restore_error_conflict',

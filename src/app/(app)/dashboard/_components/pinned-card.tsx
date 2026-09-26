@@ -30,32 +30,35 @@ export function PinnedCard({ units }: { units: Units }) {
       </h2>
       <p className="mb-2 text-xs text-fg-muted">{t('dash_pinned_caption')}</p>
       <ul className="divide-y divide-line" data-testid="dash-pinned-list">
-        {lifts.map((lift, i) => (
-          <li key={lift.exerciseId} data-testid="dash-pinned-item" data-exercise-id={lift.exerciseId}>
-            <Link
-              href={`/analytics/${encodeURIComponent(lift.exerciseId)}`}
-              aria-label={t('dash_pinned_open', { name: lift.name })}
-              aria-describedby={`dash-pinned-value-${i}`}
-              className="-mx-2 flex min-h-11 items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
-            >
-              <span className="truncate text-sm font-medium text-fg">{lift.name}</span>
-              <span
-                id={`dash-pinned-value-${i}`}
-                data-testid="dash-pinned-value"
-                className="shrink-0 font-mono text-sm text-highlight"
+        {lifts.map((lift, i) => {
+          const name = lift.name ?? t('dash_pinned_removed');
+          return (
+            <li key={lift.exerciseId} data-testid="dash-pinned-item" data-exercise-id={lift.exerciseId}>
+              <Link
+                href={`/analytics/${encodeURIComponent(lift.exerciseId)}`}
+                aria-label={t('dash_pinned_open', { name })}
+                aria-describedby={`dash-pinned-value-${i}`}
+                className="-mx-2 flex min-h-11 items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
               >
-                {lift.latest ? (
-                  formatWeight(lift.latest.e1rm, units, locale)
-                ) : (
-                  <>
-                    <span aria-hidden="true">{NONE}</span>
-                    <span className="sr-only">{t('dash_pinned_no_data')}</span>
-                  </>
-                )}
-              </span>
-            </Link>
-          </li>
-        ))}
+                <span className="truncate text-sm font-medium text-fg">{name}</span>
+                <span
+                  id={`dash-pinned-value-${i}`}
+                  data-testid="dash-pinned-value"
+                  className="shrink-0 font-mono text-sm text-highlight"
+                >
+                  {lift.latest ? (
+                    formatWeight(lift.latest.e1rm, units, locale)
+                  ) : (
+                    <>
+                      <span aria-hidden="true">{NONE}</span>
+                      <span className="sr-only">{t('dash_pinned_no_data')}</span>
+                    </>
+                  )}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

@@ -12,7 +12,7 @@ const BENCH = { exerciseId: 'bench', exerciseName: 'Bench', sets: [{ kg: 100, re
 
 beforeEach(async () => {
   await resetDb();
-  useHistoryUndo.setState({ pending: null });
+  useHistoryUndo.setState({ pending: null, earlier: [] });
 });
 afterEach(() => {
   vi.useRealTimers();

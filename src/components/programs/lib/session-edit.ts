@@ -3,11 +3,27 @@
  */
 import type { Exercise, Program, ProgramExercise, ProgramSession } from '@/contracts/domain';
 
-/** Reps: "8", "8-12", "10/side", "10-15/side". */
-export const REPS_PATTERN = /^\d+(-\d+)?(\/side)?$/;
+export const REPS_MAX_LENGTH = 24;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
+const NUMERIC_ONLY = /^[\d\s\-\u2013\u2014/]+$/;
+const NUMERIC_RANGE = /^(\d+)(?:\s*[-\u2013\u2014]\s*(\d+))?(?:\s*\/\s*(side|leg|arm))?$/i;
+
+/**
+ * Reps target as stored, or null when invalid. Free text of 1–24 characters
+ * without control characters ("30-45s", "2-5 min", "8-12 (2s hold)"); numeric
+ * ranges are normalised ("8 – 12 / side" → "8-12/side"), and text made only of
+ * digits and dashes must be a well-formed number or range ("8-" is rejected).
+ */
+export function normalizeReps(reps: string): string | null {
+  const s = reps.trim();
+  if (s.length === 0 || s.length > REPS_MAX_LENGTH || CONTROL_CHARS.test(s)) return null;
+  const m = NUMERIC_RANGE.exec(s);
+  if (m) return `${m[1]}${m[2] !== undefined ? `-${m[2]}` : ''}${m[3] ? `/${m[3].toLowerCase()}` : ''}`;
+  return NUMERIC_ONLY.test(s) ? null : s;
+}
 
 export function isValidReps(reps: string): boolean {
-  return REPS_PATTERN.test(reps.trim());
+  return normalizeReps(reps) !== null;
 }
 
 export const SETS_MIN = 1;

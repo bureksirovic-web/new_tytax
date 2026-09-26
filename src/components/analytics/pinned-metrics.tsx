@@ -11,6 +11,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { pinnedSummary, type TrainedExercise } from './exercise-series';
 import { LineChart } from './line-chart';
 import { PinnedEditor } from './pinned-editor';
+import { pinnedDisplayName, useSnapshotNames } from './pinned-names';
 import { MAX_PINNED, savePins, usePinnedExercises } from './use-analytics-data';
 
 /** Shown when a pinned exercise has no data yet (notation, not copy). */
@@ -32,6 +33,7 @@ export function PinnedMetrics({ logs, exercises, nameOf, units }: Props) {
   const [editing, setEditing] = useState(0); // 0 = closed; a new number remounts the editor
   const [saving, setSaving] = useState(false);
   const summaries = useMemo(() => pins.map((id) => pinnedSummary(logs, id)), [pins, logs]);
+  const snapshots = useSnapshotNames(profileId, pins);
   const fmt = (kg: number) => formatWeight(kg, units, locale);
 
   const save = async (ids: string[]) => {
@@ -62,7 +64,9 @@ export function PinnedMetrics({ logs, exercises, nameOf, units }: Props) {
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2" data-testid="ana-pinned-list">
             {summaries.map((s) => {
-              const name = nameOf(s.exerciseId, exercises.find((e) => e.id === s.exerciseId)?.name);
+              const id = s.exerciseId;
+              const trained = exercises.find((e) => e.id === id)?.name;
+              const name = pinnedDisplayName(id, [nameOf(id, trained), snapshots[id]], t('ana_pinned_removed'));
               return (
                 <li key={s.exerciseId} className="rounded-lg border border-line bg-bg-2 p-3">
                   <Link

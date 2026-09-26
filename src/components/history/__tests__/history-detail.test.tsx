@@ -10,7 +10,7 @@ vi.mock('next/navigation', async () => (await import('./test-utils')).navigation
 
 beforeEach(async () => {
   await resetDb();
-  useHistoryUndo.setState({ pending: null });
+  useHistoryUndo.setState({ pending: null, earlier: [] });
 });
 
 const renderDetail = (id: string) => renderEn(<HistoryDetailPage params={resolvedParams(id)} />);

@@ -15,7 +15,10 @@ function barLength(value: number, max: number): number {
   return max > 0 ? Math.max(value > 0 ? 2 : 0, (value / max) * 100) : 0;
 }
 
-/** Done working-set volume, this ISO week vs last, with a text summary for screen readers. */
+/**
+ * Done working-set volume, this ISO week vs the whole last week (bars), with the
+ * % change against last week up to the same day and time, and a screen-reader summary.
+ */
 export function WeeklyVolumeCard({ volume, units }: WeeklyVolumeCardProps) {
   const { t, locale } = useT();
   const current = formatWeight(volume.thisWeekKg, units, locale);
@@ -58,7 +61,10 @@ export function WeeklyVolumeCard({ volume, units }: WeeklyVolumeCardProps) {
           </div>
         ))}
       </dl>
-      <p className="mt-3 text-sm text-fg-2" data-testid="dash-volume-change">
+      <p className="mt-3 text-xs text-fg-muted" data-testid="dash-volume-last-to-date">
+        {t('dash_volume_last_to_date', { value: formatWeight(volume.lastWeekToDateKg, units, locale) })}
+      </p>
+      <p className="mt-1 text-sm text-fg-2" data-testid="dash-volume-change">
         {change}
       </p>
       <p className="sr-only">{t('dash_volume_summary', { current, previous })}</p>

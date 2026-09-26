@@ -14,7 +14,7 @@ interface ChartProps {
   /** Formats a value for the summary and axis labels (units applied by the caller). */
   format: (value: number) => string;
   variant?: 'line' | 'bar';
-  /** Highlight the best point. Default true for lines. */
+  /** false: never name or highlight a "best" value. Default: named in text; dot highlighted on lines. */
   markBest?: boolean;
 }
 
@@ -32,17 +32,23 @@ function scaleY(values: readonly number[], fromZero: boolean): (v: number) => nu
 }
 
 /** Small SVG chart with an accessible text summary (first, latest, best). Renders 0, 1 or n points. */
-export function LineChart({ title, points, format, variant = 'line', markBest = variant === 'line' }: ChartProps) {
+export function LineChart({ title, points, format, variant = 'line', markBest }: ChartProps) {
   const { t, locale } = useT();
   if (points.length === 0) {
     return <p className="text-sm text-fg-muted">{t('ana_chart_empty', { title })}</p>;
   }
+  // An explicit `markBest={false}` (bodyweight: heavier is not better) drops "best" everywhere;
+  // left out, bars keep "best" in the caption but only lines mark the dot.
+  const showBest = markBest ?? true;
+  const dotBest = markBest ?? variant === 'line';
   const values = points.map((p) => p.value);
   const best = Math.max(...values);
   const summary =
     points.length === 1
       ? t('ana_chart_single', { title, value: format(values[0]) })
-      : t('ana_chart_summary', { title, first: format(values[0]), last: format(values.at(-1)!), best: format(best) });
+      : showBest
+        ? t('ana_chart_summary', { title, first: format(values[0]), last: format(values.at(-1)!), best: format(best) })
+        : t('ana_chart_summary_plain', { title, first: format(values[0]), last: format(values.at(-1)!) });
   const y = scaleY(values, variant === 'bar');
   const step = points.length > 1 ? (W - 2 * PAD) / (points.length - 1) : 0;
   const x = (i: number) => (points.length === 1 ? W / 2 : PAD + i * step);
@@ -86,8 +92,8 @@ export function LineChart({ title, points, format, variant = 'line', markBest = 
                   key={`${p.day}-${i}`}
                   cx={x(i)}
                   cy={y(p.value)}
-                  r={markBest && i === bestIndex ? 4 : 2.5}
-                  className={markBest && i === bestIndex ? 'fill-highlight' : 'fill-accent'}
+                  r={dotBest && i === bestIndex ? 4 : 2.5}
+                  className={dotBest && i === bestIndex ? 'fill-highlight' : 'fill-accent'}
                 />
               ))}
             </>
@@ -95,7 +101,7 @@ export function LineChart({ title, points, format, variant = 'line', markBest = 
       </svg>
       <figcaption className="mt-1 flex justify-between gap-2 text-xs text-fg-muted" aria-hidden="true">
         <span>{dayLabel(points[0].day, locale)}</span>
-        <span className="font-medium text-fg-2">{t('ana_chart_best', { value: format(best) })}</span>
+        {showBest && <span className="font-medium text-fg-2">{t('ana_chart_best', { value: format(best) })}</span>}
         <span>{dayLabel(points.at(-1)!.day, locale)}</span>
       </figcaption>
     </figure>

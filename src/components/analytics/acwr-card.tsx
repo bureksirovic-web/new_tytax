@@ -21,13 +21,16 @@ const ZONE_BADGE: Record<AcwrZone, 'default' | 'success' | 'warning' | 'danger'>
   danger: 'danger',
 };
 
+/** Ratio of a muscle whose baseline is still building (notation, not copy). */
+const NONE = '—';
 const TH = 'py-2 pr-2 text-left font-medium text-fg-muted';
 const TD = 'py-2 pr-2 font-mono text-fg-2';
 
 /**
  * Today's acute:chronic ratio per muscle. With under 28 days of history the
  * chronic baseline is not real yet, so only acute load is shown, never a zone
- * (a new user must not see a fake "danger").
+ * (a new user must not see a fake "danger"). The same holds per muscle: a
+ * muscle first trained < 28 days ago shows its own building notice, no zone.
  */
 export function AcwrCard({ logs, lookup, now }: Props) {
   const { t, locale } = useT();
@@ -66,10 +69,14 @@ export function AcwrCard({ logs, lookup, now }: Props) {
                       <th scope="row" className="py-2 pr-2 text-left font-medium text-fg">{muscleLabel(t, r.muscle)}</th>
                       <td className={TD}>{num(r.acute, locale)}</td>
                       {!building && <td className={TD}>{num(r.chronic, locale)}</td>}
-                      {!building && <td className={TD}>{num(r.ratio, locale, 2)}</td>}
+                      {!building && <td className={TD}>{r.building ? NONE : num(r.ratio, locale, 2)}</td>}
                       {!building && (
                         <td className="py-2">
-                          <Badge variant={ZONE_BADGE[r.zone]}>{t(ZONE_KEYS[r.zone])}</Badge>
+                          {r.building ? (
+                            <span className="text-xs text-fg-muted">{t('ana_acwr_row_building', { days: r.baselineDays })}</span>
+                          ) : (
+                            <Badge variant={ZONE_BADGE[r.zone]}>{t(ZONE_KEYS[r.zone])}</Badge>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -77,6 +84,9 @@ export function AcwrCard({ logs, lookup, now }: Props) {
                 </tbody>
               </table>
             </div>
+            {!building && rows.some((r) => r.building) && (
+              <p className="mt-3 text-xs text-fg-muted" data-testid="ana-acwr-row-building">{t('ana_acwr_row_building_note')}</p>
+            )}
             {!building && <p className="mt-3 text-xs text-fg-muted">{t('ana_acwr_legend')}</p>}
           </>
         )}

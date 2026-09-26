@@ -50,14 +50,14 @@ describe('history stats', () => {
 
   it('uses only done working sets of the exercise and orders points by date (spec hand-check)', () => {
     // 6 days ago: 100×5 @2, 100×5 @1 → Brzycki 100·36/32 = 112.5
-    // 2 days ago: 105×3 → 105·36/34 = 111.176 → 111.2; warm-up 50×10 (=66.7) and undone 200×5 ignored
+    // 2 days ago: 105×3 → 105·36/34 = 111.176 → 111.18 (rankableE1rm, 0.01 kg; same as /analytics); warm-up 50×10 (=66.7) and undone 200×5 ignored
     const older = log(6, [{ kg: 100, reps: 5, rir: 2 }, { kg: 100, reps: 5, rir: 1 }]);
     const newer = log(2, [{ kg: 105, reps: 3 }, { kg: 50, reps: 10, type: 'warmup' }, { kg: 200, reps: 5, done: false }]);
     const deleted = log(1, [{ kg: 500, reps: 5 }], true);
     expect(doneWorkingSets(newer, 'ex1')).toHaveLength(1);
     expect(bestE1rm(doneWorkingSets(older, 'ex1'))).toBe(112.5);
     const series = e1rmSeries([newer, deleted, older], 'ex1');
-    expect(series.map((p) => p.e1rm)).toEqual([112.5, 111.2]);
+    expect(series.map((p) => p.e1rm)).toEqual([112.5, 111.18]);
     expect(bestPoint(series)?.logId).toBe(older.id);
     // A log with only warm-ups for the exercise yields no point.
     expect(e1rmSeries([log(3, [{ kg: 60, reps: 5, type: 'warmup' }])], 'ex1')).toEqual([]);

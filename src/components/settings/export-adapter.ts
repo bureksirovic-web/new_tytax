@@ -10,7 +10,7 @@ import type { LegacyImportApi } from './legacy-import-api';
 export interface CsvApi {
   workouts?: (logs: WorkoutLog[], opts?: { units?: Units }) => string;
   bodyweight?: (entries: BodyweightEntry[], opts?: { units?: Units }) => string;
-  /** G2's module converts to the profile's units (it exports `displayWeight`); the older one writes kg only. */
+  /** True only when a probe export in lb produced an lb header (`csvHonorsUnits`); the older module writes kg only. */
   unitsSupported?: boolean;
 }
 
@@ -23,14 +23,25 @@ const fn = (mod: Record<string, unknown>, ...names: string[]): Fn | undefined =>
   return undefined;
 };
 
+/**
+ * Whether `workouts` really writes the requested units: exports no rows in lb
+ * and reads the header row it produced. Never inferred from other exports.
+ */
+export function csvHonorsUnits(workouts: CsvApi['workouts']): boolean {
+  if (!workouts) return false;
+  try {
+    const header = workouts([], { units: 'lb' }).split(/\r?\n/, 1)[0] ?? '';
+    return /\blbs?\b/i.test(header) && !/\bkg\b/i.test(header);
+  } catch {
+    return false;
+  }
+}
+
 export async function loadCsvApi(): Promise<CsvApi> {
   try {
     const mod = (await import('@/lib/export/csv')) as unknown as Record<string, unknown>;
-    return {
-      workouts: fn(mod, 'workoutLogsToCSV') as CsvApi['workouts'],
-      bodyweight: fn(mod, 'bodyweightToCSV') as CsvApi['bodyweight'],
-      unitsSupported: fn(mod, 'displayWeight') !== undefined,
-    };
+    const workouts = fn(mod, 'workoutLogsToCSV') as CsvApi['workouts'];
+    return { workouts, bodyweight: fn(mod, 'bodyweightToCSV') as CsvApi['bodyweight'], unitsSupported: csvHonorsUnits(workouts) };
   } catch (error: unknown) {
     console.error('[settings] CSV export module failed to load', error);
     return {};

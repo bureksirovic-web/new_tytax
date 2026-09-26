@@ -1,9 +1,10 @@
 import type { BackupV3 } from '@/contracts/repo';
+import { isValidLogRow, normalizeSettings } from './backup-validate';
 
 /** 50 MB: far above a realistic family backup, low enough to refuse junk before parsing. */
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 
-export type BackupProblem = 'too_large' | 'invalid_json' | 'unsafe' | 'unrecognized' | 'structure';
+export type BackupProblem = 'too_large' | 'invalid_json' | 'unsafe' | 'unrecognized' | 'structure' | 'bad_logs' | 'bad_settings';
 
 export const BACKUP_PROBLEM_KEY = {
   too_large: 'set_import_error_too_large',
@@ -11,6 +12,8 @@ export const BACKUP_PROBLEM_KEY = {
   unsafe: 'set_import_error_unsafe',
   unrecognized: 'set_import_error_unrecognized',
   structure: 'set_import_error_structure',
+  bad_logs: 'set_import_error_logs',
+  bad_settings: 'set_import_error_settings',
 } as const satisfies Record<BackupProblem, string>;
 
 const TABLE_KEYS = [
@@ -44,7 +47,9 @@ const live = (rows: readonly unknown[]) => rows.filter((r) => isRecord(r) && !r.
 /**
  * Validates a v3 backup file's text before anything is written: size cap,
  * JSON, no prototype-polluting keys, format/version, every table an array of
- * rows with ids, rows other than profiles carrying a profileId.
+ * rows with ids, rows other than profiles carrying a profileId, every workout
+ * log renderable (backup-validate.ts). Missing profile settings are filled with
+ * defaults in the returned backup, so what is restored is always saveable.
  */
 export function parseBackupText(text: string): ParsedBackup {
   if (text.length > MAX_BACKUP_BYTES) return { ok: false, problem: 'too_large' };
@@ -73,6 +78,14 @@ export function parseBackupText(text: string): ParsedBackup {
   if (!backup.profiles.every((p) => typeof p.name === 'string' && isRecord(p.settings))) {
     return { ok: false, problem: 'structure' };
   }
+  if (!backup.workoutLogs.every(isValidLogRow)) return { ok: false, problem: 'bad_logs' };
+  const profiles = [];
+  for (const p of backup.profiles) {
+    const settings = normalizeSettings(p.settings as unknown as Record<string, unknown>);
+    if (!settings) return { ok: false, problem: 'bad_settings' };
+    profiles.push({ ...p, settings });
+  }
+  backup.profiles = profiles;
   return {
     ok: true,
     backup,

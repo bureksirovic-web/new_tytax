@@ -87,6 +87,17 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     [selected, lookup],
   );
 
+  // Session slots whose id the catalog does not know: listed apart so they stay visible and removable.
+  const unknownSlots = useMemo(
+    () =>
+      catalog
+        ? initialIds
+            .filter((id) => !catalog.getById(id))
+            .map((id) => ({ id, name: session.exercises.find((e) => e.exerciseId === id)?.exerciseName.trim() ?? '' }))
+        : [],
+    [catalog, initialIds, session],
+  );
+
   const toggle = useCallback((id: string) => {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   }, []);
@@ -112,6 +123,7 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     showMore: () => setVisible((v) => v + PAGE_SIZE),
     selected,
     selectedExercises,
+    unknownSlots,
     toggle,
     sortByStation,
     dirty,

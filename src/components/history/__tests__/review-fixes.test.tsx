@@ -17,7 +17,7 @@ const SMITH = 'tytax_smith-machine_smith-flat-bench-press';
 
 beforeEach(async () => {
   await resetDb();
-  useHistoryUndo.setState({ pending: null });
+  useHistoryUndo.setState({ pending: null, earlier: [] });
 });
 
 describe('history review fixes', () => {

@@ -158,8 +158,9 @@ describe('Dashboard — history widgets', () => {
     // 1000 kg × 2.20462 = 2204.62 → 2,204.6 lb; 800 kg × 2.20462 = 1763.696 → 1,763.7 lb.
     expect(await screen.findByTestId('dash-volume-this')).toHaveTextContent('2,204.6 lb');
     expect(screen.getByTestId('dash-volume-last')).toHaveTextContent('1,763.7 lb');
-    // (1000 − 800) / 800 = +25 %.
-    expect(screen.getByTestId('dash-volume-change')).toHaveTextContent('25% more than last week');
+    // W2: the % compares with last week only up to Wed 12:00 (the Fri 09-18 log is later), so there is none.
+    expect(screen.getByTestId('dash-volume-last-to-date')).toHaveTextContent('Last week by this point: 0 lb');
+    expect(screen.getByTestId('dash-volume-change')).toHaveTextContent('Nothing logged by this point last week');
   });
 
   it('reports fried recovery for a heavy session inside 48 h, with the most loaded muscles', async () => {

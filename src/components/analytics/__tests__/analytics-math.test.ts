@@ -95,7 +95,10 @@ describe('ACWR', () => {
     const s = acwrSummary(logs, lookup, NOW);
     expect(s.building).toBe(false);
     // Chest: acute (7 d) = 2 sets; chronic = (2 + 2) / 4 weeks = 1 → ratio 2 → danger
-    expect(s.rows.find((r) => r.muscle === 'Chest')).toEqual({ muscle: 'Chest', acute: 2, chronic: 1, ratio: 2, zone: 'danger' });
+    // Chest first trained 40 days ago → its own baseline is real too (W2: per-muscle building)
+    expect(s.rows.find((r) => r.muscle === 'Chest')).toEqual({
+      muscle: 'Chest', acute: 2, chronic: 1, ratio: 2, zone: 'danger', baselineDays: 40, building: false,
+    });
   });
 
   it('no logs → no rows, zero history', () => {

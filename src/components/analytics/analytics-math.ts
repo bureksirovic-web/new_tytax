@@ -6,8 +6,8 @@
  */
 import type { SetEntry, WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup, LaggingResult } from '@/contracts/training';
-import { ACWR_FRESH_BELOW, ACWR_FRIED_ABOVE, isDoneWorkingSet, isTimeSet, training } from '@/lib/training';
-import { daysBetween, localDay, logTimeMs, mondayOf, shiftDay } from './analytics-dates';
+import { isDoneWorkingSet, isTimeSet, training } from '@/lib/training';
+import { localDay, logTimeMs, mondayOf, shiftDay } from './analytics-dates';
 import { muscleVolumeKg } from './muscle-volume';
 
 export function liveLogs(logs: readonly WorkoutLog[]): WorkoutLog[] {
@@ -81,50 +81,9 @@ export function muscleDistribution(
   return { shares, lagging: training.laggingMuscle(dist) };
 }
 
-// ─── ACWR ────────────────────────────────────────────────────────────────────
+// ─── ACWR (acwr-math.ts; re-exported for existing imports) ───────────────────
 
-export type AcwrZone = 'undertrain' | 'optimal' | 'caution' | 'danger';
-/** Upper edge of the Gabbett sweet spot; 1.3–1.5 is shown as caution before `fried`. */
-export const ACWR_CAUTION_ABOVE = 1.3;
-export const ACWR_BASELINE_DAYS = 28;
-
-export function acwrZone(ratio: number): AcwrZone {
-  if (ratio > ACWR_FRIED_ABOVE) return 'danger';
-  if (ratio > ACWR_CAUTION_ABOVE) return 'caution';
-  if (ratio < ACWR_FRESH_BELOW) return 'undertrain';
-  return 'optimal';
-}
-
-export interface AcwrRow {
-  muscle: string;
-  acute: number;
-  chronic: number;
-  ratio: number;
-  zone: AcwrZone;
-}
-
-export interface AcwrSummary {
-  rows: AcwrRow[];
-  /** Days from the first live log to today (0 when there is none). */
-  daysOfHistory: number;
-  /** Fewer than 28 days of history: the chronic load is not real yet, so no zones. */
-  building: boolean;
-}
-
-export function acwrSummary(logs: readonly WorkoutLog[], lookup: ExerciseLookup, now: Date): AcwrSummary {
-  const live = liveLogs(logs);
-  const today = localDay(now);
-  const first = live.reduce<string | null>((min, l) => (min === null || l.date < min ? l.date : min), null);
-  const daysOfHistory = first ? Math.max(0, daysBetween(first, today)) : 0;
-  const rows = training.acwr(live, lookup, now).map((r) => ({
-    muscle: r.muscle,
-    acute: r.acuteLoad,
-    chronic: r.chronicLoad,
-    ratio: r.ratio,
-    zone: acwrZone(r.ratio),
-  }));
-  return { rows, daysOfHistory, building: daysOfHistory < ACWR_BASELINE_DAYS };
-}
+export { ACWR_BASELINE_DAYS, ACWR_CAUTION_ABOVE, acwrSummary, acwrZone, type AcwrRow, type AcwrSummary, type AcwrZone } from './acwr-math';
 
 // ─── Heatmap and weekly volume ───────────────────────────────────────────────
 

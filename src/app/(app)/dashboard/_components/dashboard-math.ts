@@ -31,11 +31,13 @@ export function doneWorkingVolume(log: WorkoutLog): number {
 }
 
 export interface WeeklyVolume {
-  /** kg, current ISO week (Monday → today). */
+  /** kg, current ISO week (Monday → now). */
   thisWeekKg: number;
   /** kg, the whole previous ISO week. */
   lastWeekKg: number;
-  /** Rounded % change vs last week; null when last week had no volume. */
+  /** kg, the previous ISO week up to the same weekday and time as now (the fair comparison). */
+  lastWeekToDateKg: number;
+  /** Rounded % change of this week so far vs last week up to the same point; null when that was 0. */
   changePct: number | null;
 }
 
@@ -46,22 +48,46 @@ export function volumeRangeStart(now: Date): string {
   return shiftDay(new Date(y, m - 1, d, 12), -7);
 }
 
+/** Same weekday and wall-clock time one calendar week before `now` (DST-safe: calendar fields). */
+export function sameTimeLastWeek(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+}
+
+/** When a log counts as done: `finishedAt`, else `startedAt`; NaN when neither parses. */
+function logTimeMs(log: WorkoutLog): number {
+  const f = Date.parse(log.finishedAt);
+  return Number.isNaN(f) ? Date.parse(log.startedAt) : f;
+}
+
 /**
- * This ISO week vs last, from non-deleted logs of the active profile.
- * Weeks run Monday–Sunday on the log's local calendar `date`.
+ * This ISO week so far vs last, from non-deleted logs of the active profile.
+ * Weeks run Monday–Sunday on the log's local calendar `date`. The % change
+ * compares against last week up to the same weekday and time (a log counts by
+ * its end time; without a parsable time, by its day), so Monday morning never
+ * reads as a collapse against a whole finished week.
  */
 export function weeklyVolume(logs: readonly WorkoutLog[], now: Date): WeeklyVolume {
   const thisMonday = isoWeekStart(now);
   const lastMonday = volumeRangeStart(now);
+  const cutoff = sameTimeLastWeek(now);
+  const cutoffMs = cutoff.getTime();
+  const cutoffDay = localDay(cutoff);
   let thisWeekKg = 0;
   let lastWeekKg = 0;
+  let lastWeekToDateKg = 0;
   for (const log of logs) {
     if (log.deletedAt) continue;
     if (log.date >= thisMonday) thisWeekKg += doneWorkingVolume(log);
-    else if (log.date >= lastMonday) lastWeekKg += doneWorkingVolume(log);
+    else if (log.date >= lastMonday) {
+      const kg = doneWorkingVolume(log);
+      lastWeekKg += kg;
+      const t = logTimeMs(log);
+      if (Number.isNaN(t) ? log.date <= cutoffDay : t <= cutoffMs) lastWeekToDateKg += kg;
+    }
   }
-  const changePct = lastWeekKg > 0 ? Math.round(((thisWeekKg - lastWeekKg) / lastWeekKg) * 100) : null;
-  return { thisWeekKg, lastWeekKg, changePct };
+  const changePct =
+    lastWeekToDateKg > 0 ? Math.round(((thisWeekKg - lastWeekToDateKg) / lastWeekToDateKg) * 100) : null;
+  return { thisWeekKg, lastWeekKg, lastWeekToDateKg, changePct };
 }
 
 /** Recovery needs logs from the last 48 h: this start day always covers them. */

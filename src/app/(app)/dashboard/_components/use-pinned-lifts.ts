@@ -1,5 +1,6 @@
 'use client';
 import { useMemo } from 'react';
+import { snapshotNameOf } from '@/components/analytics/pinned-names';
 import { usePinnedExercises } from '@/components/analytics/pinned-storage';
 import { useCatalog } from '@/hooks/use-exercises';
 import { useRepoQuery } from '@/hooks/use-repo';
@@ -10,7 +11,8 @@ export const PINNED_HISTORY_LIMIT = 20;
 
 export interface PinnedLift {
   exerciseId: string;
-  name: string;
+  /** Catalog name, else a log's name snapshot (soft-deleted logs too); null → show "removed". Never the raw id. */
+  name: string | null;
   /** Null when there is no rankable set yet (or the exercise is time-measured). */
   latest: LatestBest | null;
 }
@@ -27,7 +29,16 @@ export function usePinnedLifts(): PinnedLifts {
   const key = pins.join('\n');
   const historyQ = useRepoQuery(
     async (repo) =>
-      profileId ? Promise.all(pins.map((id) => repo.logs.historyFor(profileId, id, { limit: PINNED_HISTORY_LIMIT }))) : [],
+      profileId
+        ? Promise.all(
+            pins.map(async (id) => {
+              const live = await repo.logs.historyFor(profileId, id, { limit: PINNED_HISTORY_LIMIT });
+              const named = snapshotNameOf(live, id)
+                ?? snapshotNameOf(await repo.logs.historyFor(profileId, id, { includeDeleted: true, limit: 1 }), id);
+              return { live, named };
+            }),
+          )
+        : [],
     // `key` stands in for `pins` by value.
     [profileId, key],
   );
@@ -41,8 +52,8 @@ export function usePinnedLifts(): PinnedLifts {
       const timed = exercise?.measure === 'time';
       return {
         exerciseId,
-        name: exercise?.name ?? exerciseId,
-        latest: timed ? null : latestBestE1rm(histories[i] ?? [], exerciseId),
+        name: exercise?.name ?? histories[i]?.named ?? null,
+        latest: timed ? null : latestBestE1rm(histories[i]?.live ?? [], exerciseId),
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is `pins` by value

@@ -144,6 +144,9 @@ export const settingsEn = {
   set_import_error_unsafe: 'The file contains unsafe content',
   set_import_error_unrecognized: 'Invalid format: not a TYTAX backup',
   set_import_error_structure: 'The backup is damaged',
+  set_import_error_logs: 'The backup contains damaged workouts (missing date, exercises or totals)',
+  set_import_error_settings: 'The backup contains invalid profile settings',
+  set_settings_error_validation: 'This value cannot be saved: it is outside the allowed range.',
   set_legacy_import: 'Import from the old TYTAX app',
   set_legacy_import_hint:
     'Choose tytax_backup.json from the old app. Bodyweight history is only in a full data dump.',
@@ -355,6 +358,9 @@ export const settingsHr: Record<keyof typeof settingsEn, string> = {
   set_import_error_unsafe: 'Datoteka sadrži nesiguran sadržaj',
   set_import_error_unrecognized: 'Neispravan format: nije TYTAX kopija',
   set_import_error_structure: 'Kopija je oštećena',
+  set_import_error_logs: 'Kopija sadrži oštećene treninge (nedostaje datum, vježbe ili zbrojevi)',
+  set_import_error_settings: 'Kopija sadrži neispravne postavke profila',
+  set_settings_error_validation: 'Ova vrijednost se ne može spremiti: izvan je dopuštenog raspona.',
   set_legacy_import: 'Uvoz iz stare TYTAX aplikacije',
   set_legacy_import_hint:
     'Odaberite tytax_backup.json iz stare aplikacije. Povijest tjelesne težine nalazi se samo u potpunom izvozu podataka.',

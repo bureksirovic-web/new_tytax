@@ -8,6 +8,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { LiveLoadDock } from './live-load-dock';
 import { SlotFilters } from './slot-filters';
 import { SlotResults } from './slot-results';
+import { UnknownSlots } from './unknown-slots';
 import { useSlotEditor } from './use-slot-editor';
 
 interface SlotEditorProps {
@@ -66,6 +67,7 @@ export function SlotEditor({ program, session, profileId, onSave, onExit }: Slot
         </div>
       ) : (
         <>
+          <UnknownSlots ed={ed} />
           <SlotFilters ed={ed} />
           <div className="mt-4">
             <SlotResults ed={ed} />

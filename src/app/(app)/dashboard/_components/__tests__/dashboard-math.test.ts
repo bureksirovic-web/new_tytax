@@ -53,14 +53,15 @@ describe('weeklyVolume', () => {
     const v = weeklyVolume(logs, WED);
     expect(v.thisWeekKg).toBe(1000);
     expect(v.lastWeekKg).toBe(800);
-    // (1000 − 800) / 800 = 25 %.
-    expect(v.changePct).toBe(25);
+    // W2: Fri 09-18 is after the same point last week (Wed 09-16 12:00): nothing to compare with yet.
+    expect(v.lastWeekToDateKg).toBe(0);
+    expect(v.changePct).toBeNull();
     expect(doneWorkingVolume(logs[0])).toBe(1000);
   });
 
   it('has no change figure when last week was empty', () => {
     const v = weeklyVolume([log(0, [{ kg: 50, reps: 10 }])], WED);
-    expect(v).toEqual({ thisWeekKg: 500, lastWeekKg: 0, changePct: null });
+    expect(v).toEqual({ thisWeekKg: 500, lastWeekKg: 0, lastWeekToDateKg: 0, changePct: null });
   });
 });
 

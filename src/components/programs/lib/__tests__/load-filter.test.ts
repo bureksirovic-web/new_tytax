@@ -53,7 +53,8 @@ describe('session edits', () => {
 
   it('validates reps', () => {
     expect(['8', '8-12', '10/side', '10-15/side'].every(isValidReps)).toBe(true);
-    expect(['', 'abc', '8-', '-8', '8 reps'].some(isValidReps)).toBe(false);
+    // W2 spec change (G4-W2 refuter2 #3): free-text targets like 'abc'/'8 reps' are now valid; malformed numerics still are not.
+    expect(['', '8-', '-8', '8--12', '   ', 'x'.repeat(25), 'a\u0000b'].some(isValidReps)).toBe(false);
   });
 
   it('keeps existing prescriptions, adds catalog defaults, follows selection order', () => {

@@ -154,7 +154,7 @@ describe('ProgramDetailPage', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'prog_edit_named' })[1]); // ROW
     const reps = screen.getByRole('textbox', { name: 'prog_reps' });
-    fireEvent.change(reps, { target: { value: '8 reps' } });
+    fireEvent.change(reps, { target: { value: '8-' } });
     expect(screen.getByRole('button', { name: 'prog_done' })).toBeDisabled();
     fireEvent.change(reps, { target: { value: '10/side' } });
     const setsGroup = screen.getByRole('group', { name: 'prog_sets' });

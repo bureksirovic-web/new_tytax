@@ -9,6 +9,7 @@ export function UndoSnackbar() {
   const { t } = useT();
   const repo = useRepo();
   const pending = useHistoryUndo((s) => s.pending);
+  const count = useHistoryUndo((s) => (s.pending ? s.earlier.length + 1 : 0));
   const undo = useHistoryUndo((s) => s.undo);
   const dismiss = useHistoryUndo((s) => s.dismiss);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,7 +38,8 @@ export function UndoSnackbar() {
     }
   };
 
-  const text = pending ? t('hist_deleted') : message;
+  const deleted = count > 1 ? t('hist_deleted_n', { n: count }) : t('hist_deleted');
+  const text = pending ? deleted : message;
 
   return (
     <div
