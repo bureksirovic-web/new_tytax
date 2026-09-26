@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { DEFAULT_LOCALE } from '@/components/providers/locale-core';
 import { AUTH_STRINGS } from '@/lib/auth/i18n';
 
 const push = vi.fn();
@@ -18,7 +19,8 @@ vi.mock('@/lib/auth/helpers', () => ({
 
 import LoginPage from '../page';
 
-const en = AUTH_STRINGS.en;
+/** Outside a LocaleProvider the UI renders DEFAULT_LOCALE ('en' in this worktree, 'hr' once G4's i18n is merged). */
+const ui = AUTH_STRINGS[DEFAULT_LOCALE];
 
 function configure() {
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://127.0.0.1:54421');
@@ -26,7 +28,7 @@ function configure() {
 }
 
 function submitButton() {
-  return screen.getByRole('button', { name: en['auth.login.submit'] });
+  return screen.getByRole('button', { name: ui['auth.login.submit'] });
 }
 
 beforeEach(() => {
@@ -45,10 +47,10 @@ describe('LoginPage', () => {
     configure();
     search = new URLSearchParams('error=otp_expired');
     render(<LoginPage />);
-    expect(screen.getByTestId('auth-login-heading')).toHaveTextContent(en['auth.login.title']);
+    expect(screen.getByTestId('auth-login-heading')).toHaveTextContent(ui['auth.login.title']);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveAttribute('data-testid', 'auth-error');
-    expect(alert).toHaveTextContent(en['auth.error.otp_expired']);
+    expect(alert).toHaveTextContent(ui['auth.error.otp_expired']);
   });
 
   it('maps an unknown ?error= code to auth_failed and never echoes it', () => {
@@ -56,7 +58,7 @@ describe('LoginPage', () => {
     search = new URLSearchParams('error=<b>pwned</b>');
     render(<LoginPage />);
     const alert = screen.getByTestId('auth-error');
-    expect(alert).toHaveTextContent(en['auth.error.auth_failed']);
+    expect(alert).toHaveTextContent(ui['auth.error.auth_failed']);
     expect(alert.textContent).not.toContain('pwned');
     expect(submitButton()).toBeInTheDocument();
   });
@@ -65,7 +67,7 @@ describe('LoginPage', () => {
     configure();
     render(<LoginPage />);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByLabelText(en['auth.login.email_label'])).toBeEnabled();
+    expect(screen.getByLabelText(ui['auth.login.email_label'])).toBeEnabled();
     expect(submitButton()).toBeDisabled(); // empty email
   });
 
@@ -74,12 +76,12 @@ describe('LoginPage', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');
     search = new URLSearchParams('next=/workout');
     render(<LoginPage />);
-    expect(screen.getByTestId('auth-error')).toHaveTextContent(en['auth.error.auth_not_configured']);
-    const input = screen.getByLabelText(en['auth.login.email_label']);
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(ui['auth.error.auth_not_configured']);
+    const input = screen.getByLabelText(ui['auth.login.email_label']);
     expect(input).toBeDisabled();
     fireEvent.change(input, { target: { value: 'a@b.co' } });
     expect(submitButton()).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(en['auth.login.continue_without_account']) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(ui['auth.login.continue_without_account']) }));
     expect(push).toHaveBeenCalledWith('/workout');
     expect(signInWithMagicLink).not.toHaveBeenCalled();
   });
@@ -91,7 +93,7 @@ describe('LoginPage', () => {
     render(<LoginPage />);
     const alerts = screen.getAllByRole('alert');
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]).toHaveTextContent(en['auth.error.auth_not_configured']);
+    expect(alerts[0]).toHaveTextContent(ui['auth.error.auth_not_configured']);
   });
 
   it.each(['//evil.com', 'https://evil.com', '/\\evil.com'])(
@@ -100,7 +102,7 @@ describe('LoginPage', () => {
       configure();
       search = new URLSearchParams({ next: unsafe });
       render(<LoginPage />);
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(en['auth.login.continue_without_account']) }));
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(ui['auth.login.continue_without_account']) }));
       expect(push).toHaveBeenCalledTimes(1);
       expect(push).toHaveBeenCalledWith('/dashboard');
     }
@@ -112,14 +114,14 @@ describe('LoginPage', () => {
     let resolve!: (v: unknown) => void;
     signInWithMagicLink.mockReturnValue(new Promise((r) => (resolve = r)));
     render(<LoginPage />);
-    fireEvent.change(screen.getByLabelText(en['auth.login.email_label']), { target: { value: 'a@b.co' } });
+    fireEvent.change(screen.getByLabelText(ui['auth.login.email_label']), { target: { value: 'a@b.co' } });
     fireEvent.click(submitButton());
     await waitFor(() => expect(submitButton()).toBeDisabled());
-    expect(screen.getByRole('button', { name: en['auth.login.submit'] }).closest('form')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: ui['auth.login.submit'] }).closest('form')).toHaveAttribute('aria-busy', 'true');
     expect(signInWithMagicLink).toHaveBeenCalledWith('a@b.co', '/settings');
 
     await act(async () => resolve({ error: { code: 'send_failed', message: 'x' } }));
-    expect(screen.getByTestId('auth-error')).toHaveTextContent(en['auth.error.send_failed']);
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(ui['auth.error.send_failed']);
     expect(submitButton()).toBeEnabled();
     expect(submitButton().closest('form')).toHaveAttribute('aria-busy', 'false');
   });
@@ -128,9 +130,9 @@ describe('LoginPage', () => {
     configure();
     signInWithMagicLink.mockRejectedValue(new Error('boom'));
     render(<LoginPage />);
-    fireEvent.change(screen.getByLabelText(en['auth.login.email_label']), { target: { value: 'a@b.co' } });
+    fireEvent.change(screen.getByLabelText(ui['auth.login.email_label']), { target: { value: 'a@b.co' } });
     fireEvent.click(submitButton());
-    await waitFor(() => expect(screen.getByTestId('auth-error')).toHaveTextContent(en['auth.error.send_failed']));
+    await waitFor(() => expect(screen.getByTestId('auth-error')).toHaveTextContent(ui['auth.error.send_failed']));
     expect(submitButton()).toBeEnabled();
     expect(signInWithMagicLink).toHaveBeenCalledTimes(1);
   });
@@ -139,9 +141,9 @@ describe('LoginPage', () => {
     configure();
     signInWithMagicLink.mockResolvedValue({ error: null });
     render(<LoginPage />);
-    fireEvent.change(screen.getByLabelText(en['auth.login.email_label']), { target: { value: 'a@b.co' } });
+    fireEvent.change(screen.getByLabelText(ui['auth.login.email_label']), { target: { value: 'a@b.co' } });
     fireEvent.click(submitButton());
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(en['auth.login.sent_title']));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(ui['auth.login.sent_title']));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(signInWithMagicLink).toHaveBeenCalledWith('a@b.co', null);
   });

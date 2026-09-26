@@ -27,10 +27,24 @@ export interface TytaxFixture {
 const MISSING =
   'window.__tytaxE2E is missing: open a page with tytax.gotoApp() first, and serve a dev build or one built with NEXT_PUBLIC_E2E_HOOKS=1';
 
+/**
+ * Wait until the app booted (`__tytaxE2E.ready`). When the boot failed, the
+ * app sets `__tytaxE2E.bootError` (src/components/providers/app-bootstrap.tsx)
+ * and this throws that error instead of running into the wait timeout.
+ */
+export async function waitForApp(page: Page): Promise<void> {
+  const handle = await page.waitForFunction(() => {
+    // `bootError` and a false `ready` are not in the E2EHooks contract yet (docs/v2/requests/G5-07.md).
+    const hooks = window.__tytaxE2E as { ready?: boolean; bootError?: string } | undefined;
+    if (hooks?.bootError !== undefined) return { bootError: hooks.bootError };
+    return hooks?.ready === true ? { bootError: null } : false;
+  });
+  const { bootError } = (await handle.jsonValue()) as { bootError: string | null };
+  if (bootError !== null) throw new Error(`TYTAX app bootstrap failed: ${bootError}`);
+}
+
 export function createTytax(page: Page): TytaxFixture {
-  const waitReady = async (): Promise<void> => {
-    await page.waitForFunction(() => window.__tytaxE2E?.ready === true);
-  };
+  const waitReady = (): Promise<void> => waitForApp(page);
 
   return {
     async gotoApp(path) {

@@ -1,39 +1,65 @@
 'use client';
-import { createContext, useContext, useState } from 'react';
-import { type Locale, type TranslationKey, translations } from '@/lib/i18n';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import type { Locale, TranslationKey } from '@/lib/i18n';
+// INTEGRATION: ./locale-core.ts becomes a re-export of '@/lib/i18n' (see its header).
+import {
+  DEFAULT_LOCALE,
+  LOCALE_STORAGE_KEY,
+  interpolate,
+  readStoredLocale,
+  translate,
+  type TranslationVars,
+} from './locale-core';
 
 interface LocaleContextValue {
   locale: Locale;
   setLocale: (l: Locale) => void;
-  t: (key: TranslationKey) => string;
+  t: (key: TranslationKey, vars?: TranslationVars) => string;
 }
 
 const LocaleContext = createContext<LocaleContextValue>({
-  locale: 'en',
+  locale: DEFAULT_LOCALE,
   setLocale: () => {},
-  t: (k) => k as string,
+  // INTEGRATION (G4-01): becomes `(key, vars) => translate(key, DEFAULT_LOCALE, vars)`.
+  // It echoes the key here because the wave-0 dashboard/programs/settings tests
+  // in this worktree render outside the provider and query by key; G4's branch
+  // rewrites those tests (they mock useLocale).
+  t: (key, vars) => interpolate(key, vars),
 });
 
+const noopSubscribe = () => () => {};
+const readClientLocale = (): Locale => readStoredLocale(window.localStorage);
+const serverLocale = (): Locale => DEFAULT_LOCALE;
+
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window === 'undefined') return 'en';
-    const saved = localStorage.getItem('locale') as Locale | null;
-    return (saved === 'en' || saved === 'hr') ? saved : 'en';
-  });
+  // The server and the hydration pass render DEFAULT_LOCALE (server snapshot);
+  // right after hydration React re-renders with the stored locale, so server
+  // and client HTML always match. Same effect as G4-01's mount effect, without
+  // a setState inside an effect (react-hooks/set-state-in-effect).
+  const stored = useSyncExternalStore(noopSubscribe, readClientLocale, serverLocale);
+  // A choice made on this page wins, also when storage refuses to save it.
+  const [chosen, setChosen] = useState<Locale | null>(null);
+  const locale = chosen ?? stored;
 
-  const setLocale = (l: Locale) => {
-    setLocaleState(l);
-    localStorage.setItem('locale', l);
-  };
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
-  const translate = (key: TranslationKey): string =>
-    translations[locale][key] ?? (key as string);
+  const setLocale = useCallback((l: Locale) => {
+    setChosen(l);
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, l);
+    } catch {
+      /* storage blocked: keep the in-memory choice */
+    }
+  }, []);
 
-  return (
-    <LocaleContext.Provider value={{ locale, setLocale, t: translate }}>
-      {children}
-    </LocaleContext.Provider>
+  const value = useMemo<LocaleContextValue>(
+    () => ({ locale, setLocale, t: (key, vars) => translate(key, locale, vars) }),
+    [locale, setLocale]
   );
+
+  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
 export const useLocale = () => useContext(LocaleContext);

@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures';
 import { serverHasSupabase } from './fixtures/env';
 import { adminClient, createUser, deleteUser, magicLinkIn, mailIds, requireSyncE2EEnv } from './fixtures/supabase';
+import { DEFAULT_LOCALE } from '../src/components/providers/locale-core';
 import { AUTH_STRINGS } from '../src/lib/auth/i18n';
 
 /**
@@ -18,7 +19,9 @@ import { AUTH_STRINGS } from '../src/lib/auth/i18n';
 
 const configured = serverHasSupabase();
 const DESCRIPTION = 'leaked-description-7c1e';
-const alertText = (code: keyof typeof AUTH_STRINGS.en) => AUTH_STRINGS.en[code];
+/** A fresh browser context renders DEFAULT_LOCALE (G4: 'hr'). */
+const ui = AUTH_STRINGS[DEFAULT_LOCALE];
+const alertText = (code: keyof typeof ui) => ui[code];
 
 test('provider error lands on login with the code only, never the description', async ({ page, baseURL }) => {
   const path = `/auth/callback?error=access_denied&error_description=${DESCRIPTION}`;
@@ -89,8 +92,8 @@ test.describe('open redirect after a successful sign-in', () => {
       const before = new Set(await mailIds(env, user.email));
       await page.goto('/auth/login?next=%2Fauth%2Faccount');
       await page.locator('#auth-email').fill(user.email);
-      await page.getByRole('button', { name: AUTH_STRINGS.en['auth.login.submit'] }).click();
-      await expect(page.getByText(AUTH_STRINGS.en['auth.login.sent_title'])).toBeVisible();
+      await page.getByRole('button', { name: ui['auth.login.submit'] }).click();
+      await expect(page.getByText(ui['auth.login.sent_title'])).toBeVisible();
       let id = '';
       await expect
         .poll(async () => {

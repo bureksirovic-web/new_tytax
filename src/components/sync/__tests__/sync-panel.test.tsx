@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SyncAdapter, SyncState } from '@/contracts/sync';
+import { DEFAULT_LOCALE } from '@/components/providers/locale-core';
 import { AUTH_STRINGS } from '@/lib/auth/i18n';
 import * as sync from '@/lib/sync';
 import type { AccountState, AccountStore } from '@/lib/sync';
@@ -8,7 +9,8 @@ import { SyncStatus } from '../sync-status';
 import { SyncPanel } from '../sync-panel';
 import { formatSyncedAt, syncErrorKey } from '../format';
 
-const en = AUTH_STRINGS.en;
+/** Outside a LocaleProvider the UI renders DEFAULT_LOCALE ('en' in this worktree, 'hr' once G4's i18n is merged). */
+const ui = AUTH_STRINGS[DEFAULT_LOCALE];
 
 function drive<T>(initial: T) {
   let value = initial;
@@ -55,7 +57,7 @@ describe('SyncPanel', () => {
     render(<SyncPanel />);
     expect(screen.getByTestId('sync-panel')).toBeInTheDocument();
     expect(screen.getByTestId('sync-status')).toHaveAttribute('data-status', 'disabled');
-    expect(screen.getByTestId('sync-status')).toHaveTextContent(en['sync.status.disabled']);
+    expect(screen.getByTestId('sync-status')).toHaveTextContent(ui['sync.status.disabled']);
     expect(screen.queryByTestId('sync-now')).toBeNull();
     expect(screen.queryByTestId('sync-account')).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
@@ -67,8 +69,8 @@ describe('SyncPanel', () => {
     render(<SyncPanel />);
 
     expect(screen.getByTestId('sync-status')).toHaveAttribute('data-status', 'idle');
-    expect(screen.getByTestId('sync-status')).toHaveTextContent(en['sync.status.idle']);
-    expect(screen.getByTestId('sync-last-synced')).toHaveTextContent(formatSyncedAt(at, 'en') as string);
+    expect(screen.getByTestId('sync-status')).toHaveTextContent(ui['sync.status.idle']);
+    expect(screen.getByTestId('sync-last-synced')).toHaveTextContent(formatSyncedAt(at, DEFAULT_LOCALE) as string);
     expect(screen.getByTestId('sync-last-synced')).toHaveAttribute('data-value', at);
     expect(screen.getByTestId('sync-pending')).toHaveTextContent('3');
     expect(screen.getByTestId('sync-account-email')).toHaveTextContent('ana@example.com');
@@ -80,14 +82,14 @@ describe('SyncPanel', () => {
 
     setState({ status: 'syncing', lastSyncedAt: at, pending: 3 });
     expect(screen.getByTestId('sync-now')).toBeDisabled();
-    expect(screen.getByTestId('sync-status')).toHaveTextContent(en['sync.status.syncing']);
+    expect(screen.getByTestId('sync-status')).toHaveTextContent(ui['sync.status.syncing']);
   });
 
   it('never synced shows "Never"; an error shows its message and code', () => {
     install({ status: 'error', lastSyncedAt: null, pending: 1, lastError: 'network' }, { status: 'signed_in', email: 'a@b.co' });
     render(<SyncPanel />);
-    expect(screen.getByTestId('sync-last-synced')).toHaveTextContent(en['sync.never']);
-    expect(screen.getByTestId('sync-error')).toHaveTextContent(en['sync.error.network']);
+    expect(screen.getByTestId('sync-last-synced')).toHaveTextContent(ui['sync.never']);
+    expect(screen.getByTestId('sync-error')).toHaveTextContent(ui['sync.error.network']);
     expect(screen.getByTestId('sync-error')).toHaveTextContent('network');
   });
 
@@ -96,7 +98,7 @@ describe('SyncPanel', () => {
     render(<SyncPanel nextPath="/auth/account" />);
     expect(screen.getByTestId('sync-sign-in')).toHaveAttribute('href', '/auth/login?next=%2Fauth%2Faccount');
     expect(screen.getByTestId('sync-now')).toBeDisabled();
-    expect(screen.getByTestId('sync-error')).toHaveTextContent(en['sync.error.auth_required']);
+    expect(screen.getByTestId('sync-error')).toHaveTextContent(ui['sync.error.auth_required']);
     expect(screen.queryByTestId('sync-sign-out')).toBeNull();
   });
 

@@ -1,4 +1,4 @@
-import { test, expect, createTytax, type Page } from './fixtures';
+import { test, expect, createTytax, waitForApp, type Page } from './fixtures';
 import {
   adminClient,
   createUser,
@@ -8,6 +8,7 @@ import {
   requireSyncE2EEnv,
   type SyncE2EEnv,
 } from './fixtures/supabase';
+import { DEFAULT_LOCALE } from '../src/components/providers/locale-core';
 import { AUTH_STRINGS } from '../src/lib/auth/i18n';
 
 /**
@@ -28,7 +29,8 @@ import { AUTH_STRINGS } from '../src/lib/auth/i18n';
 const DEVICE = { bypassCSP: true, serviceWorkers: 'block' } as const;
 test.use(DEVICE);
 
-const en = AUTH_STRINGS.en;
+/** A fresh browser context renders DEFAULT_LOCALE (G4: 'hr'). */
+const ui = AUTH_STRINGS[DEFAULT_LOCALE];
 const BENCH_ID = 'tytax_smith-machine_smith-flat-bench-press';
 
 /** Magic-link sign-in through the login UI; lands on `next`. */
@@ -36,8 +38,8 @@ async function signIn(page: Page, env: SyncE2EEnv, email: string, next: string):
   const before = new Set(await mailIds(env, email));
   await page.goto(`/auth/login?next=${encodeURIComponent(next)}`);
   await page.locator('#auth-email').fill(email);
-  await page.getByRole('button', { name: en['auth.login.submit'] }).click();
-  await expect(page.getByText(en['auth.login.sent_title'])).toBeVisible();
+  await page.getByRole('button', { name: ui['auth.login.submit'] }).click();
+  await expect(page.getByText(ui['auth.login.sent_title'])).toBeVisible();
 
   let fresh = '';
   await expect
@@ -69,7 +71,7 @@ test('a workout logged on device A reaches device B through Supabase', { tag: '@
     await signIn(page, env, user.email, '/auth/account');
     await expect(page.getByTestId('auth-account-heading')).toBeVisible();
     await expect(page.getByTestId('sync-account-email')).toHaveText(user.email);
-    await page.waitForFunction(() => window.__tytaxE2E?.ready === true);
+    await waitForApp(page);
     const { activeProfileId } = await tytax.snapshot();
     expect(activeProfileId).not.toBeNull();
     const [log] = await tytax.seedHistory(activeProfileId as string, [
@@ -109,7 +111,7 @@ test('sync on, signed out: the app still works and nothing is sent', { tag: '@sy
 
   const res = await page.goto('/dashboard');
   expect(res?.status()).toBe(200);
-  await page.waitForFunction(() => window.__tytaxE2E?.ready === true);
+  await waitForApp(page);
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
   const { activeProfileId } = await tytax.snapshot();

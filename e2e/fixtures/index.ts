@@ -16,4 +16,4 @@ export type {
 } from '../../src/contracts/fixtures';
 export type { Profile, Program, WorkoutLog } from '../../src/contracts/domain';
 export type { Page } from '@playwright/test';
-export { createTytax } from './seed';
+export { createTytax, waitForApp } from './seed';

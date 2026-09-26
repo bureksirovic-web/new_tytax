@@ -65,7 +65,7 @@ PORT=3100 npm run dev     # http://localhost:3100
 | `npm test` | Unit tests (Vitest, once) |
 | `npm run test:watch` | Unit tests in watch mode |
 | `npm run test:coverage` | Unit tests with V8 coverage |
-| `npm run test:e2e` | Playwright e2e (starts its own dev server) |
+| `PORT=310<n> npm run test:e2e` | Playwright e2e (starts its own dev server; refuses to run without `PORT`) |
 | `npm run test:e2e:ui` | Playwright UI mode |
 | `npm run test:sync` | v2 (in progress): sync tests against local Supabase |
 

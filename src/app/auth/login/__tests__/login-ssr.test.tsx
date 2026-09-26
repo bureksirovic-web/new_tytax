@@ -7,6 +7,7 @@ import { act } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { LocaleProvider } from '@/components/providers/locale-provider';
+import { DEFAULT_LOCALE } from '@/components/providers/locale-core';
 import { AUTH_STRINGS } from '@/lib/auth/i18n';
 
 let serverPass = false;
@@ -61,7 +62,7 @@ describe('/auth/login server render', () => {
     const html = prerender();
     expect(html).toContain('role="alert"');
     expect(html).toContain('data-testid="auth-error"');
-    expect(html).toContain(AUTH_STRINGS.en['auth.error.auth_not_configured']);
+    expect(html).toContain(AUTH_STRINGS[DEFAULT_LOCALE]['auth.error.auth_not_configured']);
   });
 
   it('configured: the prerendered HTML has no error banner', () => {
@@ -70,13 +71,14 @@ describe('/auth/login server render', () => {
     expect(prerender()).not.toContain('role="alert"');
   });
 
-  it('saved locale hr: hydrates without a mismatch, then shows Croatian', async () => {
+  // Both saved locales: one equals DEFAULT_LOCALE (en here, hr once G4 lands), the other switches after mount.
+  it.each(['hr', 'en'] as const)('saved locale %s: hydrates without a mismatch, then shows it', async (saved) => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');
-    const html = prerender(); // server has no saved locale → en
-    expect(html).toContain(AUTH_STRINGS.en['auth.login.subtitle']);
+    const html = prerender(); // the server has no saved locale → DEFAULT_LOCALE
+    expect(html).toContain(AUTH_STRINGS[DEFAULT_LOCALE]['auth.login.subtitle']);
 
-    localStorage.setItem('locale', 'hr');
+    localStorage.setItem('locale', saved);
     const container = document.createElement('div');
     container.innerHTML = html;
     document.body.appendChild(container);
@@ -90,8 +92,9 @@ describe('/auth/login server render', () => {
 
     const mismatches = recoverable.filter((m) => /hydrat|didn't match/i.test(m));
     expect(mismatches).toEqual([]);
-    expect(container.textContent).toContain(AUTH_STRINGS.hr['auth.login.subtitle']);
-    expect(container.textContent).toContain(AUTH_STRINGS.hr['auth.error.auth_not_configured']);
-    expect(container.textContent).not.toContain(AUTH_STRINGS.en['auth.login.subtitle']);
+    const other = saved === 'hr' ? 'en' : 'hr';
+    expect(container.textContent).toContain(AUTH_STRINGS[saved]['auth.login.subtitle']);
+    expect(container.textContent).toContain(AUTH_STRINGS[saved]['auth.error.auth_not_configured']);
+    expect(container.textContent).not.toContain(AUTH_STRINGS[other]['auth.login.subtitle']);
   });
 });
