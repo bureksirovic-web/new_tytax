@@ -33,9 +33,9 @@ describe('RmCalculator', () => {
     expect(result()).toBe('112.5');
   });
 
-  it('percent table for the default 1RM (112.51) is rounded to 2.5', () => {
+  it('percent table for the default 1RM (112.5) is rounded to 2.5', () => {
     setup();
-    // 1RM 112.511: 100% -> 112.5; 95% 106.89 -> 107.5; 90% 101.26 -> 102.5; 50% 56.26 -> 57.5
+    // 1RM 3600/32 = 112.5: 100% -> 112.5; 95% 106.875 -> 42.75 -> 107.5; 90% 101.25 -> 40.5 -> 102.5; 50% 56.25 -> 22.5 -> 57.5
     const kg = tableValues('rm-percent-table');
     expect(kg).toHaveLength(11);
     expect(kg[0]).toBe('112.5');
@@ -46,7 +46,7 @@ describe('RmCalculator', () => {
 
   it('rep-max table has 12 rows and 5RM equals the entered weight', () => {
     setup();
-    // inverse Brzycki of brzycki(100,5) at 5 reps = 100 exactly.
+    // inverse Brzycki: 112.5 * (37 - 5) / 36 = 100 exactly.
     const kg = tableValues('rm-rep-table');
     expect(kg).toHaveLength(12);
     expect(kg[4]).toBe('100');
@@ -56,7 +56,7 @@ describe('RmCalculator', () => {
     const { weight, reps, result } = setup();
     fireEvent.change(weight, { target: { value: '80' } });
     fireEvent.change(reps, { target: { value: '8' } });
-    // 80 / 0.8054 = 99.33 -> 99.5
+    // 80 * 36 / 29 = 99.31 -> 99.5
     expect(result()).toBe('99.5');
   });
 
@@ -99,14 +99,28 @@ describe('RmCalculator', () => {
     expect(screen.getByText('Procijenjeni 1RM')).toBeInTheDocument();
   });
 
-  it('more than 30 reps is rejected; 30 reps uses Epley', () => {
+  it('more than 30 reps is rejected; 30 reps uses Brzycki (training.e1rm)', () => {
     const { reps, result } = setup();
     fireEvent.change(reps, { target: { value: '31' } });
     expect(result()).toBe('—');
     expect(screen.getByRole('alert')).toHaveTextContent('Enter at most 30 reps');
     expect(screen.queryByTestId('rm-percent-table')).not.toBeInTheDocument();
-    // 100 * (1 + 30/30) = 200
+    // 100 * 36 / (37 - 30) = 514.29; /0.5 = 1028.57 -> 1029 -> 514.5
     fireEvent.change(reps, { target: { value: '30' } });
-    expect(result()).toBe('200');
+    expect(result()).toBe('514.5');
+    expect(screen.getByTestId('rm-unreliable-hint')).toHaveTextContent('Estimates from more than 12 reps are unreliable');
+  });
+
+  it('unreliable hint shows only above 12 reps', () => {
+    const { reps, result } = setup();
+    expect(screen.queryByTestId('rm-unreliable-hint')).not.toBeInTheDocument();
+    fireEvent.change(reps, { target: { value: '12' } });
+    // 100 * 36 / 25 = 144
+    expect(result()).toBe('144');
+    expect(screen.queryByTestId('rm-unreliable-hint')).not.toBeInTheDocument();
+    fireEvent.change(reps, { target: { value: '13' } });
+    // 100 * 36 / 24 = 150
+    expect(result()).toBe('150');
+    expect(screen.getByTestId('rm-unreliable-hint')).toBeInTheDocument();
   });
 });

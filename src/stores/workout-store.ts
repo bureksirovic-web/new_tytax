@@ -8,6 +8,22 @@
  * in-progress workout survives a reload. Hydration is manual
  * (`skipHydration`): pages call `useWorkoutHydrated()` and must not act on
  * `draft === null` until it returns true.
+ *
+ * G3 actions (pure immutable updates, helpers in ./draft-ops.ts):
+ * - `startDraft(input: StartDraftInput): WorkoutDraft` — start from prepared
+ *   exercises (program start, deload, weak point); replaces any draft.
+ * - `swapExercise(uid, exercise, sets?): string | null` — replaces the exercise
+ *   in place (same uid) when none of its sets is done; otherwise keeps it and
+ *   INSERTS the new exercise after it, returning the new uid (logged work is
+ *   never discarded). `sets` default: fresh empty working sets. Null when
+ *   there is no draft or the uid is unknown.
+ * - `addPreparedExercise(se): string | null` — appends a built SessionExercise
+ *   (e.g. from `buildSessionExercise`); a uid already in the draft is replaced
+ *   by a fresh one. Returns the uid used.
+ * - `prependWarmups(uid, warmups)` — inserts warm-ups before the first
+ *   non-warm-up set.
+ * - `replaceExercises(exercises, opts?: { isDeload?: boolean })` — replaces the
+ *   whole exercise list; `isDeload` true marks the draft, false clears it.
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
@@ -20,6 +36,10 @@ import type {
   SetEntry,
   WorkoutDraft,
 } from '@/contracts/domain';
+import { useRestTimerStore } from './rest-timer-store';
+import { makeDraft, prependWarmupsTo, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
+
+export type { StartDraftInput } from './draft-ops';
 
 export const WORKOUT_DRAFT_STORAGE_KEY = 'tytax.workout-draft.v3';
 export const WORKOUT_DRAFT_VERSION = 3;
@@ -65,7 +85,18 @@ export interface WorkoutActions {
   /** Flips `done`; stamps `completedAt` when it becomes done, clears it otherwise. */
   toggleSetDone(uid: string, setId: string): void;
   setNotes(notes: string): void;
+  /** Drops the draft and stops the rest timer. */
   discard(): void;
+  /** Starts a draft from prepared exercises, replacing any current draft. */
+  startDraft(input: StartDraftInput): WorkoutDraft;
+  /** See the file header: replace in place, or insert after when sets are done. */
+  swapExercise(uid: string, exercise: Exercise, sets?: SetEntry[]): string | null;
+  /** Appends a fully built exercise; returns its (possibly re-issued) uid, or null without a draft. */
+  addPreparedExercise(se: SessionExercise): string | null;
+  /** Inserts warm-up sets before the first non-warm-up set. */
+  prependWarmups(uid: string, warmups: SetEntry[]): void;
+  /** Replaces every exercise (deload / injector); `isDeload` sets or clears the flag. */
+  replaceExercises(exercises: SessionExercise[], opts?: { isDeload?: boolean }): void;
 }
 
 export type WorkoutStore = WorkoutState & WorkoutActions;
@@ -279,7 +310,50 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       setNotes: (notes) => set((s) => (s.draft ? { draft: { ...s.draft, notes } } : s)),
 
-      discard: () => set({ draft: null }),
+      discard: () => {
+        // A rest belongs to its workout: never carry it into the next one.
+        useRestTimerStore.getState().stop();
+        set({ draft: null });
+      },
+
+      startDraft: (input) => {
+        const draft = makeDraft(input, nowIso());
+        set({ draft });
+        return draft;
+      },
+
+      swapExercise: (uid, exercise, sets) => {
+        let out: string | null = null;
+        set((s) => {
+          const res = swapInDraft(s.draft, uid, exercise, sets);
+          out = res.uid;
+          return res.uid ? { draft: res.draft } : s;
+        });
+        return out;
+      },
+
+      addPreparedExercise: (se) => {
+        let out: string | null = null;
+        set((s) => {
+          if (!s.draft) return s;
+          const [entry] = uniqueUids([se], s.draft.exercises.map((e) => e.uid));
+          out = entry.uid;
+          return { draft: { ...s.draft, exercises: [...s.draft.exercises, entry] } };
+        });
+        return out;
+      },
+
+      prependWarmups: (uid, warmups) =>
+        set((s) => ({ draft: withExercise(s.draft, uid, (ex) => prependWarmupsTo(ex, warmups)) })),
+
+      replaceExercises: (exercises, opts) =>
+        set((s) => {
+          if (!s.draft) return s;
+          const draft: WorkoutDraft = { ...s.draft, exercises: uniqueUids(exercises) };
+          if (opts?.isDeload === true) draft.isDeload = true;
+          if (opts?.isDeload === false) delete draft.isDeload;
+          return { draft };
+        }),
     }),
     {
       name: WORKOUT_DRAFT_STORAGE_KEY,

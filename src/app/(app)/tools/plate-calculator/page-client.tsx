@@ -1,5 +1,5 @@
 'use client';
-import { PlateCalculator } from '@/components/tools/plate-calculator';
+import { ProfilePlateCalculator } from '@/components/tools/profile-plate-calculator';
 import { useToolsT } from '@/components/tools/tools-i18n';
 
 export default function PlateCalculatorPage() {
@@ -13,7 +13,7 @@ export default function PlateCalculatorPage() {
         {t('plate_title')}
       </h1>
       <p className="text-sm text-[var(--text-muted)]">{t('plate_desc')}</p>
-      <PlateCalculator />
+      <ProfilePlateCalculator />
     </div>
   );
 }

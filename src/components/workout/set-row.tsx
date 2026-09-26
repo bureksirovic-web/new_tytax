@@ -1,78 +1,132 @@
 'use client';
-import type { SetEntry } from '@/contracts/domain';
-import { useLocale } from '@/components/providers';
+import { useRef, type Ref } from 'react';
+import type { Modality, SetEntry, Units } from '@/contracts/domain';
 import type { SetPatch } from '@/stores/workout-store';
+import { displayToKg, kgToDisplay } from '@/lib/utils';
+import { useSetsStrings } from './strings/sets';
 import { NumberField } from './number-field';
-import { CheckIcon, CloseIcon } from './icons';
+import { SetRemoveButton } from './set-remove-button';
+import { CheckIcon } from './icons';
+import { beatsGhostReps, canCompleteSet, canToggleDone, formatNumber, setE1rmKg } from './set-rules';
 
 export interface SetRowProps {
   set: SetEntry;
-  /** 1-based position shown to the user. */
-  index: number;
+  /** 1-based number within its kind (warm-ups are numbered separately). */
+  number: number;
+  modality: Modality;
+  units: Units;
   onChange: (patch: SetPatch) => void;
+  /** Complete or undo; the caller runs the side effects (rest timer, focus). */
   onToggleDone: () => void;
   onRemove: () => void;
+  /** Receives the kg input (focus after the previous set is done). */
+  kgRef?: Ref<HTMLInputElement>;
 }
 
 const RIR_MAX = 5;
+/** The three inputs share the row evenly; on phones the e1RM wraps below so each stays >=44px wide at 360px. */
+const INPUT_FLEX = 'flex-1 basis-0';
+const RIR_VALUES = [0, 1, 2, 3, 4, 5];
 
-export function SetRow({ set, index, onChange, onToggleDone, onRemove }: SetRowProps) {
-  const { t } = useLocale();
-  const setLabel = `${t('workout_set_label')} ${index}`;
+export function SetRow({ set, number, modality, units, onChange, onToggleDone, onRemove, kgRef }: SetRowProps) {
+  const t = useSetsStrings();
+  const repsRef = useRef<HTMLInputElement>(null);
+  const warmup = set.type === 'warmup';
+  const setLabel = warmup ? t('warmup_label', { n: number }) : t('set_label', { n: number });
+  const beat = beatsGhostReps(set);
+  const toggleable = canToggleDone(set, modality);
+  const e1rm = setE1rmKg(set);
+  const e1rmText = e1rm > 0 ? formatNumber(kgToDisplay(e1rm, units)) : '';
+  const rirListId = `rir-options-${set.id}`;
+
   const rowTone = set.done
     ? 'border-[var(--accent)] bg-[var(--bg-secondary)]'
-    : 'border-transparent bg-transparent';
+    : warmup
+      ? 'border-dashed border-[var(--border-color)] bg-transparent opacity-80'
+      : 'border-transparent bg-transparent';
 
   return (
     <li
       data-testid="set-row"
       data-set-id={set.id}
+      data-set-type={set.type}
       data-done={set.done ? 'true' : 'false'}
-      className={`flex items-center gap-1.5 rounded-lg border px-1 py-1 ${rowTone}`}
+      aria-label={setLabel}
+      className={`flex flex-wrap items-center gap-1.5 rounded-lg border px-1 py-1 sm:flex-nowrap ${rowTone}`}
     >
       <span
-        className={`w-7 shrink-0 text-center font-mono text-sm ${set.type === 'warmup' ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)]'}`}
+        className={`w-7 shrink-0 text-center font-mono text-sm ${warmup ? 'font-bold text-[var(--highlight)]' : 'text-[var(--text-secondary)]'}`}
         aria-hidden="true"
       >
-        {index}
+        {warmup ? `${t('warmup_badge')}${number}` : number}
       </span>
       <NumberField
         testId="set-kg"
-        label={`${setLabel}: ${t('workout_weight_kg')}`}
-        value={set.kg}
+        inputRef={kgRef}
+        label={`${setLabel}: ${t('set_weight', { unit: units })}`}
+        value={set.kg > 0 ? kgToDisplay(set.kg, units) : set.kg}
         zeroIsEmpty
-        placeholder={set.ghostKg !== undefined ? String(set.ghostKg) : undefined}
+        matchTolerance={units === 'lb' ? 0.05 : 0}
+        className={INPUT_FLEX}
+        placeholder={set.ghostKg !== undefined ? formatNumber(kgToDisplay(set.ghostKg, units)) : undefined}
         inputMode="decimal"
         step={0.25}
-        onValueChange={(v) => onChange({ kg: v ?? 0 })}
+        onEnter={() => repsRef.current?.focus()}
+        onValueChange={(v) => onChange({ kg: v === undefined ? 0 : displayToKg(v, units) })}
       />
       <NumberField
         testId="set-reps"
-        label={`${setLabel}: ${t('workout_reps')}`}
+        inputRef={repsRef}
+        label={
+          beat && set.ghostReps !== undefined
+            ? `${setLabel}: ${t('set_reps')}. ${t('set_beat_ghost', { reps: set.ghostReps })}`
+            : `${setLabel}: ${t('set_reps')}`
+        }
         value={set.reps}
         zeroIsEmpty
         placeholder={set.ghostReps !== undefined ? String(set.ghostReps) : undefined}
         inputMode="numeric"
         step={1}
+        dataAttrs={{ 'data-beat': beat ? 'true' : 'false' }}
+        className={beat ? `${INPUT_FLEX} border-emerald-500 text-emerald-400 ring-1 ring-emerald-500` : INPUT_FLEX}
+        onEnter={() => {
+          if (!set.done && canCompleteSet(set, modality)) onToggleDone();
+        }}
         onValueChange={(v) => onChange({ reps: v === undefined ? 0 : Math.round(v) })}
       />
       <NumberField
         testId="set-rir"
-        // i18n: needs `workout_rir` (requested in docs/v2/requests/G1-i18n.md).
-        label={`${setLabel}: ${t('workout_reps')} (0–${RIR_MAX})`}
+        list={rirListId}
+        label={`${setLabel}: ${t('set_rir')}`}
         value={set.rir}
         max={RIR_MAX}
+        className={INPUT_FLEX}
         inputMode="numeric"
         step={1}
         onValueChange={(v) => onChange({ rir: v === undefined ? undefined : Math.round(v) })}
       />
+      <datalist id={rirListId}>
+        {RIR_VALUES.map((v) => (
+          <option key={v} value={v} />
+        ))}
+      </datalist>
+      <output
+        data-testid="set-e1rm"
+        aria-label={e1rmText ? `${t('set_e1rm_label')}: ${e1rmText}` : t('set_e1rm_label')}
+        title={e1rmText ? t('set_e1rm', { value: e1rmText }) : undefined}
+        className="order-last basis-full pr-1 text-right empty:hidden sm:empty:block font-mono text-[11px] leading-tight text-[var(--text-muted)] sm:order-none sm:w-12 sm:shrink-0 sm:basis-auto sm:pr-0 sm:text-center"
+      >
+        {e1rmText}
+      </output>
       <button
         type="button"
         data-testid="set-done"
         aria-pressed={set.done}
-        aria-label={`${setLabel}: ${t('workout_log_set')}`}
+        disabled={!toggleable}
+        title={toggleable ? undefined : t('set_done_needs_input')}
+        aria-label={`${setLabel}: ${set.done ? t('set_mark_undone') : t('set_mark_done')}`}
         onClick={onToggleDone}
-        className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)] ${
+        className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)] disabled:cursor-not-allowed disabled:opacity-40 ${
           set.done
             ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
             : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)]'
@@ -80,15 +134,7 @@ export function SetRow({ set, index, onChange, onToggleDone, onRemove }: SetRowP
       >
         <CheckIcon />
       </button>
-      <button
-        type="button"
-        data-testid="remove-set"
-        aria-label={`${setLabel}: ${t('delete')}`}
-        onClick={onRemove}
-        className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)]"
-      >
-        <CloseIcon className="h-4 w-4" />
-      </button>
+      <SetRemoveButton set={set} label={`${setLabel}: ${t('set_remove')}`} onRemove={onRemove} />
     </li>
   );
 }

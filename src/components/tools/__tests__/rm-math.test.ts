@@ -1,18 +1,21 @@
 import { describe, it, expect } from 'vitest';
+import { training } from '@/lib/training';
 import {
   brzycki,
   estimate1RM,
+  isUnreliableReps,
+  UNRELIABLE_ABOVE_REPS,
   percentTable,
   repMaxTable,
   repMaxWeight,
   roundTo,
 } from '../rm-math';
 
-describe('brzycki', () => {
-  it('REQUIRED: 100 x 5 -> ~112.51, displayed 112.5', () => {
-    // 100 / (1.0278 - 0.0278*5) = 100 / (1.0278 - 0.139) = 100 / 0.8888 = 112.5112...
-    expect(brzycki(100, 5)).toBeCloseTo(112.5112, 3);
-    // 112.5112 / 0.5 = 225.02 -> round 225 -> 112.5
+describe('brzycki (delegates to training.e1rm: Brzycki <= 36 reps, Epley >= 37)', () => {
+  it('REQUIRED: 100 x 5 -> 112.5 exactly', () => {
+    // 100 * 36 / (37 - 5) = 3600 / 32 = 112.5
+    expect(brzycki(100, 5)).toBe(112.5);
+    // 112.5 / 0.5 = 225 -> 112.5
     expect(estimate1RM(100, 5)).toBe(112.5);
   });
 
@@ -21,49 +24,48 @@ describe('brzycki', () => {
     expect(estimate1RM(137.5, 1)).toBe(137.5);
   });
 
-  it('100 x 10 -> 133.37, displayed 133.5', () => {
-    // 100 / (1.0278 - 0.278) = 100 / 0.7498 = 133.3689; /0.5 = 266.74 -> 267 -> 133.5
-    expect(brzycki(100, 10)).toBeCloseTo(133.3689, 3);
+  it('100 x 10 -> 133.33, displayed 133.5', () => {
+    // 3600 / 27 = 133.333; /0.5 = 266.67 -> 267 -> 133.5
+    expect(brzycki(100, 10)).toBeCloseTo(133.3333, 3);
     expect(estimate1RM(100, 10)).toBe(133.5);
   });
 
-  it('80 x 8 -> 99.33, displayed 99.5', () => {
-    // 80 / (1.0278 - 0.2224) = 80 / 0.8054 = 99.329; /0.5 = 198.66 -> 199 -> 99.5
-    expect(brzycki(80, 8)).toBeCloseTo(99.329, 2);
+  it('80 x 8 -> 99.31, displayed 99.5', () => {
+    // 80 * 36 / 29 = 2880 / 29 = 99.3103; /0.5 = 198.62 -> 199 -> 99.5
+    expect(brzycki(80, 8)).toBeCloseTo(99.3103, 3);
     expect(estimate1RM(80, 8)).toBe(99.5);
   });
 
   it('102.5 x 3 -> 108.53, displayed 108.5', () => {
-    // 102.5 / (1.0278 - 0.0834) = 102.5 / 0.9444 = 108.534; /0.5 = 217.07 -> 217 -> 108.5
+    // 102.5 * 36 / 34 = 3690 / 34 = 108.529; /0.5 = 217.06 -> 217 -> 108.5
     expect(estimate1RM(102.5, 3)).toBe(108.5);
   });
 
-  it('10 reps is the last Brzycki rep count', () => {
-    // 100 / (1.0278 - 0.278) = 100 / 0.7498 = 133.3689
-    expect(brzycki(100, 10)).toBeCloseTo(133.3689, 3);
+  it('Brzycki runs up to 36 reps', () => {
+    // 100 * 36 / (37 - 20) = 3600 / 17 = 211.7647 | 36 reps: 3600 / 1 = 3600
+    expect(brzycki(100, 20)).toBeCloseTo(211.7647, 3);
+    expect(brzycki(100, 36)).toBe(3600);
   });
 
-  it('11+ reps use Epley', () => {
-    // 100 * (1 + 11/30) = 136.667 | 100 * (1 + 20/30) = 166.667 | 100 * (1 + 36/30) = 220
-    expect(brzycki(100, 11)).toBeCloseTo(136.667, 2);
-    expect(brzycki(100, 20)).toBeCloseTo(166.667, 2);
-    expect(brzycki(100, 36)).toBeCloseTo(220, 6);
-    // 60 * (1 + 40/30) = 60 * 2.3333 = 140
-    expect(brzycki(60, 40)).toBeCloseTo(140, 6);
-  });
-
-  it('no jump at 36 -> 37 reps (old Brzycki gave 3703.7 then 223.3)', () => {
-    // 36: 100 * 2.2 = 220 -> 220 | 37: 100 * 2.2333 = 223.33 -> /0.5 = 446.67 -> 447 -> 223.5
-    expect(estimate1RM(100, 36)).toBe(220);
+  it('37+ reps use Epley', () => {
+    // 100 * (30 + 37) / 30 = 223.333; /0.5 = 446.67 -> 447 -> 223.5
+    expect(brzycki(100, 37)).toBeCloseTo(223.3333, 3);
     expect(estimate1RM(100, 37)).toBe(223.5);
+    // 60 * (30 + 40) / 30 = 60 * 70 / 30 = 140
+    expect(brzycki(60, 40)).toBeCloseTo(140, 9);
   });
 
-  it('estimate rises with reps from 1 to 60', () => {
-    for (let r = 2; r <= 60; r++) expect(brzycki(100, r)).toBeGreaterThan(brzycki(100, r - 1));
+  it('matches training.e1rm for every whole rep count 1..60', () => {
+    for (let r = 1; r <= 60; r++) expect(brzycki(97.5, r)).toBe(training.e1rm(97.5, r));
+  });
+
+  it('estimate rises with reps within each formula (1..36, 37..60)', () => {
+    for (let r = 2; r <= 36; r++) expect(brzycki(100, r)).toBeGreaterThan(brzycki(100, r - 1));
+    for (let r = 38; r <= 60; r++) expect(brzycki(100, r)).toBeGreaterThan(brzycki(100, r - 1));
   });
 
   it('fractional reps are floored (5.9 counts as 5)', () => {
-    expect(brzycki(100, 5.9)).toBe(brzycki(100, 5));
+    expect(brzycki(100, 5.9)).toBe(112.5);
   });
 
   it.each([
@@ -78,6 +80,18 @@ describe('brzycki', () => {
   ])('invalid weight=%s reps=%s -> 0', (w, r) => {
     expect(brzycki(w, r)).toBe(0);
     expect(estimate1RM(w, r)).toBe(0);
+  });
+});
+
+describe('isUnreliableReps', () => {
+  it('flags estimates from more than 12 reps', () => {
+    expect(UNRELIABLE_ABOVE_REPS).toBe(12);
+    expect(isUnreliableReps(1)).toBe(false);
+    expect(isUnreliableReps(12)).toBe(false);
+    expect(isUnreliableReps(12.9)).toBe(false);
+    expect(isUnreliableReps(13)).toBe(true);
+    expect(isUnreliableReps(30)).toBe(true);
+    expect(isUnreliableReps(Number.NaN)).toBe(false);
   });
 });
 
@@ -117,15 +131,14 @@ describe('percentTable', () => {
 
 describe('repMaxTable (inverse of brzycki())', () => {
   it('100 kg 1RM -> 1..12 rep maxes rounded to 2.5', () => {
-    // w = 100 * (1.0278 - 0.0278 r), then /2.5, round, *2.5:
-    // r1 100 | r2 97.22->38.89->39->97.5 | r3 94.44->37.78->38->95 | r4 91.66->36.66->37->92.5
-    // r5 88.88->35.55->36->90 | r6 86.10->34.44->34->85 | r7 83.32->33.33->33->82.5
-    // r8 80.54->32.22->32->80 | r9 77.76->31.10->31->77.5 | r10 74.98->29.99->30->75
-    // r11+ inverse Epley w = 100 / (1 + r/30):
-    // r11 73.17->29.27->29->72.5 | r12 71.43->28.57->29->72.5
+    // inverse Brzycki w = 100 * (37 - r) / 36, then /2.5, round, *2.5:
+    // r1 100 | r2 97.22->38.89->39->97.5 | r3 94.44->37.78->38->95 | r4 91.67->36.67->37->92.5
+    // r5 88.89->35.56->36->90 | r6 86.11->34.44->34->85 | r7 83.33->33.33->33->82.5
+    // r8 80.56->32.22->32->80 | r9 77.78->31.11->31->77.5 | r10 75->30->75
+    // r11 72.22->28.89->29->72.5 | r12 69.44->27.78->28->70
     const rows = repMaxTable(100);
     expect(rows.map((r) => r.reps)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    expect(rows.map((r) => r.kg)).toEqual([100, 97.5, 95, 92.5, 90, 85, 82.5, 80, 77.5, 75, 72.5, 72.5]);
+    expect(rows.map((r) => r.kg)).toEqual([100, 97.5, 95, 92.5, 90, 85, 82.5, 80, 77.5, 75, 72.5, 70]);
   });
 
   it('is monotonically non-increasing', () => {
@@ -136,6 +149,8 @@ describe('repMaxTable (inverse of brzycki())', () => {
   it('round-trips with brzycki', () => {
     expect(repMaxWeight(brzycki(100, 5), 5)).toBeCloseTo(100, 9);
     expect(repMaxWeight(brzycki(72.5, 11), 11)).toBeCloseTo(72.5, 9);
+    // Epley side: brzycki(60, 40) = 140; 140 * 30 / 70 = 60
+    expect(repMaxWeight(140, 40)).toBeCloseTo(60, 9);
   });
 
   it('repMaxWeight edge cases', () => {

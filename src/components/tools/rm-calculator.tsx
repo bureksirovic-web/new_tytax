@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { brzycki, estimate1RM, MAX_REPS } from './rm-math';
+import { brzycki, estimate1RM, isUnreliableReps, MAX_REPS } from './rm-math';
 import { parseWeightInput } from './plate-math';
 import { NumberField, formatKg } from './number-field';
 import { PercentTable, RepMaxTable } from './rm-tables';
@@ -38,6 +38,12 @@ export function RmCalculator({ initialWeightKg = 100, initialReps = 5 }: RmCalcu
           {valid && <span className="ml-1 text-base text-[var(--text-muted)]">{t('unit_kg')}</span>}
         </span>
       </div>
+
+      {valid && isUnreliableReps(repCount) && (
+        <p data-testid="rm-unreliable-hint" className="text-sm text-[var(--text-muted)]">
+          {t('rm_unreliable')}
+        </p>
+      )}
 
       {!valid && (
         <p role="alert" className="text-sm text-[var(--highlight)]">

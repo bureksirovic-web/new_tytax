@@ -1,10 +1,13 @@
 'use client';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkoutDebrief } from '@/contracts/domain';
-import { getRepository } from '@/lib/db';
+import type { PRCandidate } from '@/contracts/training';
+import { useWorkout } from '@/hooks/use-workout';
+import { celebratedPRs } from '@/hooks/use-pr';
 import { useLocale } from '@/components/providers';
 import { DebriefForm } from '@/components/workout/debrief-form';
+import { PrCelebration } from '@/components/workout/pr-celebration';
 import { useWorkoutHydrated, useWorkoutStore } from '@/stores/workout-store';
 
 export default function DebriefPage() {
@@ -12,9 +15,10 @@ export default function DebriefPage() {
   const { t } = useLocale();
   const hydrated = useWorkoutHydrated();
   const draft = useWorkoutStore((s) => s.draft);
-  const discard = useWorkoutStore((s) => s.discard);
+  const { finish, settings } = useWorkout();
+  const [celebrate, setCelebrate] = useState<PRCandidate[] | null>(null);
   // Set once the workout is saved, so the "no draft" redirect cannot race
-  // the navigation to /history.
+  // the navigation to /history (or the PR celebration).
   const leaving = useRef(false);
 
   useEffect(() => {
@@ -23,15 +27,26 @@ export default function DebriefPage() {
 
   const save = useCallback(
     async (debrief: WorkoutDebrief) => {
-      const current = useWorkoutStore.getState().draft;
-      if (!current) throw new Error('No workout draft to save');
-      await getRepository().finishWorkout(current, debrief);
+      if (leaving.current) return;
+      // Throws without a draft; `finishWorkout` is idempotent per draft id.
+      const result = await finish(debrief);
       leaving.current = true;
-      discard();
-      router.replace('/history');
+      const prs = celebratedPRs(result.prs);
+      if (prs.length > 0) setCelebrate(prs);
+      // The log is saved: only now is it safe to drop the draft.
+      useWorkoutStore.getState().discard();
+      if (prs.length === 0) router.replace('/history');
     },
-    [discard, router],
+    [finish, router],
   );
+
+  if (celebrate) {
+    return (
+      <div data-testid="workout-debrief" className="min-h-screen bg-[var(--bg-primary)] p-4 pb-24">
+        <PrCelebration prs={celebrate} units={settings.units} onContinue={() => router.replace('/history')} />
+      </div>
+    );
+  }
 
   if (!hydrated || !draft) {
     return (

@@ -33,6 +33,7 @@ const en = {
   tools_meta_desc: 'Plate and 1RM calculators',
   plate_meta_desc: 'Which plates to load on each side of the bar',
   rm_meta_desc: 'Estimate your one-rep max from a set',
+  rm_unreliable: 'Estimates from more than 12 reps are unreliable',
 } as const;
 
 export type ToolsKey = keyof typeof en;
@@ -67,6 +68,7 @@ const hr: Record<ToolsKey, string> = {
   tools_meta_desc: 'Kalkulatori ploča i 1RM-a',
   plate_meta_desc: 'Koje ploče staviti na svaku stranu šipke',
   rm_meta_desc: 'Procjena maksimuma za jedno ponavljanje iz serije',
+  rm_unreliable: 'Procjene iz više od 12 ponavljanja nisu pouzdane',
 };
 
 export const TOOLS_STRINGS: { hr: Record<ToolsKey, string>; en: Record<ToolsKey, string> } = {

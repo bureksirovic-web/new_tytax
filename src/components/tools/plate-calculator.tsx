@@ -1,12 +1,14 @@
 'use client';
 import { useState } from 'react';
-import { calcPlates, parseWeightInput, DEFAULT_BAR_KG, MAX_TARGET_KG } from './plate-math';
+import { calcPlates, parseWeightInput, DEFAULT_BAR_KG, DEFAULT_PLATES_KG, MAX_TARGET_KG } from './plate-math';
 import { NumberField, formatKg } from './number-field';
 import { useToolsT } from './tools-i18n';
 
 interface PlateCalculatorProps {
   initialTargetKg?: number;
   initialBarKg?: number;
+  /** Plate sizes (kg, per side). Default: the standard set. */
+  platesKg?: readonly number[];
 }
 
 /** Plate diameter class by size so heavier plates read as bigger discs. */
@@ -20,6 +22,7 @@ function plateSizeClass(kg: number): string {
 export function PlateCalculator({
   initialTargetKg = 100,
   initialBarKg = DEFAULT_BAR_KG,
+  platesKg = DEFAULT_PLATES_KG,
 }: PlateCalculatorProps) {
   const t = useToolsT();
   const [target, setTarget] = useState(String(initialTargetKg));
@@ -30,7 +33,7 @@ export function PlateCalculator({
   const tooHeavy = Number.isFinite(targetKg) && targetKg > MAX_TARGET_KG;
   const valid =
     Number.isFinite(targetKg) && targetKg > 0 && !tooHeavy && Number.isFinite(barKg) && barKg >= 0;
-  const result = calcPlates({ targetKg, barKg });
+  const result = calcPlates({ targetKg, barKg, plates: platesKg });
   const belowBar = valid && targetKg < barKg;
 
   return (
@@ -40,7 +43,7 @@ export function PlateCalculator({
         <NumberField label={t('plate_bar')} value={bar} onChange={setBar} testId="plate-bar-input" />
       </div>
 
-      <section aria-live="polite" className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3">
         <h2 className="font-[family-name:var(--font-display)] text-sm uppercase text-[var(--text-muted)]">
           {t('plate_per_side')}
         </h2>
@@ -59,7 +62,7 @@ export function PlateCalculator({
           <p className="text-sm text-[var(--text-muted)]">{t('plate_bar_only')}</p>
         )}
 
-        <div className="flex items-baseline justify-between border-t border-[var(--border-color)] pt-3">
+        <div aria-live="polite" className="flex items-baseline justify-between border-t border-[var(--border-color)] pt-3">
           <span className="text-xs uppercase text-[var(--text-muted)]">{t('plate_loaded')}</span>
           <span data-testid="plate-loaded-total" className="font-mono text-2xl text-[var(--text-primary)]">
             {valid ? `${formatKg(result.loadedKg)} ${t('unit_kg')}` : '—'}

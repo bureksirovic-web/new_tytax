@@ -70,3 +70,27 @@ export function ArrowRightIcon(props: IconProps) {
     </Svg>
   );
 }
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 5.5v13l10-6.5-10-6.5z" />
+    </Svg>
+  );
+}
+
+export function SwapIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+    </Svg>
+  );
+}
+
+export function FlameIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3c1 4 5 5.5 5 10a5 5 0 01-10 0c0-2.5 1.5-3.5 2-5.5 1 1.5 2 2 3 2-1-2.5-.5-4.5 0-6.5z" />
+    </Svg>
+  );
+}

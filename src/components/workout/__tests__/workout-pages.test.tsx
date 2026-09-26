@@ -6,8 +6,10 @@ const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 
 const finishWorkout = vi.fn<(d: WorkoutDraft, debrief?: WorkoutDebrief) => Promise<unknown>>();
-vi.mock('@/lib/db', () => ({ getRepository: () => ({ finishWorkout }) }));
-vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] } }));
+// watch: useWorkout() (active page) subscribes to live queries; never emitting keeps the profile loading.
+vi.mock('@/lib/db', () => ({ getRepository: () => ({ finishWorkout, watch: () => () => undefined }) }));
+// loadCatalog: the exercise card resolves catalog entries via useExercises(); never resolving keeps it loading.
+vi.mock('@/lib/catalog', () => ({ catalog: { search: async () => [] }, loadCatalog: () => new Promise(() => undefined) }));
 
 import { WORKOUT_DRAFT_STORAGE_KEY, useWorkoutStore } from '@/stores/workout-store';
 import ActiveWorkoutPage from '@/app/(app)/workout/active/page-client';
