@@ -1,7 +1,15 @@
 import type { TranslationKey } from './types';
+import { sharedHr } from './modules/shared';
+import { dashboardHr } from './modules/dashboard';
+import { programsHr } from './modules/programs';
+import { exercisesHr } from './modules/exercises';
+import { historyHr } from './modules/history';
+import { analyticsHr } from './modules/analytics';
+import { settingsHr } from './modules/settings';
+import { requestsHr } from './modules/requests';
 
 // Croatian dictionary (default locale). Same keys as en.ts (parity test).
-export const hr: Record<TranslationKey, string> = {
+const core = {
   // Navigation
   nav_home: 'Početna',
   nav_workout: 'Trening',
@@ -309,4 +317,16 @@ export const hr: Record<TranslationKey, string> = {
   error_not_found_title: 'Stranica nije pronađena',
   error_not_found_desc: 'Stranica koju tražiš ne postoji.',
   error_back_to_dashboard: 'Natrag na početnu',
+};
+
+export const hr: Record<TranslationKey, string> = {
+  ...core,
+  ...sharedHr,
+  ...dashboardHr,
+  ...programsHr,
+  ...exercisesHr,
+  ...historyHr,
+  ...analyticsHr,
+  ...settingsHr,
+  ...requestsHr,
 };

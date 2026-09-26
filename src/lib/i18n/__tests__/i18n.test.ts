@@ -104,3 +104,18 @@ describe('locale persistence', () => {
     ).toBe('hr');
   });
 });
+
+describe('dictionary modules', () => {
+  it('no key is defined in more than one module', async () => {
+    const { coreKeys } = await import('../en');
+    const mods = await Promise.all(
+      ['shared', 'dashboard', 'programs', 'exercises', 'history', 'analytics', 'settings', 'requests'].map(
+        async (m) => Object.keys((await import(`../modules/${m}.ts`))[`${m}En`] as Record<string, string>)
+      )
+    );
+    const all = [...coreKeys, ...mods.flat()];
+    const dupes = all.filter((k, i) => all.indexOf(k) !== i);
+    expect(dupes).toEqual([]);
+    expect(all.length).toBe(Object.keys(en).length);
+  });
+});

@@ -1,5 +1,14 @@
+import { sharedEn } from './modules/shared';
+import { dashboardEn } from './modules/dashboard';
+import { programsEn } from './modules/programs';
+import { exercisesEn } from './modules/exercises';
+import { historyEn } from './modules/history';
+import { analyticsEn } from './modules/analytics';
+import { settingsEn } from './modules/settings';
+import { requestsEn } from './modules/requests';
+
 // English dictionary. hr.ts must carry exactly the same keys (parity test).
-export const en = {
+const core = {
   // Navigation
   nav_home: 'Home',
   nav_workout: 'Workout',
@@ -307,4 +316,18 @@ export const en = {
   error_not_found_title: 'Page not found',
   error_not_found_desc: 'The page you are looking for does not exist.',
   error_back_to_dashboard: 'Back to Dashboard',
+} as const;
+
+export const coreKeys = Object.keys(core);
+
+export const en = {
+  ...core,
+  ...sharedEn,
+  ...dashboardEn,
+  ...programsEn,
+  ...exercisesEn,
+  ...historyEn,
+  ...analyticsEn,
+  ...settingsEn,
+  ...requestsEn,
 } as const;
