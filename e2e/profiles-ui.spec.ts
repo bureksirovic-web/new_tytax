@@ -19,12 +19,15 @@ test('create, switch and delete profiles from settings; data stays isolated', as
   // Create a second profile through the UI.
   await tytax.gotoApp('/settings');
   await expect(page.getByTestId('page-heading-settings')).toBeVisible();
+  const rows = page.locator('[data-testid^="settings-profile-row-"]');
+  await expect(rows.filter({ hasText: 'Ana' })).toHaveCount(1);
+  // App start may already have created a default profile besides the seeded one.
+  const before = await rows.count();
   await page.getByTestId('settings-profile-name-input').fill('Marko');
   await page.getByTestId('settings-profile-create').click();
 
-  const rows = page.locator('[data-testid^="settings-profile-row-"]');
-  // 2: Ana (seeded) and Marko (created above).
-  await expect(rows).toHaveCount(2);
+  // One more row: Marko, created above.
+  await expect(rows).toHaveCount(before + 1);
   const markoRow = rows.filter({ hasText: 'Marko' });
   const markoId = (await markoRow.getAttribute('data-testid'))!.replace('settings-profile-row-', '');
   expect(markoId).not.toBe(ana.id);
@@ -49,9 +52,10 @@ test('create, switch and delete profiles from settings; data stays isolated', as
   await page.getByTestId(`settings-profile-delete-${markoId}`).click();
   await page.getByTestId('settings-profile-delete-confirm-input').fill('Marko');
   await page.getByTestId('settings-profile-delete-confirm').click();
-  // 1: only Ana is left.
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText('Ana');
+  // Back to the count before Marko existed; Ana is still listed.
+  await expect(rows).toHaveCount(before);
+  await expect(rows.filter({ hasText: 'Marko' })).toHaveCount(0);
+  await expect(rows.filter({ hasText: 'Ana' })).toHaveCount(1);
   expect((await tytax.snapshot()).activeProfileId).toBe(ana.id);
   // 1: deleting Marko did not touch Ana's workout.
   expect(await tytax.listLogs(ana.id)).toHaveLength(1);

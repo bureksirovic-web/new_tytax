@@ -47,7 +47,9 @@ describe('History list', () => {
     renderEn(<HistoryPage />);
     // Volume = 100×5 = 500 kg (warm-up and undone excluded) × 2.20462 = 1102.31 → 1,102.3 lb
     expect(await screen.findByTestId('history-item-volume')).toHaveTextContent('1,102.3 lb');
-    expect(screen.getByTestId('history-item-sets')).toHaveTextContent(en('hist_sets_count', { n: 1 }));
+    // 1: only the done working set counts.
+    expect(screen.getByTestId('history-item-sets')).toHaveTextContent(/^1$/);
+    expect(screen.getByTestId('history-item-exercises')).toHaveTextContent('b');
   });
 
   it('shows the empty state with a link to start a workout', async () => {

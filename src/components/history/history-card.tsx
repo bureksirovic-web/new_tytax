@@ -21,6 +21,7 @@ export function HistoryCard({ log, units, onDelete }: Props) {
   const name = logDisplayName(log, t);
   const date = formatLogDate(log, locale);
   const named = { name, date };
+  const exerciseNames = [...new Set(log.exercises.map((e) => e.exerciseName))].join(', ');
 
   return (
     <li
@@ -45,11 +46,16 @@ export function HistoryCard({ log, units, onDelete }: Props) {
             <p data-testid="history-item-volume" className="font-mono text-sm font-bold text-accent-fg">
               {formatWeight(log.totalVolumeKg, units, locale)}
             </p>
-            <p data-testid="history-item-sets" className="text-xs text-fg-muted">
-              {t('hist_sets_count', { n: log.totalSets })}
+            <p className="text-xs text-fg-muted">
+              {t('sets')}: <span data-testid="history-item-sets">{log.totalSets}</span>
             </p>
           </div>
         </div>
+        {exerciseNames ? (
+          <p data-testid="history-item-exercises" className="mt-2 truncate text-xs text-fg-2">
+            {exerciseNames}
+          </p>
+        ) : null}
         {log.prCount > 0 || log.isDeload ? (
           <p className="mt-2 flex flex-wrap gap-2 text-xs">
             {log.prCount > 0 ? (

@@ -44,17 +44,17 @@ export function WeeklyVolumeCard({ volume, units }: WeeklyVolumeCardProps) {
       <p className="mb-3 text-xs text-fg-muted">{t('dash_volume_caption')}</p>
       <dl className="space-y-2">
         {rows.map((r) => (
-          <div key={r.key}>
-            <div className="flex items-baseline justify-between gap-2 text-sm">
-              <dt className="text-fg-2">{r.label}</dt>
-              <dd data-testid={`dash-volume-${r.key}`} className="font-mono font-semibold text-fg">
-                {r.value}
-              </dd>
-            </div>
-            <svg viewBox="0 0 100 4" preserveAspectRatio="none" className="mt-1 h-2 w-full" aria-hidden="true">
-              <rect x="0" y="0" width="100" height="4" rx="2" className="fill-bg-2" />
-              <rect x="0" y="0" width={r.len} height="4" rx="2" className={r.fill} />
-            </svg>
+          <div key={r.key} className="grid grid-cols-[1fr_auto] items-baseline gap-x-2 text-sm">
+            <dt className="text-fg-2">{r.label}</dt>
+            <dd data-testid={`dash-volume-${r.key}`} className="font-mono font-semibold text-fg">
+              {r.value}
+            </dd>
+            <dd className="col-span-2">
+              <svg viewBox="0 0 100 4" preserveAspectRatio="none" className="mt-1 h-2 w-full" aria-hidden="true">
+                <rect x="0" y="0" width="100" height="4" rx="2" className="fill-bg-2" />
+                <rect x="0" y="0" width={r.len} height="4" rx="2" className={r.fill} />
+              </svg>
+            </dd>
           </div>
         ))}
       </dl>
