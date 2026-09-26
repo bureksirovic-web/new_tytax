@@ -210,6 +210,18 @@ GATE_EXIT=0
 ```
 (npm audit exits 0 at `--audit-level=high`; the remaining 1 low + 4 moderate are below the CI threshold.)
 
+Follow-up (01:25, coordinator request: `ghostDurationSeconds`, commit 3b0eb22) — same gate re-run:
+```
+5 vulnerabilities (1 low, 4 moderate)
+✖ 52 problems (0 errors, 52 warnings)
+ Test Files  64 passed (64)
+      Tests  537 passed (537)
+first-load JS for /dashboard: 204.9 kB gzip (budget 250 kB), 13 files
+check-bundle: OK
+  2 passed (11.4s)
+GATE_EXIT=0
+```
+
 ## Items
 | # | Item | Status | Command | Output excerpt |
 |---|---|---|---|---|
