@@ -1,21 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { bodyweightToCSV, rowsToCSV, workoutLogsToCSV, UTF8_BOM } from '../csv';
-import type { BodyweightEntry, LoggedSet, WorkoutLog } from '@/types/workout';
+import type { BodyweightEntry, SetEntry, WorkoutLog } from '@/contracts';
 import { parseCsv } from './rfc4180';
 
-function set(overrides: Partial<LoggedSet> = {}): LoggedSet {
+function set(overrides: Partial<SetEntry> = {}): SetEntry {
   return {
-    id: 's1', setNumber: 1, type: 'working', kg: 50, reps: 10, done: true,
-    timestamp: '2024-01-01T10:00:00.000Z', ...overrides,
+    id: 's1', type: 'working', kg: 50, reps: 10, done: true,
+    completedAt: '2024-01-01T10:00:00.000Z', ...overrides,
   };
 }
 
-function log(overrides: Partial<WorkoutLog> & { name?: string; sets?: LoggedSet[] } = {}): WorkoutLog {
+function log(overrides: Partial<WorkoutLog> & { name?: string; sets?: SetEntry[] } = {}): WorkoutLog {
   const { name = 'Squat', sets = [set()], ...rest } = overrides;
   return {
     id: 'l1', profileId: 'ana', sessionName: 'Day A', date: '2024-01-01',
-    startedAt: '2024-01-01T10:00:00.000Z', durationSeconds: 3600,
-    exercises: [{ exerciseRef: 'ex-1', exerciseName: name, modality: 'tytax', sets }],
+    startedAt: '2024-01-01T10:00:00.000Z', finishedAt: '2024-01-01T11:00:00.000Z', durationSeconds: 3600,
+    exercises: [{ uid: 'u1', exerciseId: 'ex-1', exerciseName: name, modality: 'tytax', sets }],
     totalVolumeKg: 0, totalSets: 0, prCount: 0, modalitiesUsed: ['tytax'],
     createdAt: '2024-01-01T10:00:00.000Z', updatedAt: '2024-01-01T10:00:00.000Z',
     ...rest,
@@ -28,6 +28,15 @@ describe('workoutLogsToCSV (v2)', () => {
     const [header, row] = parseCsv(csv);
     expect(header.slice(-3)).toEqual(['RIR', 'Set type', 'Done']);
     expect(row).toEqual(['2024-01-01', '60', 'Squat', '1', '50', '10', '500', 'tytax', '2', 'drop', 'false']);
+  });
+
+  it('numbers sets by index within each SessionExercise', () => {
+    const l = log({ sets: [set({ id: 'a' }), set({ id: 'b', type: 'warmup' })] });
+    l.exercises.push({ uid: 'u2', exerciseId: 'ex-1', exerciseName: 'Squat', modality: 'kettlebell', sets: [set({ id: 'c' })] });
+    const rows = parseCsv(workoutLogsToCSV([l])).slice(1);
+    expect(rows.map(r => [r[3], r[7], r[9]])).toEqual([
+      ['1', 'tytax', 'working'], ['2', 'tytax', 'warmup'], ['1', 'kettlebell', 'working'],
+    ]);
   });
 
   it('leaves RIR empty when absent', () => {
@@ -76,7 +85,7 @@ describe('workoutLogsToCSV (v2)', () => {
 
 describe('bodyweightToCSV', () => {
   const entry = (date: string, valueKg: number, createdAt: string): BodyweightEntry => ({
-    id: `${date}-${createdAt}`, profileId: 'marko', date, valueKg, createdAt,
+    id: `${date}-${createdAt}`, profileId: 'marko', date, valueKg, createdAt, updatedAt: createdAt,
   });
 
   it('exports ordered date and weight rows', () => {
@@ -91,6 +100,15 @@ describe('bodyweightToCSV', () => {
       ['2024-03-01', '80.5'],
       ['2024-03-02', '81.2'],
     ]);
+  });
+
+  it('skips soft-deleted entries without mutating input', () => {
+    const input = [
+      entry('2024-03-02', 81.2, '2024-03-02T09:00:00.000Z'),
+      { ...entry('2024-03-01', 99, '2024-03-01T07:00:00.000Z'), deletedAt: '2024-03-03T00:00:00.000Z' },
+    ];
+    expect(parseCsv(bodyweightToCSV(input))).toEqual([['Date', 'Weight (kg)'], ['2024-03-02', '81.2']]);
+    expect(input.map(e => e.date)).toEqual(['2024-03-02', '2024-03-01']);
   });
 
   it('returns only the header for no entries', () => {

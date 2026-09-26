@@ -1,4 +1,4 @@
-import type { BodyweightEntry, WorkoutLog } from '@/types/workout';
+import type { BodyweightEntry, Units, WorkoutLog } from '@/contracts';
 import { escapeCsvCell } from './csv-escape';
 
 /**
@@ -18,6 +18,36 @@ export const WORKOUT_CSV_HEADERS: readonly string[] = [
 ];
 
 export const BODYWEIGHT_CSV_HEADERS: readonly string[] = ['Date', 'Weight (kg)'];
+
+/** Exact international avoirdupois factor (1 lb = 0.45359237 kg), 9 significant digits. */
+export const LB_PER_KG = 2.20462262;
+
+export interface CsvExportOptions {
+  /** Display units for weight columns. Storage is always kg. Default 'kg'. */
+  units?: Units;
+}
+
+const WEIGHT_HEADER_INDEX = 4;
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Converts a stored kg value for display. 'kg' is returned unchanged (no
+ * rounding, legacy behaviour); 'lb' is rounded to 0.1.
+ */
+export function displayWeight(kg: number, units: Units = 'kg'): number {
+  return units === 'lb' ? round1(kg * LB_PER_KG) : kg;
+}
+
+function weightHeader(units: Units): string {
+  return units === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
+}
+
+function withWeightHeader(headers: readonly string[], index: number, units: Units): string[] {
+  return headers.map((h, i) => (i === index ? weightHeader(units) : h));
+}
 
 /** Generic builder: every header and cell goes through escapeCsvCell. */
 export function rowsToCSV(
@@ -39,23 +69,26 @@ function orderedLiveLogs(logs: readonly WorkoutLog[]): WorkoutLog[] {
     .sort((a, b) => compareStrings(a.date, b.date) || compareStrings(a.startedAt, b.startedAt));
 }
 
-export function workoutLogsToCSV(logs: readonly WorkoutLog[]): string {
+/**
+ * One row per set. `Set #` is the 1-based index within its SessionExercise;
+ * `Volume` is weight × reps in the display unit ('lb' rounded to 0.1).
+ */
+export function workoutLogsToCSV(logs: readonly WorkoutLog[], opts: CsvExportOptions = {}): string {
+  const units = opts.units ?? 'kg';
   const rows: unknown[][] = [];
   for (const log of orderedLiveLogs(logs)) {
     const minutes = Math.round(log.durationSeconds / 60);
     for (const ex of log.exercises) {
       ex.sets.forEach((set, i) => {
-        const kg = set.kg ?? 0;
-        const reps = set.reps ?? 0;
         rows.push([
           log.date,
           minutes,
           ex.exerciseName,
           i + 1,
-          set.kg,
+          displayWeight(set.kg, units),
           set.reps,
-          kg * reps,
-          ex.modality ?? '',
+          displayWeight(set.kg * set.reps, units),
+          ex.modality,
           set.rir,
           set.type,
           set.done,
@@ -63,15 +96,17 @@ export function workoutLogsToCSV(logs: readonly WorkoutLog[]): string {
       });
     }
   }
-  return rowsToCSV(WORKOUT_CSV_HEADERS, rows);
+  return rowsToCSV(withWeightHeader(WORKOUT_CSV_HEADERS, WEIGHT_HEADER_INDEX, units), rows);
 }
 
-/** Bodyweight history ordered by date then createdAt. */
-export function bodyweightToCSV(entries: readonly BodyweightEntry[]): string {
-  const rows = [...entries]
+/** Live bodyweight history ordered by date then createdAt; soft-deleted entries are skipped. */
+export function bodyweightToCSV(entries: readonly BodyweightEntry[], opts: CsvExportOptions = {}): string {
+  const units = opts.units ?? 'kg';
+  const rows = entries
+    .filter(e => !e.deletedAt)
     .sort((a, b) => compareStrings(a.date, b.date) || compareStrings(a.createdAt, b.createdAt))
-    .map(e => [e.date, e.valueKg]);
-  return rowsToCSV(BODYWEIGHT_CSV_HEADERS, rows);
+    .map(e => [e.date, displayWeight(e.valueKg, units)]);
+  return rowsToCSV(withWeightHeader(BODYWEIGHT_CSV_HEADERS, 1, units), rows);
 }
 
 /** Trigger a browser download. Prefixes a UTF-8 BOM so Excel detects encoding. */
