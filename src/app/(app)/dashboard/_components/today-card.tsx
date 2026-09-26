@@ -5,17 +5,21 @@ import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import { pluralCategory, predictSession } from './dashboard-math';
 import { ACTIVE_WORKOUT_HREF, type useStartWorkout } from './use-start-workout';
+import { ForeignDraftCard } from './foreign-draft-card';
 import { cardSection, eyebrow, linkPrimary, linkSecondary } from './styles';
+import type { ForeignDraft } from './use-foreign-draft';
 
 type Starter = ReturnType<typeof useStartWorkout>;
 
 export interface TodayCardProps {
   program: Program | undefined;
   start: Starter;
+  /** The persisted draft when it belongs to another profile (G3-04): replaces "continue". */
+  foreign?: ForeignDraft | null;
 }
 
 /** Today's predicted session from the active program (or a rest day), with the start actions. */
-export function TodayCard({ program, start }: TodayCardProps) {
+export function TodayCard({ program, start, foreign }: TodayCardProps) {
   const { t } = useT();
 
   return (
@@ -23,7 +27,9 @@ export function TodayCard({ program, start }: TodayCardProps) {
       <h2 id="dash-today-heading" className={`${eyebrow} mb-2`}>
         {t('dash_today')}
       </h2>
-      {start.draft ? (
+      {foreign ? (
+        <ForeignDraftCard foreign={foreign} />
+      ) : start.draft ? (
         <InProgress name={start.draft.sessionName} />
       ) : program ? (
         <ProgramToday program={program} start={start} />
@@ -81,10 +87,12 @@ function ProgramToday({ program, start }: { program: Program; start: Starter }) 
         </>
       ) : session.isRest ? (
         <>
-          <p data-testid="dash-session-name" className="font-display text-2xl font-bold uppercase tracking-wide text-fg">
-            {t('dash_rest_day')}
-          </p>
-          <p className="text-sm text-fg-2">{t('dash_rest_day_hint')}</p>
+          <div data-testid="dashboard-next-session">
+            <p data-testid="dash-session-name" className="font-display text-2xl font-bold uppercase tracking-wide text-fg">
+              {t('dash_rest_day')}
+            </p>
+            <p className="text-sm text-fg-2">{t('dash_rest_day_hint')}</p>
+          </div>
           <Button variant="secondary" fullWidth data-testid="dash-skip-rest" disabled={start.busy} onClick={() => void start.skipRest(program)}>
             {t('dash_skip_rest')}
           </Button>
@@ -92,10 +100,12 @@ function ProgramToday({ program, start }: { program: Program; start: Starter }) 
         </>
       ) : (
         <>
-          <p data-testid="dash-session-name" className="font-display text-2xl font-bold uppercase tracking-wide text-fg">
-            {t('dash_today_session', { session: session.name })}
-          </p>
-          <p className="text-sm text-fg-2">{t(`dash_session_exercises_${pluralCategory(count, locale)}`, { count })}</p>
+          <div data-testid="dashboard-next-session">
+            <p data-testid="dash-session-name" className="font-display text-2xl font-bold uppercase tracking-wide text-fg">
+              {t('dash_today_session', { session: session.name })}
+            </p>
+            <p className="text-sm text-fg-2">{t(`dash_session_exercises_${pluralCategory(count, locale)}`, { count })}</p>
+          </div>
           <Button fullWidth size="lg" data-testid="dash-start-session" disabled={start.busy} onClick={() => void start.program(program)}>
             {t('dash_start_session')}
           </Button>

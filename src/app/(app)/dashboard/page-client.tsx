@@ -4,9 +4,11 @@ import { SkeletonCard } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 import { LastWorkoutCard } from './_components/last-workout-card';
 import { NoWorkoutsCard } from './_components/no-workouts-card';
+import { PinnedCard } from './_components/pinned-card';
 import { RecoveryCard } from './_components/recovery-card';
 import { TodayCard } from './_components/today-card';
 import { useDashboardData, useNow } from './_components/use-dashboard-data';
+import { useForeignDraft } from './_components/use-foreign-draft';
 import { useStartWorkout } from './_components/use-start-workout';
 import { WeeklyVolumeCard } from './_components/weekly-volume-card';
 
@@ -15,6 +17,7 @@ export default function DashboardPage() {
   const now = useNow();
   const data = useDashboardData(now);
   const start = useStartWorkout(data.profile?.id);
+  const foreign = useForeignDraft(data.profile?.id);
   const units = data.profile?.settings.units ?? DEFAULT_PROFILE_SETTINGS.units;
 
   return (
@@ -37,7 +40,8 @@ export default function DashboardPage() {
         </p>
       ) : (
         <>
-          <TodayCard program={data.program} start={start} />
+          <TodayCard program={data.program} start={start} foreign={foreign} />
+          <PinnedCard units={units} />
           {data.lastLog ? (
             <div className="grid gap-4 md:grid-cols-2">
               <RecoveryCard recovery={data.recovery} failed={data.recoveryFailed} />
