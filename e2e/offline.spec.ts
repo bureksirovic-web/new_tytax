@@ -26,6 +26,14 @@ async function primeOffline(page: Page, gotoApp: (p: string) => Promise<void>): 
 
 test.describe.configure({ mode: 'serial' });
 
+// `next dev` never hydrates a page that was loaded offline (its HMR client waits
+// for the dev socket), so this spec is only meaningful against a production
+// build: NEXT_PUBLIC_E2E_HOOKS=1 npm run build && E2E_SERVER=prod PORT=… npx playwright test e2e/offline.spec.ts
+// (docs/v2/requests/G4-03). Fail loudly instead of skipping.
+test.beforeEach(() => {
+  expect(process.env.E2E_SERVER, 'offline.spec needs E2E_SERVER=prod (see docs/v2/requests/G4-03)').toBe('prod');
+});
+
 test('a workout can be logged while offline', async ({ page, context, tytax }) => {
   test.setTimeout(180_000);
   await tytax.gotoApp('/dashboard');
@@ -34,7 +42,8 @@ test('a workout can be logged while offline', async ({ page, context, tytax }) =
 
   await context.setOffline(true);
   await page.goto('/workout');
-  await expect(page.getByTestId('start-quick-workout')).toBeVisible();
+  // Offline first paint in dev can take a while: chunks come from the SW cache.
+  await expect(page.getByTestId('start-quick-workout')).toBeVisible({ timeout: 30_000 });
 
   await page.getByTestId('start-quick-workout').click();
   await expect(page).toHaveURL(/\/workout\/active/);
