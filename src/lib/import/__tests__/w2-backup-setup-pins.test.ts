@@ -28,7 +28,7 @@ describe('JSON backup keeps Wave 2 fields', () => {
     expect(await getNotesExt(fresh.repo).getSetup(p.id, 'squat')).toBeUndefined();
   });
 
-  it('rejects an unknown setup key and invalid pins instead of stripping them', async () => {
+  it('rejects an unknown setup key; sanitises a bad pin list like the repo does', async () => {
     const { t, p } = await seed();
     const backup = JSON.parse(await exportBackupJson(t.repo, p.id)) as Record<string, unknown> & {
       exerciseNotes: Array<Record<string, unknown>>;
@@ -37,17 +37,21 @@ describe('JSON backup keeps Wave 2 fields', () => {
 
     const badSetup = structuredClone(backup);
     badSetup.exerciseNotes[0].setup = { seat: '4', rackHeight: '9' };
-    const badPins = structuredClone(backup);
-    badPins.profiles[0].settings.pinnedExerciseIds = ['a', 'a'];
-
-    for (const bad of [badSetup, badPins]) {
-      let caught: unknown;
-      try {
-        parseBackupV3(JSON.stringify(bad));
-      } catch (e) {
-        caught = e;
-      }
-      expect(isImportError(caught) && caught.code).toBe('INVALID_STRUCTURE');
+    let caught: unknown;
+    try {
+      parseBackupV3(JSON.stringify(badSetup));
+    } catch (e) {
+      caught = e;
     }
+    expect(isImportError(caught) && caught.code).toBe('INVALID_STRUCTURE');
+
+    const badPins = structuredClone(backup);
+    badPins.profiles[0].settings.pinnedExerciseIds = ['a', 'a', '', 7, 'b', 'c', 'd', 'e'];
+    const parsed = parseBackupV3(JSON.stringify(badPins));
+    // strings only, '' dropped, 'a' deduped, capped at 4 -> a, b, c, d
+    expect(parsed.backup.profiles[0].settings.pinnedExerciseIds).toEqual(['a', 'b', 'c', 'd']);
+    const nullPins = structuredClone(backup);
+    nullPins.profiles[0].settings.pinnedExerciseIds = null;
+    expect(parseBackupV3(JSON.stringify(nullPins)).backup.profiles[0].settings.pinnedExerciseIds).toBeUndefined();
   });
 });

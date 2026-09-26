@@ -22,6 +22,7 @@ import {
   units,
   warmupStrategy,
 } from './primitives';
+import { sanitizePins } from '@/lib/db/repo/settings';
 
 export const profileSettingsSchema = z.object({
   units,
@@ -33,12 +34,11 @@ export const profileSettingsSchema = z.object({
   plateSetKg: z.array(z.number().positive()),
   weakPointInjector: z.boolean(),
   voiceCues: z.boolean(),
-  /** Wave 2 (G4-30): same rules as the repo (src/lib/db/repo/settings.ts). */
-  pinnedExerciseIds: z
-    .array(z.string().trim().min(1))
-    .max(4)
-    .refine((a) => new Set(a).size === a.length, 'duplicate id')
-    .optional(),
+  /**
+   * Wave 2 (G4-30). A bad stored list is sanitised, never fatal: the same rule
+   * as `sanitizePins` in src/lib/db/repo/settings.ts (strings only, deduped, max 4).
+   */
+  pinnedExerciseIds: z.unknown().transform(sanitizePins).optional(),
 }) satisfies z.ZodType<ProfileSettings>;
 
 export const profileSchema = z.object({
