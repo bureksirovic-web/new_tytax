@@ -35,7 +35,12 @@ describe('applyRemote ownership and shape', () => {
   it('accepts a well-formed pulled workout log', async () => {
     const { repo } = freshRepo();
     const a = await repo.profiles.create({ name: 'A' });
-    const ok = { id: 'w', profileId: a.id, date: '2026-03-01', exercises: [], updatedAt: LATER };
+    const ok = {
+      id: 'w', profileId: a.id, sessionName: 'Upper A', date: '2026-03-01',
+      startedAt: '2026-03-01T10:00:00.000Z', finishedAt: '2026-03-01T11:00:00.000Z', durationSeconds: 3600,
+      exercises: [], totalVolumeKg: 0, totalSets: 0, prCount: 0, modalitiesUsed: [],
+      createdAt: '2026-03-01T11:00:00.000Z', updatedAt: LATER,
+    };
     expect(await repo.applyRemote('workout_logs', [ok])).toEqual({ applied: 1, skipped: 0 });
     expect((await repo.logs.get(a.id, 'w'))?.date).toBe('2026-03-01');
   });

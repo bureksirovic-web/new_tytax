@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import type { Modality, SessionExercise, SetEntry, WorkoutLog } from '@/contracts/domain';
+import type { Modality, SessionExercise, WorkoutLog } from '@/contracts/domain';
 import { RepoError, type DateRange, type ListOptions, type LogsRepo } from '@/contracts/repo';
 import {
   assertDay,
@@ -15,10 +15,9 @@ import {
   type RepoContext,
 } from './context';
 
-/** A set that counts as training: done and not a warm-up (contract rule). */
-export function countsAsWork(s: SetEntry): boolean {
-  return s.done && s.type !== 'warmup';
-}
+import { countsAsWork, reconcileLogPRs } from './prs';
+
+export { countsAsWork };
 
 export interface LogTotals {
   totalVolumeKg: number;
@@ -108,9 +107,11 @@ export function createLogsRepo(ctx: RepoContext): LogsRepo {
         if (clean.bodyweightKg !== undefined) assertNonNegative(clean.bodyweightKg, 'bodyweightKg');
         if (clean.rpe !== undefined) assertRpe(clean.rpe, 'rpe');
         if (clean.exercises !== undefined) validateExercises(clean.exercises);
-        const next: WorkoutLog = { ...current, ...clean };
+        let next: WorkoutLog = { ...current, ...clean };
         Object.assign(next, computeTotals(next.exercises));
         next.updatedAt = ctx.stamp();
+        // R01: edited sets re-derive their e1rm/isPR, prCount and this log's PR rows.
+        if (clean.exercises !== undefined) next = await reconcileLogPRs(ctx, w, next);
         const stored = compact(next);
         await ctx.db.workoutLogs.put(stored);
         await w.queue('workout_logs', 'upsert', id, profileId);

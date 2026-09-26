@@ -7,6 +7,8 @@
  *   applied only when the content differs, so re-importing an identical
  *   backup writes nothing, queues nothing and reports `updated: 0`.
  *   An incoming row without a parseable `updatedAt` never beats a local row.
+ * - Shape: every row of every table must match its domain schema
+ *   (src/lib/import/backup-v3) or the whole import is VALIDATION (S3-11).
  * - Owners: owned rows must name a profile in the backup or the DB (else
  *   VALIDATION). Rows whose profile ends the import tombstoned are skipped
  *   (not written, not counted): they could never be read, only synced.
@@ -20,6 +22,7 @@
 import { RepoError, type BackupV3 } from '@/contracts/repo';
 import type { SyncTable } from '@/contracts/sync';
 import type { RepoContext } from './context';
+import { rowProblem } from '@/lib/import/backup-v3/row-check';
 import { resolveKeyed } from './natural-key';
 import { dataTable, isDataRow, isObject, sameRow, timeOf, type DataRow, type DataTableName } from './tables';
 
@@ -57,6 +60,10 @@ export function validateBackup(backup: unknown): asserts backup is BackupV3 {
     if (key !== 'profiles' && !rows.every((r) => typeof r.profileId === 'string')) {
       throw new RepoError('VALIDATION', `Backup field ${key} has a record without profileId`);
     }
+    rows.forEach((row, i) => {
+      const problem = rowProblem(key, row);
+      if (problem) throw new RepoError('VALIDATION', `Backup ${key}[${i}] (id ${String(row.id)}) is malformed: ${problem}`);
+    });
     if (new Set(rows.map((r) => r.id)).size !== rows.length) {
       throw new RepoError('VALIDATION', `Backup field ${key} has duplicate ids`);
     }

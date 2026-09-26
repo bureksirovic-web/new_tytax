@@ -41,18 +41,15 @@ describe('importBackup: last-write-wins on updatedAt', () => {
     expect(await t.repo.importBackup(t.backup)).toEqual({ inserted: 0, updated: 0 });
   });
 
-  it('an incoming row without a parseable updatedAt never beats a local row but is inserted when new', async () => {
+  it('an incoming row without a parseable updatedAt is VALIDATION (S3-11 shape check), nothing written', async () => {
     const t = await base();
     const bw = t.backup.bodyweightEntries[0];
     const broken = { ...bw, valueKg: 99, updatedAt: 'garbage' };
     const fresh = { ...bw, id: 'bw-new', updatedAt: 'garbage' };
-    expect(await t.repo.importBackup({ ...t.backup, profiles: [], programs: [], bodyweightEntries: [broken, fresh] })).toEqual({
-      inserted: 1,
-      updated: 0,
-    });
+    await expectRejected(t.repo, { ...t.backup, profiles: [], programs: [], bodyweightEntries: [broken, fresh] }, 'VALIDATION');
     const rows = await t.repo.bodyweight.list(t.a.id);
     expect(rows.find((b) => b.id === bw.id)?.valueKg).toBe(70);
-    expect(rows.map((b) => b.id).sort()).toEqual([bw.id, 'bw-new'].sort());
+    expect(rows.map((b) => b.id)).toEqual([bw.id]);
   });
 });
 

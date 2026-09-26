@@ -2,9 +2,8 @@
  * `Repository.applyRemote`: pulled rows, last-write-wins on `updatedAt`;
  * never queues outbox rows. A row is skipped (counted in `skipped`) when:
  * - it has no id or no parseable `updatedAt`;
- * - it fails the table's minimal shape (owned tables need a string
- *   `profileId`; workout logs a `date` and an `exercises` array; programs a
- *   `sessions` array), so one bad pull cannot break later reads;
+ * - it fails the table's domain schema (src/lib/import/backup-v3, the same
+ *   check importBackup runs), so one bad pull cannot break later reads;
  * - the local row belongs to another profile (a pull never moves a row
  *   between profiles; importBackup calls the same case CONFLICT);
  * - the local row is newer, or equally new — except that on an exact tie a
@@ -19,17 +18,24 @@ import { RepoError } from '@/contracts/repo';
 import type { ApplyRemoteResult, SyncTable } from '@/contracts/sync';
 import { SYNC_TABLES } from '@/contracts/sync';
 import type { RepoContext } from './context';
+import { rowProblem, type BackupTableKey } from '@/lib/import/backup-v3/row-check';
 import { resolveKeyed } from './natural-key';
 import { SYNC_TO_DEXIE, dataTable, isDataRow, timeOf, type DataRow } from './tables';
 
-const hasString = (row: DataRow, key: string): boolean => typeof row[key] === 'string' && row[key] !== '';
+/** Domain-shape check per table (S3-11); SQL NULL on an optional column counts as absent. */
+const SYNC_TO_BACKUP: Readonly<Record<SyncTable, BackupTableKey>> = {
+  profiles: 'profiles',
+  workout_logs: 'workoutLogs',
+  programs: 'programs',
+  pr_records: 'prRecords',
+  bodyweight_entries: 'bodyweightEntries',
+  exercise_notes: 'exerciseNotes',
+  arsenal: 'arsenal',
+  equipment: 'equipment',
+};
 
 function wellFormed(table: SyncTable, row: DataRow): boolean {
-  if (table === 'profiles') return true;
-  if (!hasString(row, 'profileId')) return false;
-  if (table === 'workout_logs') return hasString(row, 'date') && Array.isArray(row.exercises);
-  if (table === 'programs') return Array.isArray(row.sessions);
-  return true;
+  return rowProblem(SYNC_TO_BACKUP[table], row, { nullAsAbsent: true }) === null;
 }
 
 function remoteWins(remote: DataRow, local: DataRow | undefined): boolean {
