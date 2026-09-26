@@ -58,6 +58,8 @@ export interface BuildInputs {
   manual: Record<string, ManualMapping>;
   /** extra legacy name → source name. */
   aliases: Record<string, string>;
+  /** source name → reviewed display name, for source entries whose name is not a usable title. */
+  displayNames?: Record<string, { name: string; reason: string }>;
 }
 
 export interface ExcludedEntry {
@@ -91,6 +93,8 @@ export function unresolvedCategory(name: string): UnresolvedCategory {
 /** Equipment for station-less bodyweight exercises (contract `EquipmentRequirement`). */
 function bodyweightEquipment(name: string, category: UnresolvedCategory): Exercise['requiresEquipment'] {
   const n = name.toLowerCase();
+  // Machine-assisted T1-X stretches need the machine, not nothing.
+  if (category === 'stretch' && /\bassisted\b|machine|\bsled\b|\blever\b/.test(n)) return ['tytax'];
   if (category === 'bodyweight-frame') return /\bdips?\b/.test(n) ? ['dip-station'] : /hyperextension|roman chair/.test(n) ? ['tytax'] : ['pull-up-bar'];
   if (category === 'bodyweight' || category === 'stretch') return ['none'];
   return undefined;
@@ -289,7 +293,7 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
 
   for (const e of source) {
     const id = idRegistry[e.name];
-    const non = nonExerciseReason(e.name);
+    const non = nonExerciseReason(e.name, e.note ?? '', e.station);
     if (non) {
       excluded.push({ name: e.name, id, ruleId: non.id, why: non.why });
       continue;
@@ -297,7 +301,13 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
     const st = resolveStation(e, manual);
     const master = masterByClean.get(cleanLegacyName(e.name).toLowerCase());
     const legacyName = master ?? e.name;
-    exercises.push(toExercise(e, id, st, legacyName));
+    const ex = toExercise(e, id, st, legacyName);
+    const override = inputs.displayNames?.[e.name];
+    if (override) {
+      ex.name = override.name;
+      legacyNames[override.name] = id;
+    }
+    exercises.push(ex);
     legacyNames[e.name] = id;
     legacyNames[displayName(e.name)] = id;
     if (master) legacyNames[master] = id;

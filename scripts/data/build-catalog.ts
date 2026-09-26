@@ -60,6 +60,7 @@ export function loadInputs(): BuildInputs {
     idRegistry: readJson<Record<string, string>>(OUTPUT_PATHS.idRegistry, {}),
     manual: readJson<Record<string, ManualMapping>>('scripts/data/station-manual.json', {}),
     aliases: readJson<Record<string, string>>('scripts/data/aliases.json', {}),
+    displayNames: readJson<Record<string, { name: string; reason: string }>>('scripts/data/display-names.json', {}),
   };
 }
 

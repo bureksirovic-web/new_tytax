@@ -20,7 +20,7 @@ Morning review: mark each row OK or give the right station.
 | 12 | Standing Cable Low Row | BACK_LOWER | – | `name-rule:cable-low` | |
 | 13 | SeatedSeated Cross Cable Row (Separate handles) Cable Row (Separate handles) | BACK_LOWER | D_HANDLES | `name-rule:cable-from-below` | |
 | 14 | Kneeling Sled Wide Hammer Delt Row | SMITH | – | `name-rule:sled` | |
-| 15 | Decline Cable Fly | BACK_UPPER | – | `name-rule:cable-fly` | |
+| 15 | Decline Cable Fly | BACK_LOWER | – | `name-rule:cable-supine` | |
 | 16 | Prone Incline Cable Rear Delt Fly | BACK_UPPER | – | `name-rule:cable-fly` | |
 | 17 | Seated Low Cable Wide-Grip Row (Chest Support) | BACK_LOWER | – | `name-rule:cable-low` | |
 | 18 | Seated Cable Shoulder Internal Rotation | BACK_LOWER | – | `name-rule:cable-from-below` | |
@@ -48,11 +48,11 @@ Morning review: mark each row OK or give the right station.
 | 40 | Seated Cable Reverse Grip Front Raise (Stirrups) | BACK_LOWER | D_HANDLES | `name-rule:cable-from-below` | |
 | 41 | Kneeling Diagonal Poling | BACK_UPPER | – | `name-rule:ski-poling` | |
 | 42 | Seated High Cross Cable Behind the Neck Side Pullover | BACK_UPPER | – | `name-rule:cable-high` | |
-| 43 | Incline Cable Chest Fly | BACK_UPPER | – | `name-rule:cable-fly` | |
+| 43 | Incline Cable Chest Fly | BACK_LOWER | – | `name-rule:cable-supine` | |
 | 44 | Lever Close Grip Row | BACK_LOWER | – | `name-rule:lever` | |
 | 45 | Side Bridge Low Cable Hammer Row | BACK_LOWER | – | `name-rule:cable-low` | |
 | 46 | Standing Cable Chest Fly | BACK_UPPER | – | `name-rule:cable-fly` | |
 | 47 | Prone Lever Single Leg Kickback | BACK_LOWER | – | `name-rule:lever` | |
-| 48 | Incline Cable Alternating Fly | BACK_UPPER | D_HANDLES | `name-rule:cable-fly` | |
+| 48 | Incline Cable Alternating Fly | BACK_LOWER | D_HANDLES | `name-rule:cable-supine` | |
 | 49 | Kneeling Upper Cable Wide Row | BACK_UPPER | – | `name-rule:cable-high` | |
 | 50 | Leg Press with Shoulder Support Handles | SMITH | – | `name-rule:leg-press` | |

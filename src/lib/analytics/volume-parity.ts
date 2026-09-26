@@ -41,15 +41,59 @@ export function getParityLabel(delta: number): 'balanced' | 'overtrained' | 'und
   return 'undertrained';
 }
 
-export function movementOf(pattern: string | undefined): MovementPattern {
+/**
+ * Catalog patterns that lump unrelated movements together (e.g. 'Shoulders'
+ * holds shrugs, upright rows and assisted pull-ups; 'Quads' holds leg curls,
+ * deadlifts and hip thrusts; 'Chest' holds cable curls and rows). For these
+ * the exercise name decides first; other patterns are specific enough alone.
+ */
+const COARSE_PATTERNS: ReadonlySet<string> = new Set([
+  'shoulders',
+  'quads',
+  'chest',
+  'kickback',
+  'wrist extension',
+  'wrist flexion',
+  'extension',
+  'core',
+]);
+
+/**
+ * Name rules for coarse patterns, first match wins. Triceps work is push
+ * (triceps kickbacks are not glute kickbacks); wrist curls are forearm work
+ * ('other', like the 'Wrist / Grip' pattern) before the generic "curl" → pull.
+ */
+const NAME_RULES: ReadonlyArray<readonly [RegExp, MovementPattern]> = [
+  [/triceps/, 'push'],
+  [/wrist/, 'other'],
+  [/leg curl|good morning|deadlift|hip thrust|rear kick|glute|(?<!triceps )kick ?back(?!.*triceps)/, 'hinge'],
+  [/shrug|upright row|pull.?up|chin.?up|\brow\b|curl|pulldown/, 'pull'],
+  [/squat|lunge|leg press|leg extension|calf/, 'quad'],
+];
+
+/** Lower-case, '-', '/', '(' and ')' as spaces, single-spaced. */
+function normalize(text: string): string {
+  return text.toLowerCase().replace(/[-/()]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Movement of a catalog entry: when `pattern` is a coarse bucket and `name`
+ * matches a name rule, the name decides; otherwise the pattern rules.
+ */
+export function movementOf(pattern: string | undefined, name?: string): MovementPattern {
   if (!pattern) return 'other';
-  const p = pattern.toLowerCase().replace(/[-/()]/g, ' ').replace(/\s+/g, ' ').trim();
+  const p = normalize(pattern);
+  if (name && COARSE_PATTERNS.has(p)) {
+    const n = normalize(name);
+    for (const [re, movement] of NAME_RULES) if (re.test(n)) return movement;
+  }
   for (const [re, movement] of PATTERN_RULES) if (re.test(p)) return movement;
   return 'other';
 }
 
 export function patternOf(exerciseId: string, lookup: ExerciseLookup): MovementPattern {
-  return movementOf(lookup(exerciseId)?.pattern);
+  const ex = lookup(exerciseId);
+  return movementOf(ex?.pattern, ex?.name);
 }
 
 /**

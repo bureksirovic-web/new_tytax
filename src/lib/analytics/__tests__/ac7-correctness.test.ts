@@ -17,7 +17,6 @@ import { loadCatalog } from '@/lib/catalog';
 
 // Tuesday 2026-09-29 12:00 local time.
 const NOW = new Date(2026, 8, 29, 12, 0, 0);
-const HOUR = 3_600_000;
 
 const bench: Exercise = {
   id: 'bench',
@@ -77,7 +76,7 @@ describe('AC7: ACWR counts done working sets of live logs only', () => {
   it('warm-ups, undone sets and soft-deleted logs are excluded', () => {
     const logs = [log(24, [benchSession]), log(24 * 10, [benchSession]), log(12, [{ exerciseId: 'bench', sets: [{ kg: 100, reps: 5 }] }], true)];
     const chest = training.acwr(logs, lookup, NOW).find((r) => r.muscle === 'Chest');
-    // acute (7 d) = 2 sets × 1.0 = 2 (the deleted log's set is excluded); history = ceil(10/7) = 2 weeks;
+    // acute (7 d) = 2 sets × 1.0 = 2 (the deleted log's set is excluded); history = floor(10/7)+1 = 2 weeks;
     // chronic = (2 + 2) / 2 = 2; ratio 2/2 = 1 → recovering; previous week (7–14 d) = 2 → stable
     expect(chest).toEqual({ muscle: 'Chest', acuteLoad: 2, chronicLoad: 2, ratio: 1, status: 'recovering', trend: 'stable' });
   });
@@ -131,9 +130,28 @@ describe('volume parity uses the catalog\'s real pattern names', () => {
     expect(movementOf(undefined)).toBe('other');
   });
 
+  it('uses the exercise name inside coarse catalog patterns', async () => {
+    const cat = await loadCatalog();
+    const byName = (name: string) => cat.exercises.find((e) => e.name === name);
+    // [catalog name, its coarse pattern, expected movement]
+    const cases: Array<[string, string, string]> = [
+      ['Standing Smith Shrug', 'Shoulders', 'pull'],
+      ['Lying Sled Assisted Pull Up', 'Shoulders', 'pull'],
+      ['Lying Leg Curl', 'Quads', 'hinge'],
+      ['Smith Deadlift', 'Quads', 'hinge'],
+      ['Standing Cable Curl (Stirrups)', 'Chest', 'pull'],
+      ['Lower Pulley Single-Arm Triceps Kickback', 'Kickback', 'push'],
+    ];
+    for (const [name, pattern, movement] of cases) {
+      const e = byName(name);
+      expect(e?.pattern).toBe(pattern);
+      expect(movementOf(e?.pattern, e?.name)).toBe(movement);
+    }
+  });
+
   it('classifies fewer than 10 % of catalog exercises as other', async () => {
     const cat = await loadCatalog();
-    const other = cat.exercises.filter((e) => movementOf(e.pattern) === 'other');
+    const other = cat.exercises.filter((e) => movementOf(e.pattern, e.name) === 'other');
     expect(other.length / cat.exercises.length).toBeLessThan(0.1);
     const parity = computeVolumeParity([log(24, [benchSession])], 30, { now: NOW, lookup });
     // all 1000 kg of bench volume is push → 100 %

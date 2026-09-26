@@ -58,17 +58,40 @@ describe('data integrity (AC8)', () => {
     const unresolved = exercises.filter((e) => e.stationId === undefined);
     const unlisted = unresolved.filter((e) => !doc.includes(`\`${e.id}\``)).map((e) => e.id);
     expect(unlisted).toEqual([]);
-    // 140 of 1,436 = 9.7 %: above the 5 % target; the G1 report carries the finding and the proposed fix.
-    expect(unresolved).toHaveLength(140);
     expect(doc).toContain(`| **Unresolved** (no station) | **${unresolved.length}** |`);
+  });
+
+  it('ratchet: the unresolved count never grows (AC8 "≤ 5 %" is NOT met: 145 of 1,436 = 10.1 %)', () => {
+    // This is a regression ratchet, not the AC8 clause. AC8 asks for ≤ 71 (5 % of 1,436); the G1 report
+    // records the clause as failing, with the cause (no library station for free weights, frame work and
+    // stretches) and the proposed fix. Lower the bound whenever mappings improve.
+    const unresolved = exercises.filter((e) => e.stationId === undefined);
+    expect(unresolved.length).toBeLessThanOrEqual(145);
+    expect(unresolved.length / SOURCE_TOTAL).toBeGreaterThan(0.05);
+  });
+
+  it('proposed amended criterion: machine exercises with an unknown station are ≤ 5 % of 1,436', () => {
+    // Only the "ambiguous" bucket names a machine exercise whose station the name does not reveal; the
+    // other unresolved buckets have no station in tytax_library.json by construction.
+    const out = buildCatalog(loadInputs());
+    const ambiguous = out.unresolved.filter((u) => u.category === 'ambiguous');
+    expect(ambiguous.length / SOURCE_TOTAL).toBeLessThanOrEqual(0.05);
+    expect(out.unresolved).toHaveLength(exercises.filter((e) => e.stationId === undefined).length);
   });
 
   it('accounts for all 1,436 source entries: catalog + excluded non-exercises', () => {
     const out = buildCatalog(loadInputs());
     expect(out.stats.sourceTotal).toBe(SOURCE_TOTAL);
-    // 1,404 exercises + 32 promo/delivery/overview videos = 1,436
+    // 1,409 exercises + 27 promo/delivery/overview videos = 1,436
     expect(out.stats.catalog + out.stats.excluded).toBe(SOURCE_TOTAL);
     expect(out.exercises).toHaveLength(exercises.length);
+    // Every excluded entry is a video by source metadata: no exerciseLevel and T1-X number ≤ 13.
+    const source = loadInputs().source;
+    const bad = out.excluded.filter((x) => {
+      const note = source.find((e) => e.name === x.name)?.note ?? '';
+      return /exerciseLevel=/.test(note) || Number((/t1x_number=(\d+)/.exec(note) ?? [])[1]) > 13;
+    });
+    expect(bad.map((x) => x.name)).toEqual([]);
   });
 
   it('ids are unique and stable: every pre-v2 id is kept unless its entry is not an exercise', () => {
@@ -113,25 +136,61 @@ describe('data integrity (AC8)', () => {
     expect(Object.keys(files)).toContain(OUTPUT_PATHS.exercises);
   });
 
-  it('the catalog is lazy: no static import of exercise data outside src/data and the chunk loader', () => {
+  it('the catalog is lazy: exercise arrays are reachable only through the chunk loader', () => {
     const files: string[] = [];
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {
         const p = resolve(dir, name);
         if (statSync(p).isDirectory()) {
           if (name !== '__tests__' && name !== 'node_modules') walk(p);
-        } else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(p);
+        } else if (/\.(ts|tsx|mts|js|mjs)$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(p);
       }
     };
     walk(resolve(ROOT, 'src'));
-    // `import x from '@/data/…/exercises…'` (static); `import('…')` inside src/lib/catalog is the lazy path
-    const staticImport = /^\s*import\s[^;]*from\s+['"]@\/data\/(tytax|bodyweight|kettlebell)\/exercises(\.json)?['"]/m;
-    const offenders = files
-      .filter((f) => !f.includes(`${resolve(ROOT, 'src/data')}/`))
-      .filter((f) => staticImport.test(readFileSync(f, 'utf8')))
-      .map((f) => f.slice(ROOT.length + 1));
+    const offenders = files.flatMap((f) => lazyViolations(f, readFileSync(f, 'utf8'))).map((v) => `${v.file.slice(ROOT.length + 1)} -> ${v.spec}`);
     expect(offenders).toEqual([]);
     // the scan saw the app: more than 100 source files
     expect(files.length).toBeGreaterThan(100);
   });
+
+  it('the lazy-import scanner flags every way of pulling in an exercise array', () => {
+    const ui = resolve(ROOT, 'src/app/(app)/x/page.tsx');
+    const cases = [
+      "import { TYTAX_EXERCISES } from '@/data/tytax';",
+      "import { KB_EXERCISES } from '@/data/kettlebell/index';",
+      "import x from '../../../data/tytax/exercises.json';",
+      "export { BODYWEIGHT_EXERCISES } from '@/data/bodyweight/exercises';",
+      "export * from '@/data/bodyweight/exercises';",
+      "const d = require('@/data/tytax/exercises.json');",
+      "const m = await import('@/data/kettlebell/exercises');",
+      "/* hi */ import d from \"@/data/tytax/exercises.ts\";",
+    ];
+    for (const c of cases) expect(lazyViolations(ui, c)).toHaveLength(1);
+    // allowed: presets and station metadata, and the chunk loader's dynamic imports
+    expect(lazyViolations(ui, "import { ALL_PRESETS } from '@/data/tytax/presets';")).toEqual([]);
+    expect(lazyViolations(resolve(ROOT, 'src/lib/catalog/chunks.ts'), "await import('@/data/tytax/exercises.json')")).toEqual([]);
+  });
 });
+
+/** src/data/<modality>/exercises{,.json,.ts} or the modality barrel (index). */
+const ARRAY_MODULE = /\/src\/data\/(tytax|bodyweight|kettlebell)(\/index(\.ts)?|\/exercises(\.json|\.ts)?)?$/;
+const CHUNK_LOADER = resolve(ROOT, 'src/lib/catalog/chunks.ts');
+
+/** Module specifiers in `file` that resolve to an exercise array, except the allowed edges. */
+function lazyViolations(file: string, text: string): Array<{ file: string; spec: string }> {
+  const out: Array<{ file: string; spec: string }> = [];
+  const re = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*['"]([^'"]+)['"]/g;
+  for (const m of text.matchAll(re)) {
+    const spec = m[1];
+    let target: string;
+    if (spec.startsWith('@/')) target = resolve(ROOT, 'src', spec.slice(2));
+    else if (spec.startsWith('.')) target = resolve(file, '..', spec);
+    else continue;
+    if (!ARRAY_MODULE.test(target)) continue;
+    // The chunk loader may import(...) the arrays dynamically; exercises.ts may wrap its own JSON.
+    if (file === CHUNK_LOADER && /\bimport\s*\(/.test(m[0])) continue;
+    if (file === resolve(ROOT, 'src/data/tytax/exercises.ts') && target.endsWith('/tytax/exercises.json')) continue;
+    out.push({ file, spec });
+  }
+  return out;
+}

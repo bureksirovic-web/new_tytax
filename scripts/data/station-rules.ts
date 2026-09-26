@@ -69,6 +69,12 @@ const CABLE = /\b(cable|pulley|stirrups?)\b/;
 const isCable = (n: NameInfo) => CABLE.test(n.name);
 const LOW = /\b(low|lower)\b|low-to-high|from below/;
 const HIGH = /\b(high|upper)\b|high-to-low|from above|overhead pulley/;
+/** Muscle-region words ("upper chest", "lower back") are not pulley names. */
+const REGION = /\b(upper|lower) (chest|back|body|abs|arms?|traps?|pecs?|lats?|glutes?)\b/g;
+const pulleyWords = (n: NameInfo) => n.name.replace(REGION, ' ');
+const SUPINE = /\b(lying|incline|decline|flat|supine|bench)\b/;
+const SUPINE_MOVE = /\b(fly|flyes|butterfly|crossover|pullover)\b/;
+const NOT_SUPINE = /\b(prone|reverse|rear|standing|seated|high|upper|overhead)\b/;
 const PULL_FROM_ABOVE = /pull ?down|push ?down|press ?down|pullover|face pull|crunch|woodchop|straight[- ]arm|\blat\b|poling/;
 
 export const STATION_RULES: readonly StationRule[] = [
@@ -82,8 +88,12 @@ export const STATION_RULES: readonly StationRule[] = [
   { id: 'leg-curl-seat', station: 'LEG_CURL', test: (n) => /\bleg curl\b/.test(n.name) && !/\blever\b/.test(n.name) && !(isCable(n) && /\bstanding\b/.test(n.name)), why: 'Leg curl seat (standing cable curls use the lower pulley).' },
   { id: 'lever-from-above', station: 'BACK_UPPER', test: (n) => /\blever\b/.test(n.name) && PULL_FROM_ABOVE.test(n.name), why: 'Lever arm on the back station, loaded from the upper pulley (pulling down).' },
   { id: 'lever', station: 'BACK_LOWER', test: has(/\blever\b/), why: 'Lever arm on the back station, loaded from the lower pulley.' },
-  { id: 'cable-high', station: 'BACK_UPPER', test: (n) => isCable(n) && HIGH.test(n.name) && !LOW.test(n.name), why: 'High/upper pulley named.' },
-  { id: 'cable-low', station: 'BACK_LOWER', test: (n) => isCable(n) && LOW.test(n.name), why: 'Low/lower pulley named.' },
+  { id: 'cable-pushdown', station: 'BACK_UPPER', test: (n) => isCable(n) && /push ?down|press ?down/.test(n.name), why: 'Pushdowns and pressdowns can only be loaded from the upper pulley.' },
+  { id: 'cable-high', station: 'BACK_UPPER', test: (n) => isCable(n) && HIGH.test(pulleyWords(n)) && !LOW.test(pulleyWords(n)), why: 'High/upper pulley named (muscle regions like "upper chest" do not count).' },
+  { id: 'cable-low', station: 'BACK_LOWER', test: (n) => isCable(n) && LOW.test(pulleyWords(n)), why: 'Low/lower pulley named (muscle regions like "lower chest" do not count).' },
+  { id: 'cable-supine', station: 'BACK_LOWER', test: (n) => isCable(n) && SUPINE.test(n.name) && SUPINE_MOVE.test(n.name) && !NOT_SUPINE.test(n.name), why: 'Supine bench flies and pullovers are loaded from the floor pulleys beside or behind the bench.' },
+  { id: 'cable-region-chest', station: 'BACK_LOWER', test: (n) => isCable(n) && /\bupper chest\b/.test(n.name) && /\b(fly|press)\b/.test(n.name), why: 'Upper-chest flies and presses move low-to-high, against the lower pulley.' },
+  { id: 'cable-region-lower-chest', station: 'BACK_UPPER', test: (n) => isCable(n) && /\blower chest\b/.test(n.name) && /\b(fly|press)\b/.test(n.name), why: 'Lower-chest flies and presses move high-to-low, against the upper pulley.' },
   { id: 'pull-from-above', station: 'BACK_UPPER', test: (n) => PULL_FROM_ABOVE.test(n.name) && !/\b(sit[- ]?up|hanging|roman chair)\b/.test(n.name) && (isCable(n) || /pull ?down|push ?down|press ?down/.test(n.name)), why: 'Pulldowns, pushdowns, pressdowns, pullovers, face pulls, cable crunches and chops pull against the upper pulley.' },
   { id: 'cable-fly', station: 'BACK_UPPER', test: (n) => isCable(n) && /\b(fly|crossover|butterfly)\b/.test(n.name), why: 'Cable flies and crossovers default to the upper pulleys (low variants are caught by cable-low).' },
   { id: 'cable-overhead-extension', station: 'BACK_UPPER', test: (n) => isCable(n) && /\boverhead\b/.test(n.name) && /\bextension\b/.test(n.name), why: 'Overhead cable triceps extensions face away from the upper pulley.' },
@@ -99,13 +109,23 @@ export interface AttachmentRule {
 }
 
 export const ATTACHMENT_RULES: readonly AttachmentRule[] = [
-  { id: 'd-handles', attachmentId: 'D_HANDLES', test: has(/stirrups?|d-handles?|\bhandles?\b|\b(single|one)[- ]arm\b|\balternating\b/) },
+  { id: 'd-handles', attachmentId: 'D_HANDLES', test: has(/stirrups?|d-handles?|(?<!v-)\bhandles?\b|\bseparate\b|\b(single|one)[- ]arm\b|\balternating\b/) },
   { id: 'rope', attachmentId: 'TRICEPS_ROPE', test: has(/\brope\b|face pull/) },
   { id: 'straight-bar', attachmentId: 'STRAIGHT_BAR', test: has(/straight[- ]bar|straight handle/) },
   { id: 'v-handle', attachmentId: 'V_HANDLE', test: has(/v-bar|v-handle|\bv bar\b|close[- ]grip (row|pull ?down|lat)|neutral[- ]grip|parallel grip/) },
-  { id: 'ankle-strap', attachmentId: 'ANKLE_STRAP', test: has(/ankle|kick ?back|rear kick|hip (ab|ad)duction|leg raise|leg-hip raise|standing .*leg curl/) },
+  {
+    id: 'ankle-strap',
+    attachmentId: 'ANKLE_STRAP',
+    test: (n) => /ankle|kick ?back|rear kick|hip (ab|ad)duction|leg raise|leg-hip raise|standing .*leg curl/.test(n.name) && !/\btriceps?\b/.test(n.name) && n.muscleGroup !== 'TRICEPS',
+  },
   { id: 'ab-strap', attachmentId: 'AB_STRAP', test: (n) => /\bcrunch\b/.test(n.name) && !/\brope\b/.test(n.name) },
-  { id: 'lat-bar', attachmentId: 'LAT_BAR', test: has(/wide[- ]grip.*(pull ?down|lat)|lat pull ?down|behind the neck pull ?down|pulldown behind the neck/) },
+  {
+    id: 'lat-bar',
+    attachmentId: 'LAT_BAR',
+    test: (n) =>
+      /wide[- ]grip.*(pull ?down|lat)|lat pull ?down|behind the neck pull ?down|pulldown behind the neck/.test(n.name) &&
+      !/\b(single|one)[- ]arm\b|stirrups?|\bseparate\b|v-handle|v-bar|neutral[- ]grip|close[- ]grip/.test(n.name),
+  },
   { id: 'ez-lat-bar', attachmentId: 'EZ_LAT_BAR', test: (n) => /\b(ez|angled)\b/.test(n.name) && /pull ?down|curl|push ?down|extension/.test(n.name) },
   { id: 'belt', attachmentId: 'DIP_BELT', test: has(/\bbelt\b/) },
 ];
@@ -143,22 +163,26 @@ export function decideAttachments(n: NameInfo, stationId: StationId | undefined)
   return [...out].sort();
 }
 
-/** Promo, delivery and overview videos in the source that are not exercises. */
-export const NON_EXERCISE_RULES: ReadonlyArray<{ id: string; test: RegExp; why: string }> = [
+/**
+ * Promo, delivery and overview videos in the source are not exercises. The
+ * source metadata decides: a generic-station entry with no `exerciseLevel`
+ * and a T1-X number of at most 13 (real app exercises all carry an
+ * exerciseLevel and higher numbers). These labels only name the reason.
+ */
+export const NON_EXERCISE_LABELS: ReadonlyArray<{ id: string; test: RegExp; why: string }> = [
   { id: 'delivery', test: /^(delivery|deliverypromo)\b|^delivery ?#?\d/, why: 'Delivery video' },
   { id: 'factory', test: /^(factory\d*|packaging|laser\d*)$/, why: 'Factory/packaging video' },
   { id: 'promotion', test: /^promotion ?#?\d*$/, why: 'Promotion video' },
   { id: 'review', test: /\breview$/, why: 'Product review video' },
   { id: 'moving', test: /^moving tytax\b/, why: 'Moving-the-machine video' },
   { id: 'product-overview', test: /^tytax® (t1-x|tx)\b|^all about the tytax/, why: 'Product overview / option video' },
-  { id: 'youtube-id', test: /^(?=.*\d)[a-z0-9_-]{11}$/, why: 'Name is a bare YouTube id' },
-  { id: 'article', test: /\bvs\b.*\(|best way to|for fat loss|^abs workout$|^english$/, why: 'Article/overview, not an exercise' },
 ];
 
-export function nonExerciseReason(name: string): { id: string; why: string } | undefined {
+export function nonExerciseReason(name: string, note = '', station = 'Tytax'): { id: string; why: string } | undefined {
+  const t1x = Number((/t1x_number=(\d+)/.exec(note) ?? [])[1]);
+  const isVideo = station === 'Tytax' && !/exerciseLevel=/.test(note) && Number.isFinite(t1x) && t1x <= 13;
+  if (!isVideo) return undefined;
   const n = normalizeName(name);
-  for (const r of NON_EXERCISE_RULES) {
-    if (r.test.test(n)) return { id: r.id, why: r.why };
-  }
-  return undefined;
+  const label = NON_EXERCISE_LABELS.find((r) => r.test.test(n));
+  return label ? { id: label.id, why: label.why } : { id: 'video', why: 'Promo/overview video (no exerciseLevel, T1-X number ≤ 13)' };
 }

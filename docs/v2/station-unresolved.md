@@ -9,8 +9,8 @@ Fixed denominator: **1436** source entries (tytax-autonomous `full_exercises_fin
 | Station from source metadata (`t1x-meta`) | 284 | 19.8 % |
 | Station from a name rule (`name-rule:<id>`) | 957 | 66.6 % |
 | Station from a reviewed hand mapping (`manual`) | 23 | 1.6 % |
-| **Unresolved** (no station) | **140** | **9.7 %** |
-| Excluded: not an exercise (promo/delivery videos) | 32 | 2.2 % |
+| **Unresolved** (no station) | **145** | **10.1 %** |
+| Excluded: not an exercise (promo/delivery videos) | 27 | 1.9 % |
 
 Source entries with the generic station "Tytax": 1152. After the build, no catalog entry carries the station "Tytax".
 
@@ -22,7 +22,7 @@ Source entries with the generic station "Tytax": 1152. After the build, no catal
 | Bodyweight on the frame (pull-up/dip handles, hanging, roman chair): the library has no frame station. | 25 | 1.7 % |
 | Pure bodyweight (sit-ups, push-ups, planks, bridges, squats). | 19 | 1.3 % |
 | Stretches and mobility without machine resistance. | 37 | 2.6 % |
-| Machine exercise, but the name does not say which station. | 23 | 1.6 % |
+| Machine exercise, but the name does not say which station. | 28 | 1.9 % |
 
 Station ids come only from `tytax_library.json` STATIONS (SMITH, BACK_UPPER, BACK_LOWER, LEG_EXTENSION, LEG_CURL).
 Mapping the free-weight, frame and stretch entries needs a station the library does not have; see the G1 report for the proposed fix.
@@ -164,33 +164,38 @@ Mapping the free-weight, frame and stretch entries needs a station the library d
 | 36 | Chest Stretch | `tytax_tytax_chest-stretch` | Chest | CHEST |
 | 37 | Lying Chest Stretch | `tytax_tytax_lying-chest-stretch` | Chest | CHEST |
 
-## Machine exercise, but the name does not say which station. (23)
+## Machine exercise, but the name does not say which station. (28)
 
 | # | Exercise | Id | Pattern | Muscle group |
 |---|---|---|---|---|
 | 1 | Standing Bent-Over Rear Delt Fly | `tytax_tytax_standing-bent-over-rear-delt-fly` | Horizontal Pull | BACK_HORIZONTAL |
-| 2 | Resistance run with circular track (alternating lunge in a hang) | `tytax_tytax_resistance-run-with-circular-track-alternating-lunge-in-a-ha` | Lunge | QUADS |
-| 3 | Standing Biceps Curl | `tytax_tytax_standing-biceps-curl` | Horizontal Pull | BACK_HORIZONTAL |
-| 4 | Seated Overhead Lateral Raise | `tytax_tytax_seated-overhead-lateral-raise` | Raise | SHOULDERS |
-| 5 | Rear Delt Fly | `tytax_tytax_rear-delt-fly` | Horizontal Pull | BACK_HORIZONTAL |
-| 6 | Bent-Over Biceps Curl | `tytax_tytax_bent-over-biceps-curl` | Curl | BICEPS |
-| 7 | Seated Bent-Over Triceps Extension | `tytax_tytax_seated-bent-over-triceps-extension` | Extension | TRICEPS |
-| 8 | Full Range-Of-Motion Standing Reverse Fly | `tytax_tytax_full-range-of-motion-standing-reverse-fly` | Horizontal Pull | BACK_HORIZONTAL |
-| 9 | Hamstring Exercise | `tytax_tytax_hamstring-exercise` | Quads | QUADS |
-| 10 | Standing Single Arm Overhead Triceps Extension | `tytax_tytax_standing-single-arm-overhead-triceps-extension` | Extension | TRICEPS |
-| 11 | Seated Calf Raise | `tytax_tytax_seated-calf-raise` | Calf Raise | CALVES |
-| 12 | Seated Overhead Fly | `tytax_tytax_seated-overhead-fly` | Shoulders | SHOULDERS |
-| 13 | Seated Alternating Overhead Fly | `tytax_tytax_seated-alternating-overhead-fly` | Shoulders | SHOULDERS |
-| 14 | Lying Rear Delt Flyes | `tytax_tytax_lying-rear-delt-flyes` | Horizontal Pull | BACK_HORIZONTAL |
-| 15 | Lying Curl | `tytax_tytax_lying-curl` | Curl | BICEPS |
-| 16 | Oblique Muscles Workout | `tytax_tytax_oblique-muscles-workout` | Core | CORE |
-| 17 | Rectus Abdominis Muscles Exercises | `tytax_tytax_rectus-abdominis-muscles-exercises` | Core | CORE |
-| 18 | Oblique Muscles Exercise | `tytax_tytax_oblique-muscles-exercise` | Core | CORE |
-| 19 | Glute Exercise | `tytax_tytax_glute-exercise` | Hip Extension | GLUTES |
-| 20 | Lower Back Exercise | `tytax_tytax_lower-back-exercise` | Horizontal Pull | BACK_HORIZONTAL |
-| 21 | Adduction Workout | `tytax_tytax_adduction-workout` | Quads | QUADS |
-| 22 | Exercise for the rectus abdominis muscles | `tytax_tytax_exercise-for-the-rectus-abdominis-muscles` | Core | CORE |
-| 23 | Seated Reverse Grip Preacher Curl | `tytax_tytax_seated-reverse-grip-preacher-curl` | Curl | BICEPS |
+| 2 | Abs Workout | `tytax_tytax_abs-workout` | Core | CORE |
+| 3 | Resistance run with circular track (alternating lunge in a hang) | `tytax_tytax_resistance-run-with-circular-track-alternating-lunge-in-a-ha` | Lunge | QUADS |
+| 4 | Standing Biceps Curl | `tytax_tytax_standing-biceps-curl` | Horizontal Pull | BACK_HORIZONTAL |
+| 5 | Seated Overhead Lateral Raise | `tytax_tytax_seated-overhead-lateral-raise` | Raise | SHOULDERS |
+| 6 | Rear Delt Fly | `tytax_tytax_rear-delt-fly` | Horizontal Pull | BACK_HORIZONTAL |
+| 7 | Bent-Over Biceps Curl | `tytax_tytax_bent-over-biceps-curl` | Curl | BICEPS |
+| 8 | Seated Bent-Over Triceps Extension | `tytax_tytax_seated-bent-over-triceps-extension` | Extension | TRICEPS |
+| 9 | Full Range-Of-Motion Standing Reverse Fly | `tytax_tytax_full-range-of-motion-standing-reverse-fly` | Horizontal Pull | BACK_HORIZONTAL |
+| 10 | English | `tytax_tytax_english` | Core | CORE |
+| 11 | Hamstring Exercise | `tytax_tytax_hamstring-exercise` | Quads | QUADS |
+| 12 | Standing Single Arm Overhead Triceps Extension | `tytax_tytax_standing-single-arm-overhead-triceps-extension` | Extension | TRICEPS |
+| 13 | Seated Calf Raise | `tytax_tytax_seated-calf-raise` | Calf Raise | CALVES |
+| 14 | Seated Overhead Fly | `tytax_tytax_seated-overhead-fly` | Shoulders | SHOULDERS |
+| 15 | Seated Alternating Overhead Fly | `tytax_tytax_seated-alternating-overhead-fly` | Shoulders | SHOULDERS |
+| 16 | Lying Rear Delt Flyes | `tytax_tytax_lying-rear-delt-flyes` | Horizontal Pull | BACK_HORIZONTAL |
+| 17 | Lying Curl | `tytax_tytax_lying-curl` | Curl | BICEPS |
+| 18 | Oblique Muscles Workout | `tytax_tytax_oblique-muscles-workout` | Core | CORE |
+| 19 | Rectus Abdominis Muscles Exercises | `tytax_tytax_rectus-abdominis-muscles-exercises` | Core | CORE |
+| 20 | Cardio vs Weights (Best Way to Burn Fat) | `tytax_tytax_cardio-vs-weights-best-way-to-burn-fat` | Quads | QUADS |
+| 21 | BEST Cardio Machine For FAT LOSS! | `tytax_tytax_best-cardio-machine-for-fat-loss` | Quads | QUADS |
+| 22 | Oblique Muscles Exercise | `tytax_tytax_oblique-muscles-exercise` | Core | CORE |
+| 23 | Glute Exercise | `tytax_tytax_glute-exercise` | Hip Extension | GLUTES |
+| 24 | Lower Back Exercise | `tytax_tytax_lower-back-exercise` | Horizontal Pull | BACK_HORIZONTAL |
+| 25 | Adduction Workout | `tytax_tytax_adduction-workout` | Quads | QUADS |
+| 26 | Exercise for the rectus abdominis muscles | `tytax_tytax_exercise-for-the-rectus-abdominis-muscles` | Core | CORE |
+| 27 | Seated Reverse Grip Preacher Curl | `tytax_tytax_seated-reverse-grip-preacher-curl` | Curl | BICEPS |
+| 28 | NEvUVCFF8x8 | `tytax_tytax_nevuvcff8x8` | Elbow Extension | TRICEPS |
 
 ## Excluded (not exercises)
 
@@ -223,11 +228,6 @@ Mapping the free-weight, frame and stretch entries needs a station the library d
 | 25 | TYTAX T1-X - Review | review | Product review video |
 | 26 | Moving TYTAX TX on wheels | moving | Moving-the-machine video |
 | 27 | Promotion#13 | promotion | Promotion video |
-| 28 | Abs Workout | article | Article/overview, not an exercise |
-| 29 | English | article | Article/overview, not an exercise |
-| 30 | Cardio vs Weights (Best Way to Burn Fat) | article | Article/overview, not an exercise |
-| 31 | BEST Cardio Machine For FAT LOSS! | article | Article/overview, not an exercise |
-| 32 | NEvUVCFF8x8 | youtube-id | Name is a bare YouTube id |
 
 ## Station rules (first match wins)
 
@@ -243,8 +243,12 @@ Mapping the free-weight, frame and stretch entries needs a station the library d
 | `name-rule:leg-curl-seat` | LEG_CURL | Leg curl seat (standing cable curls use the lower pulley). |
 | `name-rule:lever-from-above` | BACK_UPPER | Lever arm on the back station, loaded from the upper pulley (pulling down). |
 | `name-rule:lever` | BACK_LOWER | Lever arm on the back station, loaded from the lower pulley. |
-| `name-rule:cable-high` | BACK_UPPER | High/upper pulley named. |
-| `name-rule:cable-low` | BACK_LOWER | Low/lower pulley named. |
+| `name-rule:cable-pushdown` | BACK_UPPER | Pushdowns and pressdowns can only be loaded from the upper pulley. |
+| `name-rule:cable-high` | BACK_UPPER | High/upper pulley named (muscle regions like "upper chest" do not count). |
+| `name-rule:cable-low` | BACK_LOWER | Low/lower pulley named (muscle regions like "lower chest" do not count). |
+| `name-rule:cable-supine` | BACK_LOWER | Supine bench flies and pullovers are loaded from the floor pulleys beside or behind the bench. |
+| `name-rule:cable-region-chest` | BACK_LOWER | Upper-chest flies and presses move low-to-high, against the lower pulley. |
+| `name-rule:cable-region-lower-chest` | BACK_UPPER | Lower-chest flies and presses move high-to-low, against the upper pulley. |
 | `name-rule:pull-from-above` | BACK_UPPER | Pulldowns, pushdowns, pressdowns, pullovers, face pulls, cable crunches and chops pull against the upper pulley. |
 | `name-rule:cable-fly` | BACK_UPPER | Cable flies and crossovers default to the upper pulleys (low variants are caught by cable-low). |
 | `name-rule:cable-overhead-extension` | BACK_UPPER | Overhead cable triceps extensions face away from the upper pulley. |

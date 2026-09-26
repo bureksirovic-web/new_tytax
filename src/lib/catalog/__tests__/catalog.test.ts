@@ -10,8 +10,8 @@ beforeEach(() => {
 
 describe('loadCatalog', () => {
   it('loads each chunk with its full exercise count', async () => {
-    // 1404 = 1436 source entries − 32 non-exercises (docs/v2/station-unresolved.md)
-    expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1404);
+    // 1409 = 1436 source entries − 27 promo/delivery videos (docs/v2/station-unresolved.md)
+    expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1409);
     // 82 = objects with an `id: 'bw_…'` key in src/data/bodyweight/exercises.ts
     expect((await loadCatalog(['bodyweight'])).exercises).toHaveLength(82);
     // 75 = objects with an `id: 'kb_…'` key in src/data/kettlebell/exercises.ts
@@ -20,8 +20,8 @@ describe('loadCatalog', () => {
 
   it('defaults to every chunk, in canonical order', async () => {
     const all = await loadCatalog();
-    // 1404 + 82 + 75 = 1561
-    expect(all.exercises).toHaveLength(1561);
+    // 1409 + 82 + 75 = 1566
+    expect(all.exercises).toHaveLength(1566);
     expect(all.chunks).toEqual(['tytax', 'bodyweight', 'kettlebell']);
     expect(all.exercises[0].modality).toBe('tytax');
     expect(all.exercises.at(-1)?.modality).toBe('kettlebell');
@@ -62,6 +62,13 @@ describe('loadCatalog', () => {
     expect(all.getByLegacyName('smith FLAT bench press')?.id).toBe(SMITH_FLAT);
     expect(all.getByLegacyName('Two-Hand Swing')?.id).toBe('kb_swing_two-hand-swing');
     expect(all.getByLegacyName('does not exist')).toBeUndefined();
+    // master-list form and the original app's cleanName form both resolve
+    expect(all.getByLegacyName('TYTAX T1 | Smith Flat Bench Press')?.id).toBe(SMITH_FLAT);
+    expect(all.getByLegacyName('TYTAX® T1-X | Smith Flat Bench Press')?.id).toBe(SMITH_FLAT);
+    // reviewed alias (scripts/data/aliases.json): INITIAL_PLAN Upper C #3
+    expect(all.getByLegacyName('TYTAX T1 | Lower Pulley Single-Arm Seated Cable Row')?.name).toBe('Lower Pulley One-Arm Seated Cable Row');
+    // display-name override keeps the source name as a legacy key
+    expect(all.getByLegacyName('NEvUVCFF8x8')?.name).toBe('Triceps Elbow Extension (T1-X #1590)');
   });
 });
 
@@ -104,8 +111,8 @@ describe('search', () => {
     const kb = await search({ modality: 'kettlebell' });
     // 75 kettlebell entries (see chunk count above)
     expect(kb).toHaveLength(75);
-    // 1561 = all chunks
-    expect(await search({ modality: 'all' })).toHaveLength(1561);
+    // 1566 = all chunks
+    expect(await search({ modality: 'all' })).toHaveLength(1566);
     expect(await search({ modality: 'custom' })).toHaveLength(0);
   });
 

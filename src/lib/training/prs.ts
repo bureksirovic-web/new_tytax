@@ -5,10 +5,13 @@ import { e1rm } from './e1rm';
 
 /**
  * e1RM estimates from high-rep sets are unreliable (Brzycki diverges as reps
- * approach 37: 16 kg × 35 → 288 kg), so e1RM PRs come only from sets of at
- * most this many reps. Weight and reps PRs are unaffected.
+ * approach 37: 16 kg × 35 → 288 kg), so every e1RM figure (PRs here, the
+ * analytics best lifts and e1RM progression) comes only from sets of at most
+ * this many reps. Weight and reps PRs are unaffected.
  */
-export const E1RM_PR_MAX_REPS = 12;
+export const E1RM_MAX_REPS = 12;
+/** Alias of `E1RM_MAX_REPS` (the cap was first introduced for PRs). */
+export const E1RM_PR_MAX_REPS = E1RM_MAX_REPS;
 
 /**
  * PRs in a workout, at most one per (exerciseId, prType), compared with the
@@ -26,7 +29,7 @@ export const detectPRs: DetectPRsFn = (exercises, bests) => {
     for (const s of ex.sets) {
       if (!isDoneWorkingSet(s)) continue;
       const values: Array<[PRType, number]> = [['weight', s.kg]];
-      if (s.reps <= E1RM_PR_MAX_REPS) values.unshift(['e1rm', Math.round(e1rm(s.kg, s.reps) * 100) / 100]);
+      if (s.reps <= E1RM_MAX_REPS) values.unshift(['e1rm', Math.round(e1rm(s.kg, s.reps) * 100) / 100]);
       if (s.kg === 0) values.push(['reps', s.reps]);
       for (const [prType, value] of values) {
         if (!(value > 0)) continue;

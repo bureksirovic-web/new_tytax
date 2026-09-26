@@ -61,13 +61,37 @@ describe('station rules', () => {
     expect(decideAttachments(info('Sled Assisted Chin Up with Belt'), 'SMITH')).toEqual(['DIP_BELT']);
   });
 
-  it('recognises promo and overview videos as non-exercises', () => {
-    expect(nonExerciseReason('Delivery Georgia, USA')?.id).toBe('delivery');
-    expect(nonExerciseReason('TYTAXÂ® TX | Folding the bench')?.id).toBe('product-overview');
-    expect(nonExerciseReason('NEvUVCFF8x8')?.id).toBe('youtube-id');
-    // 11 letters but no digit: a real word, not a video id
-    expect(nonExerciseReason('Woodchopper')).toBeUndefined();
-    expect(nonExerciseReason('Smith Flat Bench Press')).toBeUndefined();
+  it('recognises promo and overview videos from source metadata, not names', () => {
+    // no exerciseLevel and T1-X number ≤ 13 → a video; the name only labels the reason
+    expect(nonExerciseReason('Delivery Georgia, USA', 't1x_number=3')?.id).toBe('delivery');
+    expect(nonExerciseReason('TYTAXÂ® TX | Folding the bench', 't1x_number=4')?.id).toBe('product-overview');
+    expect(nonExerciseReason('Something new', 't1x_number=9')?.id).toBe('video');
+    // real app exercises carry an exerciseLevel, even with odd names
+    expect(nonExerciseReason('NEvUVCFF8x8', 'exerciseLevel=medium; t1x_number=1590')).toBeUndefined();
+    expect(nonExerciseReason('Abs Workout', 'exerciseLevel=easy; t1x_number=198')).toBeUndefined();
+    // a specific source station is never a video
+    expect(nonExerciseReason('Smith Flat Bench Press', 't1x_number=1', 'Smith Machine')).toBeUndefined();
+  });
+
+  it('muscle-region words are not pulley names; pushdowns and supine flies get the right pulley', () => {
+    expect(station('Standing Cable Upper Chest Fly')?.stationId).toBe('BACK_LOWER');
+    expect(station('Standing Cable Lower Chest Press')?.stationId).toBe('BACK_UPPER');
+    expect(station('Cable Pushdown Lower Chest')).toEqual({ stationId: 'BACK_UPPER', ruleId: 'cable-pushdown' });
+    expect(station('Lying Cable Fly')).toEqual({ stationId: 'BACK_LOWER', ruleId: 'cable-supine' });
+    expect(station('Lying Cable V-Bar Pullover')?.stationId).toBe('BACK_LOWER');
+    // loaded from above: prone, reverse, standing
+    expect(station('Prone Incline Cable Fly')?.stationId).toBe('BACK_UPPER');
+    expect(station('Lying Cable Reverse Fly')?.stationId).toBe('BACK_UPPER');
+    expect(station('Cable Standing Decline Chest Fly')?.stationId).toBe('BACK_UPPER');
+  });
+
+  it('attachment rules do not misfire on V-handles, triceps kickbacks and single-handle pulldowns', () => {
+    expect(decideAttachments(info('Lower Pulley Single-Arm Triceps Kickback', 'Kickback', 'TRICEPS'), 'BACK_LOWER')).toEqual(['D_HANDLES']);
+    expect(decideAttachments(info('Upper Pulley Neutral-Grip Lat Pulldown (V-handle)'), 'BACK_UPPER')).toEqual(['V_HANDLE']);
+    expect(decideAttachments(info('Upper Pulley Single-Arm Kneeling Lat Pulldown'), 'BACK_UPPER')).toEqual(['D_HANDLES']);
+    expect(decideAttachments(info('Seated Separate Cable Lat Pulldown'), 'BACK_UPPER')).toEqual(['D_HANDLES']);
+    expect(decideAttachments(info('Upper Pulley Wide-Grip Lat Pulldown'), 'BACK_UPPER')).toEqual(['LAT_BAR']);
+    expect(decideAttachments(info('Lower Pulley Cable Glute Kickback (ankle strap)', 'Kickback', 'GLUTES'), 'BACK_LOWER')).toEqual(['ANKLE_STRAP']);
   });
 });
 
