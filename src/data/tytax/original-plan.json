@@ -1,0 +1,343 @@
+{
+  "name": "TYTAX 6-Day Split (Original)",
+  "splitType": "upper_lower",
+  "frequency": 6,
+  "periodizationType": "none",
+  "sessionOrder": [
+    "Upper A",
+    "Lower A",
+    "Upper B",
+    "Lower B",
+    "Upper C",
+    "Lower C",
+    "Rest Day"
+  ],
+  "sessions": [
+    {
+      "id": "tytax-original-6day-upper-a",
+      "programId": "",
+      "name": "Upper A",
+      "dayIndex": 0,
+      "exercises": [
+        {
+          "exerciseId": "tytax_smith-machine_smith-flat-bench-press",
+          "exerciseName": "Smith Flat Bench Press",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "6-10",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-wide-grip-lat-pulldown",
+          "exerciseName": "Upper Pulley Wide-Grip Lat Pulldown",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-seated-cable-row-bench",
+          "exerciseName": "Lower Pulley Seated Cable Row (bench)",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-seated-shoulder-press",
+          "exerciseName": "Smith Seated Shoulder Press",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "6-10",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-seated-cable-curl-bench",
+          "exerciseName": "Lower Pulley Seated Cable Curl (bench)",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-triceps-pushdown-straight-bar",
+          "exerciseName": "Upper Pulley Triceps Pushdown (straight bar)",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15",
+          "restSeconds": 90
+        }
+      ]
+    },
+    {
+      "id": "tytax-original-6day-lower-a",
+      "programId": "",
+      "name": "Lower A",
+      "dayIndex": 1,
+      "exercises": [
+        {
+          "exerciseId": "tytax_smith-machine_smith-back-squat",
+          "exerciseName": "Smith Back Squat",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "6-10",
+          "restSeconds": 150
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-romanian-deadlift-rdl",
+          "exerciseName": "Smith Romanian Deadlift (RDL)",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "6-10",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-hip-thrust",
+          "exerciseName": "Smith Hip Thrust",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-standing-calf-raise",
+          "exerciseName": "Smith Standing Calf Raise",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "12-20",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-kneeling-cable-crunch",
+          "exerciseName": "Upper Pulley Kneeling Cable Crunch",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-20",
+          "restSeconds": 90
+        }
+      ]
+    },
+    {
+      "id": "tytax-original-6day-upper-b",
+      "programId": "",
+      "name": "Upper B",
+      "dayIndex": 2,
+      "exercises": [
+        {
+          "exerciseId": "tytax_smith-machine_smith-incline-bench-press",
+          "exerciseName": "Smith Incline Bench Press",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-close-grip-lat-pulldown",
+          "exerciseName": "Upper Pulley Close-Grip Lat Pulldown",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-wide-grip-seated-cable-row",
+          "exerciseName": "Lower Pulley Wide-Grip Seated Cable Row",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-standing-overhead-press",
+          "exerciseName": "Smith Standing Overhead Press",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "6-10",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-high-cable-curl-d-handles",
+          "exerciseName": "Upper Pulley High Cable Curl (D-handles)",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-rope-triceps-pushdown",
+          "exerciseName": "Upper Pulley Rope Triceps Pushdown",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15",
+          "restSeconds": 90
+        }
+      ]
+    },
+    {
+      "id": "tytax-original-6day-lower-b",
+      "programId": "",
+      "name": "Lower B",
+      "dayIndex": 3,
+      "exercises": [
+        {
+          "exerciseId": "tytax_smith-machine_smith-lying-leg-press-bench-setup",
+          "exerciseName": "Smith Lying Leg Press (bench setup)",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 150
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-stiff-leg-deadlift",
+          "exerciseName": "Smith Stiff-Leg Deadlift",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "6-10",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-glute-bridge",
+          "exerciseName": "Smith Glute Bridge",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "10-15",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-seated-calf-raise-bench-setup",
+          "exerciseName": "Smith Seated Calf Raise (bench setup)",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "12-25",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-high-to-low-woodchop",
+          "exerciseName": "Upper Pulley High-to-Low Woodchop",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15/side",
+          "restSeconds": 90
+        }
+      ]
+    },
+    {
+      "id": "tytax-original-6day-upper-c",
+      "programId": "",
+      "name": "Upper C",
+      "dayIndex": 4,
+      "exercises": [
+        {
+          "exerciseId": "tytax_smith-machine_smith-decline-bench-press",
+          "exerciseName": "Smith Decline Bench Press",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-underhand-lat-pulldown",
+          "exerciseName": "Upper Pulley Underhand Lat Pulldown",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "8-12",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-one-arm-seated-cable-row",
+          "exerciseName": "Lower Pulley One-Arm Seated Cable Row",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15/side",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-single-arm-lateral-raise",
+          "exerciseName": "Lower Pulley Single-Arm Lateral Raise",
+          "modality": "tytax",
+          "sets": 3,
+          "reps": "12-20/side",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-standing-cable-curl-straight-bar",
+          "exerciseName": "Lower Pulley Standing Cable Curl (straight bar)",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-single-arm-triceps-pushdown",
+          "exerciseName": "Upper Pulley Single-Arm Triceps Pushdown",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-15/side",
+          "restSeconds": 90
+        }
+      ]
+    },
+    {
+      "id": "tytax-original-6day-lower-c",
+      "programId": "",
+      "name": "Lower C",
+      "dayIndex": 5,
+      "exercises": [
+        {
+          "exerciseId": "tytax_smith-machine_smith-bulgarian-split-squat",
+          "exerciseName": "Smith Bulgarian Split Squat",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "8-12/leg",
+          "restSeconds": 150
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-single-leg-rdl",
+          "exerciseName": "Smith Single-Leg RDL",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "8-12/leg",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-lower-pulley_lower-pulley-cable-glute-kickback-ankle-strap",
+          "exerciseName": "Lower Pulley Cable Glute Kickback (ankle strap)",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "12-20/leg",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_smith-machine_smith-single-leg-standing-calf-raise",
+          "exerciseName": "Smith Single-Leg Standing Calf Raise",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-20/leg",
+          "restSeconds": 90
+        },
+        {
+          "exerciseId": "tytax_back-upper-pulley_upper-pulley-standing-cable-crunch",
+          "exerciseName": "Upper Pulley Standing Cable Crunch",
+          "modality": "tytax",
+          "sets": 2,
+          "reps": "10-20",
+          "restSeconds": 90
+        }
+      ]
+    },
+    {
+      "id": "tytax-original-6day-rest-day",
+      "programId": "",
+      "name": "Rest Day",
+      "dayIndex": 6,
+      "isRest": true,
+      "exercises": []
+    }
+  ],
+  "modalitiesUsed": [
+    "tytax"
+  ],
+  "isPreset": true,
+  "presetId": "tytax-original-6day",
+  "currentSessionIndex": 0
+}

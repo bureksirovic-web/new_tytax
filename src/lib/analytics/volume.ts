@@ -1,7 +1,8 @@
 import type { WorkoutLog } from '@/contracts/domain';
+import type { ExerciseLookup } from '@/contracts/training';
 import { getWeekKey, parseLocalDay } from '@/lib/utils';
-import { standardizeMuscle } from '@/lib/constants';
-import { countedSets, exerciseVolume, liveLogs, logVolume } from './sets';
+import { impactWeights, isTimeSet } from '@/lib/training/common';
+import { countedSets, exerciseVolume, liveLogs, logVolume, setVolume } from './sets';
 
 export interface VolumeDataPoint {
   weekKey: string;
@@ -11,8 +12,15 @@ export interface VolumeDataPoint {
   sessionCount: number;
 }
 
-/** Weekly (ISO week of the local `date`) volume over done working sets of live logs. */
-export function computeWeeklyVolume(logs: readonly WorkoutLog[]): VolumeDataPoint[] {
+const noLookup: ExerciseLookup = () => undefined;
+
+/**
+ * Weekly (ISO week of the local `date`) kg × reps volume over done working
+ * sets of live logs (time sets add none). Muscle shares use the catalog impact (`lookup`), falling back to the
+ * log's `muscleImpactSnapshot`.
+ */
+export function computeWeeklyVolume(logs: readonly WorkoutLog[], opts: { lookup?: ExerciseLookup } = {}): VolumeDataPoint[] {
+  const lookup = opts.lookup ?? noLookup;
   const map = new Map<string, VolumeDataPoint>();
 
   for (const log of liveLogs(logs)) {
@@ -25,14 +33,16 @@ export function computeWeeklyVolume(logs: readonly WorkoutLog[]): VolumeDataPoin
     point.sessionCount += 1;
 
     for (const ex of log.exercises) {
+      const weights = impactWeights(ex, lookup);
       for (const set of countedSets(ex)) {
-        const vol = set.kg * set.reps;
+        // Time sets are counted sets but carry no kg × reps volume.
+        if (isTimeSet(set)) continue;
+        const vol = setVolume(set);
         point.totalVolume += vol;
         const mod = ex.modality ?? 'custom';
         point.byModality[mod] = (point.byModality[mod] ?? 0) + vol;
-        for (const impact of ex.muscleImpactSnapshot ?? []) {
-          const muscle = standardizeMuscle(impact.muscle);
-          point.byMuscle[muscle] = (point.byMuscle[muscle] ?? 0) + vol * (impact.score / 100);
+        for (const [muscle, weight] of weights) {
+          point.byMuscle[muscle] = (point.byMuscle[muscle] ?? 0) + vol * weight;
         }
       }
     }
@@ -43,17 +53,20 @@ export function computeWeeklyVolume(logs: readonly WorkoutLog[]): VolumeDataPoin
     .map(([, v]) => v);
 }
 
-/** Impact-weighted volume per standardised muscle (from each log's snapshot), largest first. */
-export function volumeByMuscle(logs: readonly WorkoutLog[]): Record<string, number> {
+/**
+ * Impact-weighted volume per standardised muscle, largest first. Impact from
+ * the catalog (`lookup`), falling back to each log's snapshot.
+ */
+export function volumeByMuscle(logs: readonly WorkoutLog[], opts: { lookup?: ExerciseLookup } = {}): Record<string, number> {
+  const lookup = opts.lookup ?? noLookup;
   const totals: Record<string, number> = {};
 
   for (const log of liveLogs(logs)) {
     for (const ex of log.exercises) {
-      if (!ex.muscleImpactSnapshot) continue;
       const exVol = exerciseVolume(ex);
-      for (const impact of ex.muscleImpactSnapshot) {
-        const muscle = standardizeMuscle(impact.muscle);
-        totals[muscle] = (totals[muscle] ?? 0) + exVol * (impact.score / 100);
+      if (exVol <= 0) continue;
+      for (const [muscle, weight] of impactWeights(ex, lookup)) {
+        totals[muscle] = (totals[muscle] ?? 0) + exVol * weight;
       }
     }
   }
