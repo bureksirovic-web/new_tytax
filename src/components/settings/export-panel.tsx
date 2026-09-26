@@ -11,20 +11,21 @@ import { downloadText, localDay, notify } from './settings-utils';
 
 type Kind = 'workouts' | 'bodyweight';
 
-/** CSV export (current profile only, always kg) and the legacy-app import. */
-export function ExportPanel({ profile }: { profile: Profile }) {
+/** CSV export (current profile only, in its units when G2's CSV module supports them) and the legacy-app import. */
+export function ExportPanel({ profile, loadApi = loadCsvApi }: { profile: Profile; loadApi?: () => Promise<CsvApi> }) {
   const { t } = useT();
   const repo = useRepo();
   const [api, setApi] = useState<CsvApi | null>(null);
   const [busy, setBusy] = useState<Kind | null>(null);
+  const units = profile.settings.units;
 
   useEffect(() => {
     let live = true;
-    void loadCsvApi().then((a) => live && setApi(a));
+    void loadApi().then((a) => live && setApi(a));
     return () => {
       live = false;
     };
-  }, []);
+  }, [loadApi]);
 
   async function exportCsv(kind: Kind) {
     setBusy(kind);
@@ -32,10 +33,10 @@ export function ExportPanel({ profile }: { profile: Profile }) {
       let csv: string | undefined;
       if (kind === 'workouts' && api?.workouts) {
         const logs = await repo.logs.list(profile.id);
-        csv = logs.length ? api.workouts(logs) : undefined;
+        csv = logs.length ? api.workouts(logs, { units }) : undefined;
       } else if (kind === 'bodyweight' && api?.bodyweight) {
         const entries = await repo.bodyweight.list(profile.id);
-        csv = entries.length ? api.bodyweight(entries) : undefined;
+        csv = entries.length ? api.bodyweight(entries, { units }) : undefined;
       }
       if (csv === undefined) notify(t('set_export_empty'), 'info');
       else downloadText(csv, csvFilename(kind, localDay()), 'text/csv;charset=utf-8');
@@ -53,7 +54,7 @@ export function ExportPanel({ profile }: { profile: Profile }) {
   return (
     <div className="space-y-3">
       <FieldLabel>{t('set_export_csv')}</FieldLabel>
-      <Hint>{t('set_export_csv_hint')}</Hint>
+      <Hint>{api?.unitsSupported ? t('set_export_csv_hint_units', { unit: units }) : t('set_export_csv_hint')}</Hint>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"

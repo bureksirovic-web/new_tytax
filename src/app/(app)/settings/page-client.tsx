@@ -3,11 +3,9 @@ import { useActiveProfile } from '@/hooks/use-repo';
 import { EmptyState, SkeletonCard } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
 import { AppearanceCard } from '@/components/settings/appearance-card';
-import { BackupPanel } from '@/components/settings/backup-panel';
 import { DangerZone } from '@/components/settings/danger-zone';
-import { EquipmentCard } from '@/components/settings/equipment-card';
-import { ExportPanel } from '@/components/settings/export-panel';
 import { LanguageUnitsCard } from '@/components/settings/language-units-card';
+import { LazyDataPanels, LazyEquipmentCard } from '@/components/settings/lazy-panels';
 import { ManualSection } from '@/components/settings/manual-section';
 import { ProfileEditForm } from '@/components/settings/profile-edit-form';
 import { ProfilesCard } from '@/components/settings/profiles-card';
@@ -39,10 +37,9 @@ export default function SettingsPage() {
           <LanguageUnitsCard profile={profile} />
           <TrainingCard profile={profile} />
           <AppearanceCard profile={profile} />
-          <EquipmentCard profile={profile} />
+          <LazyEquipmentCard profile={profile} />
           <SettingsCard title={t('set_section_data')} testId="settings-data">
-            <BackupPanel profile={profile} />
-            <ExportPanel profile={profile} />
+            <LazyDataPanels profile={profile} />
           </SettingsCard>
           <SyncSlot />
           <DangerZone />

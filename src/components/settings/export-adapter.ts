@@ -1,4 +1,4 @@
-import type { BodyweightEntry, WorkoutLog } from '@/contracts/domain';
+import type { BodyweightEntry, Units, WorkoutLog } from '@/contracts/domain';
 import type { LegacyImportApi } from './legacy-import-api';
 
 /**
@@ -8,8 +8,10 @@ import type { LegacyImportApi } from './legacy-import-api';
  * reported as unavailable and the UI shows a disabled control.
  */
 export interface CsvApi {
-  workouts?: (logs: WorkoutLog[]) => string;
-  bodyweight?: (entries: BodyweightEntry[]) => string;
+  workouts?: (logs: WorkoutLog[], opts?: { units?: Units }) => string;
+  bodyweight?: (entries: BodyweightEntry[], opts?: { units?: Units }) => string;
+  /** G2's module converts to the profile's units (it exports `displayWeight`); the older one writes kg only. */
+  unitsSupported?: boolean;
 }
 
 type Fn = (...args: never[]) => unknown;
@@ -27,6 +29,7 @@ export async function loadCsvApi(): Promise<CsvApi> {
     return {
       workouts: fn(mod, 'workoutLogsToCSV') as CsvApi['workouts'],
       bodyweight: fn(mod, 'bodyweightToCSV') as CsvApi['bodyweight'],
+      unitsSupported: fn(mod, 'displayWeight') !== undefined,
     };
   } catch (error: unknown) {
     console.error('[settings] CSV export module failed to load', error);

@@ -18,7 +18,6 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
   const repo = useRepo();
   const apply = useApplyProfilePrefs();
   const draft = useWorkoutStore((s) => s.draft);
-  const discardDraft = useWorkoutStore((s) => s.discard);
   const { data } = useRepoQuery(async (r): Promise<ProfileRow[]> => {
     const profiles = await r.profiles.list();
     const counts = await Promise.all(profiles.map((p) => r.logs.count(p.id)));
@@ -29,7 +28,8 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
 
   const rows = sortProfiles(data ?? [], activeId);
-  const active = rows.find((r) => r.profile.id === activeId)?.profile;
+  // The owner of the workout in progress (a draft belongs to one profile, whichever is active).
+  const draftOwner = draft ? rows.find((r) => r.profile.id === draft.profileId)?.profile : undefined;
 
   async function guarded(fn: () => Promise<void>) {
     if (busy) return;
@@ -53,8 +53,8 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
     });
 
   const requestSwitch = (p: Profile) => {
-    // A workout in progress stays with its owner; warn before leaving it.
-    if (draft && activeId && draft.profileId === activeId) setSwitchTarget(p);
+    // A workout in progress stays with its owner (it is kept, not moved); say so before switching elsewhere.
+    if (draftOwner && draftOwner.id !== p.id) setSwitchTarget(p);
     else void doSwitch(p);
   };
 
@@ -63,7 +63,7 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
       setDeleteTarget(null);
       await repo.profiles.remove(p.id);
       // A workout in progress owned by the deleted profile would later be saved into a profile that no longer exists.
-      if (useWorkoutStore.getState().draft?.profileId === p.id) discardDraft();
+      if (useWorkoutStore.getState().draft?.profileId === p.id) useWorkoutStore.getState().discard();
       notify(t('set_profile_deleted', { name: p.name }));
       if (p.id === activeId) {
         const nextId = await repo.profiles.getActiveId();
@@ -93,7 +93,7 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
       <ConfirmDialog
         open={switchTarget !== null}
         title={switchTarget ? t('set_profile_switch_aria', { name: switchTarget.name }) : ''}
-        message={t('set_profile_draft_warning', { name: active?.name ?? '' })}
+        message={t('set_profile_draft_warning', { name: draftOwner?.name ?? '' })}
         confirmLabel={t('set_profile_switch')}
         cancelLabel={t('cancel')}
         onConfirm={() => {
@@ -106,7 +106,11 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
           key={deleteTarget.id}
           open
           title={t('set_profile_delete_title', { name: deleteTarget.name })}
-          message={t('set_profile_delete_message', { name: deleteTarget.name })}
+          message={
+            draft?.profileId === deleteTarget.id
+              ? `${t('set_profile_delete_message', { name: deleteTarget.name })} ${t('set_profile_delete_draft_note')}`
+              : t('set_profile_delete_message', { name: deleteTarget.name })
+          }
           word={deleteTarget.name}
           inputLabel={t('set_profile_delete_type_to_confirm', { name: deleteTarget.name })}
           confirmLabel={t('set_profile_delete')}

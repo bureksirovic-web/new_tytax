@@ -46,6 +46,7 @@ describe('BackupPanel', () => {
     await seedLogs(repo, other.id, [oneSetLog(1)]);
     renderWithProviders(<BackupPanel profile={me} />);
 
+    await waitFor(() => expect(screen.getByTestId('settings-backup-download')).toBeEnabled());
     fireEvent.click(screen.getByTestId('settings-backup-download'));
     await waitFor(() => expect(downloads).toHaveLength(1));
     expect(downloads[0]).toMatch(/^tytax_backup_ana_\d{4}-\d{2}-\d{2}\.json$/);
@@ -62,9 +63,13 @@ describe('BackupPanel', () => {
     const text = JSON.stringify(await source.exportBackup(marko.id));
     renderWithProviders(<BackupPanel profile={me} />);
 
+    await waitFor(() => expect(screen.getByTestId('settings-restore-input')).toBeEnabled());
     fireEvent.change(screen.getByTestId('settings-restore-input'), { target: { files: [jsonFile(text)] } });
     const preview = await screen.findByTestId('settings-restore-preview');
-    expect(within(preview).getByText('Profiles (1): Marko')).toBeInTheDocument();
+    expect(within(preview).getByText('Profiles in the file (1):')).toBeInTheDocument();
+    expect(within(preview).getByTestId(`settings-restore-profile-${marko.id}`)).toHaveTextContent('MarkoNew');
+    // a profile new to this device needs no extra acknowledgement
+    expect(within(preview).queryByTestId('settings-restore-existing')).toBeNull();
     expect(within(preview).getByText('Workouts: 3 · Programs: 0 · Bodyweight: 0')).toBeInTheDocument();
     // nothing is written before confirming
     expect((await repo.profiles.list()).map((p) => p.name)).toEqual(['Ana']);
@@ -78,6 +83,7 @@ describe('BackupPanel', () => {
 
   it('rejects a file that is not a TYTAX backup without writing anything', async () => {
     renderWithProviders(<BackupPanel profile={me} />);
+    await waitFor(() => expect(screen.getByTestId('settings-restore-input')).toBeEnabled());
     fireEvent.change(screen.getByTestId('settings-restore-input'), {
       target: { files: [jsonFile(JSON.stringify({ hello: 'world' }))] },
     });
