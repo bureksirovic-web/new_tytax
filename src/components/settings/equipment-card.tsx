@@ -6,7 +6,7 @@ import { useCatalog } from '@/hooks/use-exercises';
 import { Button } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
 import { CheckList } from './check-list';
-import { ATTACHMENT_LABEL, BODYWEIGHT_GEAR, STATION_LABEL, toggleId } from './equipment-labels';
+import { attachmentLabelKey, BODYWEIGHT_GEAR, stationLabelKey, toggleId } from './equipment-labels';
 import { KettlebellList } from './kettlebell-list';
 import { Hint, SettingsCard } from './settings-section';
 import { notify } from './settings-utils';
@@ -52,16 +52,14 @@ export function EquipmentCard({ profile }: { profile: Profile }) {
   }
 
   const unconfigured = isUnconfigured(inv);
-  const stations = (catalog?.stations ?? []).map((s) => ({
-    id: s.id,
-    label: STATION_LABEL[s.id] ? t(STATION_LABEL[s.id]) : s.name,
-    checked: inv.stationIds.includes(s.id),
-  }));
-  const attachments = (catalog?.attachments ?? []).map((a) => ({
-    id: a.id,
-    label: ATTACHMENT_LABEL[a.id] ? t(ATTACHMENT_LABEL[a.id]) : a.name,
-    checked: inv.attachmentIds.includes(a.id),
-  }));
+  const stations = (catalog?.stations ?? []).map((s) => {
+    const key = stationLabelKey(s.id);
+    return { id: s.id, label: key ? t(key) : s.name, checked: inv.stationIds.includes(s.id) };
+  });
+  const attachments = (catalog?.attachments ?? []).map((a) => {
+    const key = attachmentLabelKey(a.id);
+    return { id: a.id, label: key ? t(key) : a.name, checked: inv.attachmentIds.includes(a.id) };
+  });
   const gear = BODYWEIGHT_GEAR.map((g) => ({ id: g.id, label: t(g.key), checked: inv.bodyweightGear.includes(g.id) }));
 
   return (

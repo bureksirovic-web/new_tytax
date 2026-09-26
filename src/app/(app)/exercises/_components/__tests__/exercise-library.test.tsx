@@ -4,8 +4,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import type { Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
 import { LocaleProvider } from '@/components/providers/locale-provider';
-import tytaxData from '@/data/tytax/exercises.json';
 import { en } from '@/lib/i18n/en';
+import { loadCatalog } from '@/lib/catalog';
 import { createNavStore } from './nav-mock';
 
 const holder = vi.hoisted(() => ({ repo: undefined as unknown, nav: undefined as unknown as ReturnType<typeof createNavStore> }));
@@ -56,7 +56,6 @@ function renderLib() {
 
 const rows = () => within(screen.getByTestId('exercise-list')).getAllByRole('listitem');
 const results = (k: number) => en.ex_results.replace('{n}', String(k));
-const SMITH_COUNT = (tytaxData as Array<{ station?: string }>).filter((e) => e.station === 'Smith Machine').length;
 
 beforeEach(() => {
   localStorage.clear();
@@ -88,16 +87,22 @@ describe('ExerciseLibrary', () => {
   });
 
   it('station filter from the URL narrows to that station; filters combine and clear', async () => {
-    await setup('st=smith');
+    // The station id comes from the loaded catalog (ids differ between catalog builds); an entry belongs to
+    // the station by its `stationId`, or, without one, by its display `station` equal to the station name.
+    const cat = await loadCatalog(['tytax']);
+    const smith = cat.stations.find((s) => s.name === 'Smith Machine');
+    expect(smith).toBeDefined();
+    const atSmith = cat.exercises.filter((e) => (e.stationId !== undefined ? e.stationId === smith!.id : e.station === smith!.name));
+    expect(atSmith.length).toBeGreaterThan(30); // more than one page, fewer than the whole catalog
+    expect(atSmith.length).toBeLessThan(cat.exercises.length);
+    await setup(`st=${smith!.id}`);
     renderLib();
-    // Hand count: rows in tytax/exercises.json with station "Smith Machine".
-    expect(await screen.findByText(results(SMITH_COUNT))).toBeInTheDocument();
+    expect(await screen.findByText(results(atSmith.length))).toBeInTheDocument();
     const muscle = screen.getByLabelText(en.ex_filter_muscle);
     fireEvent.change(muscle, { target: { value: 'CHEST' } });
-    expect(holder.nav.get()).toBe('mg=CHEST&st=smith');
-    const chestSmith = (tytaxData as Array<{ station?: string; muscleGroup: string }>).filter(
-      (e) => e.station === 'Smith Machine' && e.muscleGroup === 'CHEST',
-    ).length;
+    expect(holder.nav.get()).toBe(`mg=CHEST&st=${smith!.id}`);
+    const chestSmith = atSmith.filter((e) => e.muscleGroup === 'CHEST').length;
+    expect(chestSmith).toBeGreaterThan(0);
     expect(await screen.findByText(results(chestSmith))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: en.ex_clear_filters }));
     expect(holder.nav.get()).toBe('');

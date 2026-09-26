@@ -1,10 +1,11 @@
 import 'fake-indexeddb/auto';
 import { Suspense } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
 import { readPins } from '@/components/analytics/use-analytics-data';
+import { useUIStore } from '@/stores/ui-store';
 import { renderEn, seedLog } from '@/components/analytics/__tests__/helpers';
 
 const holder = vi.hoisted(() => ({ repo: undefined as unknown, push: vi.fn() }));
@@ -41,6 +42,11 @@ function renderDetail(id: string) {
 }
 
 describe('/analytics', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUIStore.setState({ toasts: [] });
+  });
+
   it('no logs: heading, empty state with a start CTA, bodyweight still usable', async () => {
     await setup();
     renderEn(<AnalyticsPage />);
@@ -55,7 +61,7 @@ describe('/analytics', () => {
     const { repo, profileId } = await setup('lb');
     await seedLog(repo, profileId, 'a', 10, SWING, [{ kg: 20, reps: 10 }]);
     await seedLog(repo, profileId, 'b', 3, SWING, [{ kg: 24, reps: 8 }, { kg: 40, reps: 5, type: 'warmup' }]);
-    renderEn(<AnalyticsPage />);
+    const view = renderEn(<AnalyticsPage />);
     expect(await screen.findByRole('heading', { name: 'Training load (ACWR)' })).toBeInTheDocument();
     for (const name of ['Muscle distribution', 'Training calendar', 'Exercise progress', 'Bodyweight', 'Best lifts', 'Pinned lifts']) {
       expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument();
@@ -70,10 +76,29 @@ describe('/analytics', () => {
     const box = await within(dialog).findByRole('checkbox');
     fireEvent.click(box);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-    await waitFor(async () => expect(readPins((await repo.profiles.get(profileId))!.settings)).toEqual([SWING]));
+    await waitFor(async () => expect(readPins((await repo.profiles.get(profileId))!.settings, profileId)).toEqual([SWING]));
+    // the save reported success, never the error toast (a rejected settings key must not surface)
+    await waitFor(() => expect(useUIStore.getState().toasts.map((x) => [x.message, x.type])).toContainEqual(['Pinned exercises saved', 'success']));
+    expect(useUIStore.getState().toasts.filter((x) => x.type === 'error')).toEqual([]);
     const pinned = await screen.findByTestId('ana-pinned-list');
     // best e1RM: 24×36/29 = 29.79 kg (the 40 kg warm-up never counts) → ×2.20462 = 65.7 lb
     expect(within(pinned).getAllByText('65.7 lb').length).toBeGreaterThan(0);
+
+    // a fresh mount of the page still shows the pin
+    view.unmount();
+    const remount = renderEn(<AnalyticsPage />);
+    const pinnedAgain = await screen.findByTestId('ana-pinned-list');
+    expect(within(pinnedAgain).getAllByText('65.7 lb').length).toBeGreaterThan(0);
+    remount.unmount();
+
+    // another active profile, with its own history of the same exercise, starts with no pins
+    const other = await repo.profiles.create({ name: 'Other' });
+    await seedLog(repo, other.id, 'o', 2, SWING, [{ kg: 16, reps: 10 }]);
+    await repo.profiles.setActive(other.id);
+    renderEn(<AnalyticsPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit pinned' })).toBeEnabled());
+    expect(screen.getByText('Pin up to 4 exercises to follow their e1RM here.')).toBeInTheDocument();
+    expect(screen.queryByTestId('ana-pinned-list')).toBeNull();
   });
 });
 

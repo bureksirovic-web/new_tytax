@@ -6,6 +6,7 @@ import { useRepoQuery } from '@/hooks/use-repo';
 import { matchesAttachment } from '@/lib/catalog/query';
 import {
   DEFAULT_SLOT_FILTER,
+  defaultOwnedAttachments,
   filterSlotExercises,
   hiddenChips,
   ownershipFrom,
@@ -73,7 +74,7 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     return filterSlotExercises(catalog.exercises, filter, {
       kind,
       stations: catalog.stations,
-      own: ownershipFrom(inventory),
+      own: ownershipFrom(inventory, defaultOwnedAttachments(catalog.attachments)),
       favourites: new Set((arsenal ?? []).map((a) => a.exerciseId)),
       requiredAttachments,
     });

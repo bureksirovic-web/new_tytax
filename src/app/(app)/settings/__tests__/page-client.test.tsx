@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import axe from 'axe-core';
+import { loadCatalog } from '@/lib/catalog';
 import {
   installRepo,
   renderWithProviders,
@@ -77,7 +78,9 @@ describe('SettingsPage', () => {
       </main>,
     );
     await screen.findByText('Ivo');
-    await screen.findByTestId('settings-attachment-rope');
+    // wait for the lazy catalog's attachment list (ids differ between catalog builds)
+    const [firstAttachment] = (await loadCatalog(['tytax'])).attachments;
+    await screen.findByTestId(`settings-attachment-${firstAttachment.id}`);
     // colour contrast needs a real layout engine (checked in e2e)
     const res = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
     const serious = res.violations

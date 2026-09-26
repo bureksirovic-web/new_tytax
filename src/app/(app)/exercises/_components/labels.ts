@@ -66,6 +66,12 @@ const ATTACHMENT_KEYS: Record<string, TranslationKey> = {
   'lat-bar': 'ex_att_lat_bar',
   'ez-bar': 'ex_att_ez_bar',
   'row-handle': 'ex_att_row_handle',
+  // tytax_library.json keys, normalised (TRICEPS_ROPE → triceps-rope)
+  'triceps-rope': 'ex_att_rope',
+  'v-handle': 'ex_att_v_bar',
+  'd-handles': 'ex_att_d_handle',
+  'dip-belt': 'ex_att_belt',
+  'ez-lat-bar': 'ex_att_ez_bar',
 };
 
 /** Standardised muscle name (src/lib/constants MUSCLE_GROUPS) → key. */
@@ -97,8 +103,10 @@ const MUSCLE_DETAIL_KEYS: Record<string, TranslationKey> = {
 
 export const modalityKey = (m: Modality): TranslationKey => MODALITY_KEYS[m];
 export const muscleGroupKey = (g: MuscleGroup): TranslationKey => MUSCLE_GROUP_KEYS[g];
-export const stationKey = (id: string): TranslationKey | undefined => STATION_KEYS[id];
-export const attachmentKey = (id: string): TranslationKey | undefined => ATTACHMENT_KEYS[id];
+/** Catalog ids are matched lower-case with `_` → `-`, so library keys (`BACK_UPPER`) and older ids (`back-upper`) both resolve. */
+const normId = (id: string): string => id.toLowerCase().replace(/_/g, '-');
+export const stationKey = (id: string): TranslationKey | undefined => STATION_KEYS[normId(id)];
+export const attachmentKey = (id: string): TranslationKey | undefined => ATTACHMENT_KEYS[normId(id)];
 export const impactMuscleKey = (raw: string): TranslationKey | undefined => MUSCLE_DETAIL_KEYS[standardizeMuscle(raw)];
 
 export function isMuscleGroup(v: string | null | undefined): v is MuscleGroup {

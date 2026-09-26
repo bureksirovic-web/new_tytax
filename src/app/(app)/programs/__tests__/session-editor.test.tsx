@@ -2,9 +2,11 @@ import 'fake-indexeddb/auto';
 import { Suspense } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { Program, ProgramTemplate } from '@/contracts/domain';
+import type { Exercise, Program, ProgramTemplate } from '@/contracts/domain';
 import type { Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
+import { loadCatalog } from '@/lib/catalog';
+import { matchesAttachment } from '@/lib/catalog/query';
 
 const holder = vi.hoisted(() => ({ repo: undefined as unknown, push: vi.fn(), replace: vi.fn() }));
 
@@ -128,19 +130,38 @@ describe('SessionEditorPage (slot editor)', () => {
   });
 
   it('"only my equipment" follows the profile inventory', async () => {
+    // Ids and requirements come from the loaded catalog, never literals (they differ between catalog builds).
+    const catalog = await loadCatalog();
+    const requires = (ex: Exercise) => ex.attachmentIds ?? catalog.attachments.filter((a) => matchesAttachment(ex, a.id)).map((a) => a.id);
+    const facePulls = catalog.exercises.filter((e) => e.modality === 'tytax' && /face pull/i.test(e.name));
+    const ropePull = catalog.getById('tytax_back-upper-pulley_upper-pulley-face-pull-rope');
+    const rope = ropePull ? requires(ropePull)[0] : undefined;
+    expect(rope).toBeDefined();
+    // Owning one attachment no face pull needs: only the face pulls without a (non-owned) requirement stay.
+    const other = catalog.attachments.find((a) => !facePulls.some((e) => requires(e).includes(a.id)))?.id;
+    expect(other).toBeDefined();
+    const ownedWith = (ids: readonly string[]) => facePulls.filter((e) => requires(e).every((a) => ids.includes(a))).map((e) => e.name).sort();
+    const withoutRope = ownedWith([other!]);
+    expect(withoutRope.length).toBeLessThan(facePulls.length); // the rope face pull at least is hidden
+    expect(ownedWith([other!, rope!])).toEqual(facePulls.map((e) => e.name).sort());
+
     const { repo, profileId, program } = await setup();
-    await repo.equipment.save(profileId, { attachmentIds: ['v-bar'] });
+    await repo.equipment.save(profileId, { attachmentIds: [other!] });
     await open(program.id, program.sessions[0].id);
     await screen.findByTestId('slot-results', undefined, { timeout: 5000 });
     search('face pull');
-    // 5 face pulls in the catalog; the name rule says they need the rope
-    await waitFor(() => expect(cards().filter((b) => b.hasAttribute('aria-pressed'))).toHaveLength(5), { timeout: 2000 });
+    const shownNames = () => cards().map((b) => b.querySelector('span > span')?.textContent ?? '').sort();
+    await waitFor(() => expect(shownNames()).toEqual(facePulls.map((e) => e.name).sort()), { timeout: 2000 });
     fireEvent.click(screen.getByRole('checkbox', { name: 'prog_slot_owned_only' }));
-    expect(await screen.findByTestId('slot-empty')).toHaveTextContent('prog_slot_no_matches');
+    if (withoutRope.length === 0) {
+      expect(await screen.findByTestId('slot-empty')).toHaveTextContent('prog_slot_no_matches');
+    } else {
+      await waitFor(() => expect(shownNames()).toEqual(withoutRope));
+    }
     await act(async () => {
-      await repo.equipment.save(profileId, { attachmentIds: ['v-bar', 'rope'] });
+      await repo.equipment.save(profileId, { attachmentIds: [other!, rope!] });
     });
-    await waitFor(() => expect(cards().filter((b) => b.hasAttribute('aria-pressed'))).toHaveLength(5));
+    await waitFor(() => expect(shownNames()).toEqual(facePulls.map((e) => e.name).sort()));
   });
 
   it('asks before leaving with unsaved changes', async () => {

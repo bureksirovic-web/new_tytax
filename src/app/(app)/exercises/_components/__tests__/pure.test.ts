@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorkoutLog } from '@/contracts/domain';
 import { buildWorkoutLog, sequentialIds } from '@/contracts/fixtures';
 import { EMPTY_FILTER, hasActiveFilters, parseLibraryParams, serializeLibraryParams, toCatalogQuery } from '../library-params';
-import { impactLevel, impactMuscleKey, stationKey } from '../labels';
+import { attachmentKey, impactLevel, impactMuscleKey, stationKey } from '../labels';
 import { bestE1rm, bestPoint, doneWorkingSets, e1rmSeries } from '../history-stats';
 import { buildVideoLinks } from '../video-links';
 import { chartCoords } from '../e1rm-chart';
@@ -34,6 +34,11 @@ describe('labels', () => {
     expect(impactMuscleKey('ANTERIOR DELT')).toBe('ex_mdetail_front_delts');
     expect(impactMuscleKey('Something odd')).toBeUndefined();
     expect(stationKey('back-upper')).toBe('ex_station_back_upper');
+    // tytax_library.json keys resolve to the same labels as the older ids
+    expect(stationKey('BACK_UPPER')).toBe('ex_station_back_upper');
+    expect(attachmentKey('TRICEPS_ROPE')).toBe(attachmentKey('rope'));
+    expect(attachmentKey('EZ_LAT_BAR')).toBe('ex_att_ez_bar');
+    expect(attachmentKey('UNKNOWN_THING')).toBeUndefined();
   });
 });
 

@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import type { Repository } from '@/contracts/repo';
+import { DEFAULT_PROFILE_SETTINGS, type ProfileSettings } from '@/contracts/domain';
+import { RepoError, type Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
 import { loadCatalog } from '@/lib/catalog';
 import { deleteBodyweight, saveBodyweight } from '../bodyweight-actions';
@@ -14,7 +15,9 @@ vi.mock('@/lib/db', async (importOriginal) => {
   return { ...actual, getRepository: () => holder.repo };
 });
 
-const { useAnalyticsData, useExerciseHistory, localDayDaysAgo, readPins, savePins, MAX_PINNED } = await import(
+const {
+  useAnalyticsData, useExerciseHistory, usePinnedExercises, localDayDaysAgo, readPins, readStoredPins, pinsStorageKey, savePins, MAX_PINNED,
+} = await import(
   '../use-analytics-data'
 );
 
@@ -69,17 +72,79 @@ describe('useAnalyticsData / useExerciseHistory', () => {
 });
 
 describe('pinned exercises', () => {
-  it('persist per profile in settings, deduplicated and capped at 4', async () => {
+  beforeEach(() => localStorage.clear());
+
+  it('persist per profile, deduplicated and capped at 4, without disturbing other settings', async () => {
     const repo = installRepo();
     const me = await repo.profiles.ensureActive('Me');
     const other = await repo.profiles.create({ name: 'Other' });
     await savePins(repo, me.id, ['a', 'b', 'a', 'c', 'd', 'e']);
     expect(MAX_PINNED).toBe(4);
-    expect(readPins((await repo.profiles.get(me.id))!.settings)).toEqual(['a', 'b', 'c', 'd']);
-    expect(readPins((await repo.profiles.get(other.id))!.settings)).toEqual([]);
+    // read back through a fresh repository fetch (settings array when the repo kept it, else localStorage)
+    expect(readPins((await repo.profiles.get(me.id))!.settings, me.id)).toEqual(['a', 'b', 'c', 'd']);
+    // the interim store holds them whether or not the repository accepted the settings key
+    expect(readStoredPins(me.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(readPins((await repo.profiles.get(other.id))!.settings, other.id)).toEqual([]);
+    expect(readStoredPins(other.id)).toEqual([]);
     // other settings survive
     expect((await repo.profiles.get(me.id))!.settings.units).toBe('kg');
     expect(readPins(undefined)).toEqual([]);
+
+    // the other profile's own pins do not leak into mine
+    await savePins(repo, other.id, ['z']);
+    expect(readPins((await repo.profiles.get(other.id))!.settings, other.id)).toEqual(['z']);
+    expect(readPins((await repo.profiles.get(me.id))!.settings, me.id)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('a settings pinnedExerciseIds array (future contract) wins over localStorage and is sanitised', () => {
+    localStorage.setItem(pinsStorageKey('p1'), JSON.stringify(['stored']));
+    const settings = { ...DEFAULT_PROFILE_SETTINGS, pinnedExerciseIds: ['x', 'x', 7, '', 'y', 'z', 'w', 'v'] } as unknown as ProfileSettings;
+    expect(readPins(settings, 'p1')).toEqual(['x', 'y', 'z', 'w']);
+    expect(readPins(DEFAULT_PROFILE_SETTINGS, 'p1')).toEqual(['stored']);
+  });
+
+  it('corrupt or wrongly-shaped stored values read as no pins', () => {
+    localStorage.setItem(pinsStorageKey('p1'), '{not json');
+    expect(readStoredPins('p1')).toEqual([]);
+    localStorage.setItem(pinsStorageKey('p1'), JSON.stringify({ ids: ['a'] }));
+    expect(readStoredPins('p1')).toEqual([]);
+    localStorage.setItem(pinsStorageKey('p1'), JSON.stringify(['a', 3, null, 'a', 'b']));
+    expect(readStoredPins('p1')).toEqual(['a', 'b']);
+  });
+
+  it('a VALIDATION rejection of the settings key does not surface; other repository errors do', async () => {
+    const repo = installRepo();
+    const me = await repo.profiles.ensureActive('Me');
+    const reject = (code: 'VALIDATION' | 'NOT_FOUND') =>
+      vi.spyOn(repo.profiles, 'updateSettings').mockRejectedValueOnce(new RepoError(code, 'settings.pinnedExerciseIds is not a known setting'));
+    reject('VALIDATION');
+    await expect(savePins(repo, me.id, ['a'])).resolves.toBeUndefined();
+    expect(readStoredPins(me.id)).toEqual(['a']);
+    reject('NOT_FOUND');
+    await expect(savePins(repo, me.id, ['b'])).rejects.toThrow(RepoError);
+    vi.restoreAllMocks();
+  });
+
+  it('usePinnedExercises updates after a save and survives a remount, per active profile', async () => {
+    const repo = installRepo();
+    const me = await repo.profiles.ensureActive('Me');
+    const other = await repo.profiles.create({ name: 'Other' });
+
+    const first = renderHook(() => usePinnedExercises());
+    await waitFor(() => expect(first.result.current.profileId).toBe(me.id));
+    expect(first.result.current.pins).toEqual([]);
+    await savePins(repo, me.id, ['b', 'a']);
+    await waitFor(() => expect(first.result.current.pins).toEqual(['b', 'a']));
+    first.unmount();
+
+    const again = renderHook(() => usePinnedExercises());
+    await waitFor(() => expect(again.result.current.profileId).toBe(me.id));
+    expect(again.result.current.pins).toEqual(['b', 'a']);
+
+    await repo.profiles.setActive(other.id);
+    await waitFor(() => expect(again.result.current.profileId).toBe(other.id));
+    expect(again.result.current.pins).toEqual([]);
+    again.unmount();
   });
 });
 

@@ -5,6 +5,7 @@ import {
   contextAllows,
   filterSlotExercises,
   hiddenChips,
+  defaultOwnedAttachments,
   ownershipFrom,
   ownsExercise,
   sessionKind,
@@ -95,6 +96,22 @@ describe('session kind and smart filter', () => {
     expect(filterSlotExercises(all, { ...base, ownedOnly: true }, ctx).map((e) => e.id)).toEqual(['flat', 'pulldown', 'squat']);
     expect(filterSlotExercises(all, { ...base, text: 'cable' }, ctx).map((e) => e.id)).toEqual(['row']);
     expect(stationIdOf(SQUAT, stations)).toBe('smith');
+  });
+
+  it('defaults to the catalog\'s "Owned" attachments, else the pre-library defaults', () => {
+    const library = [
+      { id: 'LAT_BAR', name: 'Lat bar', priority: 'Owned' },
+      { id: 'EZ_LAT_BAR', name: 'EZ/angled lat bar', priority: 'Owned' },
+      { id: 'TRICEPS_ROPE', name: 'Triceps rope', priority: 'High' },
+    ];
+    expect(defaultOwnedAttachments(library)).toEqual(['LAT_BAR', 'EZ_LAT_BAR']);
+    const own = ownershipFrom(undefined, defaultOwnedAttachments(library));
+    expect(ownsExercise(['LAT_BAR'], 'SMITH', own)).toBe(true);
+    expect(ownsExercise(['TRICEPS_ROPE'], 'SMITH', own)).toBe(false);
+    // a catalog with priorities but none owned owns nothing by default
+    expect(defaultOwnedAttachments([{ id: 'X', name: 'X', priority: 'High' }])).toEqual([]);
+    // pre-library catalog (no priority): the legacy defaults that exist in it
+    expect(defaultOwnedAttachments([{ id: 'rope', name: 'Rope' }, { id: 'lat-bar', name: 'Lat bar' }])).toEqual(['lat-bar']);
   });
 
   it('respects a stored inventory (attachments and stations)', () => {

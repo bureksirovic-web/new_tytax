@@ -12,6 +12,9 @@ export {
   usePinnedExercises,
   readPins,
   savePins,
+  readStoredPins,
+  sanitizePins,
+  pinsStorageKey,
   MAX_PINNED,
   localDayDaysAgo,
 } from '@/components/analytics/use-analytics-data';
