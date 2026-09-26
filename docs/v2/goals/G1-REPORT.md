@@ -227,7 +227,7 @@ GATE_EXIT=0
 - **F2:** a time set is a `SetEntry` with `durationSeconds > 0` (`isTimeSet`). Time sets count as sets for impact, recovery,
   ACWR and lagging muscle; they never produce e1RM, weight or reps PRs, and never add kg volume. `holdSeconds(sets)`,
   `logHoldSeconds(log)` total the hold time of done non-warm-up time sets. Prefill keeps kg progression for weighted holds
-  and never turns seconds into ghost reps (a ghost-duration hint needs a contract field: request G1-W2-01).
+  and never turns seconds into ghost reps; last session's seconds go to `ghostDurationSeconds` (contract field added 7c8e087).
 - **F3:** `e1rm()` is unchanged (the contract formula; the 1RM tool may still show high-rep estimates, G3 warns).
   `rankableE1rm` is the single rule used by `detectPRs` and the analytics best-lifts / e1RM chart.
 - **F1:** FRAME ("pull-up/dip handles, bench on the frame, hanging") and FREE_WEIGHT are app-level stations in
@@ -279,8 +279,9 @@ Station diff of the hardening commit: exactly the 2 intended exercises changed (
 - **W2-F1 — Follow-ups in other goals' files** (`docs/v2/requests/G1-W2-01-followups.md`): G2 `finish.ts` still stores
   `e1rm` for every set and `computeTotals` counts time sets in kg volume; G3 `use-pr.ts` / `workout-selectors.ts` do not know
   time sets yet; G4 should swap its local program helpers and video links for G1's. Why not fixed: ownership. S3.
-- **W2-F2 — No ghost duration for time sets.** Prefill cannot hint last session's hold time: no `SetEntry.ghostDurationSeconds`.
-  Proposed additive contract field (request G1-W2-01). S3.
+- **W2-F2 — Ghost duration for time sets: closed.** The coordinator added `SetEntry.ghostDurationSeconds`
+  (`v2-w2-contracts` @ 7c8e087, merged); `prefillFromHistory` fills it per set index from last session's time sets
+  (hand-derived tests in `src/lib/training/__tests__/time-sets.test.ts`). G3 can show it as the hold placeholder.
 - **W2-F3 — 81 of 1,436 (5.6 %) still have no station.** 53 by design (37 stretches, 16 free-standing bodyweight), 28 ambiguous
   machine moves (1.9 %, within AC8's 5 %). The 50-row review sample (`docs/v2/station-sample.md`) and the 64 FRAME/
   FREE_WEIGHT mappings (`docs/v2/station-unresolved.md`) still want an owner's glance. S3.

@@ -82,11 +82,10 @@ function blankSet(kg: number): SetEntry {
  * Time exercises (F2): a done time set (`isTimeSet`, reps may be 0) is a
  * "last time" set like any other, so kg progression and `ghostKg` work as
  * above (a 20 kg hold at RIR 3 → 22.5 kg). `durationSeconds` is never read as
- * reps: a set whose source is a time set gets no `ghostReps`, and prefilled
- * sets carry no `durationSeconds` (the user records the new hold). The
- * contract has no ghost-duration field; last time's seconds are reachable
- * through `sourceLogId`. A bodyweight (0 kg) hold therefore gets no
- * progression hint beyond the source log.
+ * reps: a set whose source is a time set gets no `ghostReps` but
+ * `ghostDurationSeconds` = that set's seconds ("beat it" for holds, also for
+ * 0 kg bodyweight holds); prefilled sets carry no `durationSeconds` (the user
+ * records the new hold). Extra sets beyond last time's count get no ghost.
  */
 export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, opts) => {
   // A non-finite targetSets (NaN, Infinity) is treated as not given.
@@ -110,7 +109,8 @@ export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, op
     const set = blankSet(nextKg((prev ?? tail).kg, inc, source.modality, opts?.availableKg));
     if (prev) {
       set.ghostKg = prev.kg;
-      if (!isTimeSet(prev)) set.ghostReps = prev.reps;
+      if (isTimeSet(prev)) set.ghostDurationSeconds = prev.durationSeconds;
+      else set.ghostReps = prev.reps;
     }
     return set;
   });

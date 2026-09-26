@@ -26,6 +26,6 @@ program helpers, video links. These call sites should adopt it (each is small; G
   (i18n-free: map `kind`/`n` to the existing `ex_video_*` keys).
 - Kinetic impact (if ever shown): `explanationKey` (`ki_*`, rows in `G1-i18n.md`) instead of the English `explanation`.
 
-## Contract gap (coordinator / contract owner)
-- Prefill cannot hint last session's hold duration: there is no `SetEntry.ghostDurationSeconds`. Proposed additive
-  optional field; `prefillFromHistory` would fill it from the matching time set.
+## Contract gap (coordinator / contract owner) — closed
+- `SetEntry.ghostDurationSeconds` was added (`v2-w2-contracts` @ 7c8e087). `prefillFromHistory` now fills it from the
+  matching time set of last session. **G3:** show it as the hold input's placeholder ("beat it").

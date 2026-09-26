@@ -191,5 +191,23 @@ describe('prefill of a time exercise', () => {
       [21.25, 20, undefined],
       [21.25, 20, 10],
     ]);
+    // ghostDurationSeconds only from the time set: set 0 had 45 s, set 1 was a reps set
+    expect(r.sets.map((s) => s.ghostDurationSeconds)).toEqual([45, undefined]);
+  });
+
+  it('ghostDurationSeconds carries last session\'s seconds per set index, also for 0 kg holds', () => {
+    const log = withDurations(
+      logEndingAt(NOW, 24, [{ exerciseId: 'plank', modality: 'bodyweight', sets: [{ kg: 0, reps: 0, rir: 3 }, { kg: 0, reps: 0, rir: 3 }] }]),
+      [60, 50],
+    );
+    const r = prefillFromHistory('plank', [log], { targetSets: 3 });
+    // 0 kg bodyweight → kg stays 0; ghosts 60 s and 50 s for sets 0–1; set 2 is extra (no last-time set) → no ghost
+    expect(r.sets.map((s) => [s.kg, s.ghostDurationSeconds])).toEqual([
+      [0, 60],
+      [0, 50],
+      [0, undefined],
+    ]);
+    // the new hold is recorded by the user: no durationSeconds and no ghostReps on prefilled sets
+    expect(r.sets.every((s) => s.durationSeconds === undefined && s.ghostReps === undefined)).toBe(true);
   });
 });
