@@ -8,12 +8,28 @@ import { generateId } from '@/lib/utils';
 
 const WORKING_TYPES: ReadonlySet<SetType> = new Set<SetType>(['working', 'drop', 'failure']);
 
+/** True for set types that are work (working/drop/failure), false for warm-ups. */
+export function isWorkingType(type: SetType): boolean {
+  return WORKING_TYPES.has(type);
+}
+
 /**
- * A "done working set": `done`, of type working/drop/failure, with reps > 0
- * and a non-negative weight. Warm-ups and undone sets never count.
+ * A time-measured set (F2): `durationSeconds` > 0 records the seconds held
+ * (static holds, carries, stretches); `reps` may be 0. Its effort is time,
+ * so it never yields an e1RM, a PR or kg × reps volume, but it still counts
+ * as a set for impact, recovery, ACWR and lagging-muscle load.
+ */
+export function isTimeSet(s: Pick<SetEntry, 'durationSeconds'>): boolean {
+  return typeof s.durationSeconds === 'number' && s.durationSeconds > 0;
+}
+
+/**
+ * A "done working set": `done`, of type working/drop/failure, with a
+ * non-negative weight and either reps > 0 or a recorded duration (a time
+ * set, see `isTimeSet`). Warm-ups and undone sets never count.
  */
 export function isDoneWorkingSet(s: SetEntry): boolean {
-  return s.done && WORKING_TYPES.has(s.type) && s.kg >= 0 && s.reps > 0;
+  return s.done && WORKING_TYPES.has(s.type) && s.kg >= 0 && (s.reps > 0 || isTimeSet(s));
 }
 
 /** Logs that are not soft-deleted. */

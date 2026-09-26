@@ -44,10 +44,11 @@ describe('loadCatalog', () => {
 
   it('only the tytax chunk carries stations and attachments', async () => {
     const t = await loadCatalog(['tytax']);
-    // 5 STATIONS and 9 RECOMMENDED_ATTACHMENTS in tytax_library.json (src/data/tytax/library.json)
-    expect(t.stations).toHaveLength(5);
+    // 7 stations = 5 tytax_library.json STATIONS + app-level FRAME and FREE_WEIGHT; 9 RECOMMENDED_ATTACHMENTS (src/data/tytax/library.json)
+    expect(t.stations).toHaveLength(7);
     expect(t.attachments).toHaveLength(9);
     expect(t.stations.find((s) => s.id === 'SMITH')?.name).toBe('Smith Machine');
+    expect(t.stations.slice(-2).map((s) => s.name)).toEqual(['Frame', 'Free weights']);
     expect(t.attachments.map((a) => a.id)).toContain('TRICEPS_ROPE');
     const bw = await loadCatalog(['bodyweight']);
     expect(bw.stations).toHaveLength(0);
@@ -139,6 +140,10 @@ describe('search', () => {
       'tytax_tytax_seated-alternating-cable-leg-extension',
       'tytax_tytax_seated-cable-leg-extension',
     ]);
+    // 36 = the free-weight bucket of docs/v2/station-unresolved.md before F1 (dumbbell/barbell/EZ-bar names, name-rule:free-weight)
+    expect(await search({ stationId: 'FREE_WEIGHT' })).toHaveLength(36);
+    // 28 = 25 pull-up/dip/hanging/roman-chair/hyperextension names (name-rule:frame) + 3 bench bodyweight (name-rule:frame-bench)
+    expect(await search({ stationId: 'FRAME' })).toHaveLength(28);
     const rope = await search({ attachmentId: 'TRICEPS_ROPE', text: 'face pull' });
     expect(rope.length).toBeGreaterThan(0);
     expect(rope.every((e) => e.modality === 'tytax')).toBe(true);

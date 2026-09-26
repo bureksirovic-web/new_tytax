@@ -2,18 +2,35 @@
  * Deterministic station/attachment rules for TYTAX exercises whose source
  * station is the generic "Tytax" (PLAN §10.2 AC8).
  *
- * Station ids are the `key`s of `tytax_library.json` STATIONS. Attachment ids
- * are derived from `tytax_library.json` RECOMMENDED_ATTACHMENTS names
- * (see ATTACHMENT_IDS); the library gives them no key of its own.
+ * Station ids are the `key`s of `tytax_library.json` STATIONS, plus two
+ * app-level stations the library does not have (APP_STATIONS: FRAME,
+ * FREE_WEIGHT; Wave 2 F1). Attachment ids are derived from
+ * `tytax_library.json` RECOMMENDED_ATTACHMENTS names (see ATTACHMENT_IDS);
+ * the library gives them no key of its own.
  *
  * First matching station rule wins; its id becomes the provenance
  * `name-rule:<id>`. Attachment rules are independent and all that match apply,
  * but only to pulley exercises (and the belt, which also serves the Smith).
  */
 
-export type StationId = 'SMITH' | 'BACK_UPPER' | 'BACK_LOWER' | 'LEG_EXTENSION' | 'LEG_CURL';
+/** Station keys of `tytax_library.json` STATIONS. */
+export type LibraryStationId = 'SMITH' | 'BACK_UPPER' | 'BACK_LOWER' | 'LEG_EXTENSION' | 'LEG_CURL';
+/** App-level stations, not in `tytax_library.json` (Wave 2 F1). */
+export type AppStationId = 'FRAME' | 'FREE_WEIGHT';
+export type StationId = LibraryStationId | AppStationId;
 
-export const STATION_IDS: readonly StationId[] = ['SMITH', 'BACK_UPPER', 'BACK_LOWER', 'LEG_EXTENSION', 'LEG_CURL'];
+export const LIBRARY_STATION_IDS: readonly LibraryStationId[] = ['SMITH', 'BACK_UPPER', 'BACK_LOWER', 'LEG_EXTENSION', 'LEG_CURL'];
+
+/** Prefix of `Station.notes` that marks an app-level station in `src/data/tytax/library.json`. */
+export const APP_LEVEL_NOTE_PREFIX = 'App-level addition (not in tytax_library.json)';
+
+/** App-level stations appended to the library's STATIONS, in this order. */
+export const APP_STATIONS: ReadonlyArray<{ id: AppStationId; name: string; notes: string }> = [
+  { id: 'FRAME', name: 'Frame', notes: `${APP_LEVEL_NOTE_PREFIX}: bodyweight work on the T1-X frame (pull-up and dip handles, hanging, roman chair, the bench on the frame).` },
+  { id: 'FREE_WEIGHT', name: 'Free weights', notes: `${APP_LEVEL_NOTE_PREFIX}: dumbbells, barbell and EZ bar used with the T1-X bench.` },
+];
+
+export const STATION_IDS: readonly StationId[] = [...LIBRARY_STATION_IDS, ...APP_STATIONS.map((s) => s.id)];
 
 /** Short display names used in the app (the library names are longer). */
 export const STATION_DISPLAY: Readonly<Record<StationId, string>> = {
@@ -22,7 +39,20 @@ export const STATION_DISPLAY: Readonly<Record<StationId, string>> = {
   BACK_LOWER: 'Back Lower Pulley',
   LEG_EXTENSION: 'Leg Extension',
   LEG_CURL: 'Leg Curl',
+  FRAME: 'Frame',
+  FREE_WEIGHT: 'Free weights',
 };
+
+/**
+ * Name families of exercises no machine rule can place (lower-cased names).
+ * The app-level station rules and `noStationCategory` (catalog-lib) share them.
+ */
+export const FREE_WEIGHT_NAME = /\b(dumbbell|barbell|ez bar)\b/;
+export const STRETCH_NAME = /stretch|flexibility|\bsplit\b|twine|mobility/;
+export const FRAME_NAME = /pull[- ]?up|chin[- ]?up|\bdips?\b|hanging|roman chair|hyperextension/;
+export const BODYWEIGHT_NAME = /sit[- ]?up|push[- ]?up|\bplank\b|\bsquat\b|glute bridge|bridge|leg hip raise|bottoms up|pelvic/;
+/** Bodyweight on the frame's bench: bench/incline/decline sit-ups and anything "with bench". */
+export const FRAME_BENCH_NAME = /\b(bench|incline|decline)\b.*\bsit[- ]?ups?\b|\bwith bench\b/;
 
 /** Source station strings with a specific station (provenance `t1x-meta`). */
 export const SOURCE_STATION_MAP: Readonly<Record<string, StationId>> = {
@@ -100,6 +130,20 @@ export const STATION_RULES: readonly StationRule[] = [
   { id: 'cable-from-below', station: 'BACK_LOWER', test: (n) => isCable(n) && /\b(row|curl|raise|kick ?back|kick|abduction|adduction|pull[- ]through|shrug|deadlift|squat|upright|lunge|calf|wrist|press|glute|hip|bridge|twist|rotation|side bend|swing|reverse fly|extension)\b/.test(n.name), why: 'Rows, curls, raises, kickbacks, presses and hip work pull against the lower pulley.' },
   { id: 'cable-by-muscle', station: 'BACK_UPPER', test: (n) => isCable(n) && (n.muscleGroup === 'BACK_VERTICAL' || n.muscleGroup === 'TRICEPS' || n.muscleGroup === 'CORE'), why: 'Remaining cable work for lats, triceps and core uses the upper pulley.' },
   { id: 'cable-default', station: 'BACK_LOWER', test: isCable, why: 'Any other cable exercise: lower pulley.' },
+  // App-level stations (Wave 2 F1). Last, so no exercise any machine rule places changes station.
+  { id: 'free-weight', station: 'FREE_WEIGHT', test: has(FREE_WEIGHT_NAME), why: 'Dumbbell, barbell and EZ-bar work: free weights used with the T1-X bench (app-level station).' },
+  {
+    id: 'frame',
+    station: 'FRAME',
+    test: (n) => FRAME_NAME.test(n.name) && !STRETCH_NAME.test(n.name),
+    why: 'Pull-ups, chin-ups, dips (bench dips included), hanging work, roman chair and hyperextensions use the frame (app-level station).',
+  },
+  {
+    id: 'frame-bench',
+    station: 'FRAME',
+    test: (n) => FRAME_BENCH_NAME.test(n.name) && !STRETCH_NAME.test(n.name),
+    why: 'Bench, incline and decline sit-ups and moves done "with bench" use the bench on the frame (app-level station).',
+  },
 ];
 
 export interface AttachmentRule {

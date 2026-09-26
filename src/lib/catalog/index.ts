@@ -18,6 +18,7 @@ import { chunkForId, loadChunk, loadLegacyNames, resetChunkCacheForTests } from 
 import { filterExercises } from './query';
 
 export { normalizeText } from './query';
+export { buildVideoLinks, primaryVideoLink, type VideoLink, type VideoLinkKind } from './video-links';
 export type { Catalog, CatalogApi, CatalogChunkId, CatalogQuery } from '@/contracts/exercise-catalog';
 
 /** Stations/attachments generated from `tytax_library.json` by `npm run catalog:build` (small; no exercise data). */

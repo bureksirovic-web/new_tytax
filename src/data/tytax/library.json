@@ -24,6 +24,16 @@
       "id": "LEG_CURL",
       "name": "Leg Curl",
       "notes": "Knee flexion isolation."
+    },
+    {
+      "id": "FRAME",
+      "name": "Frame",
+      "notes": "App-level addition (not in tytax_library.json): bodyweight work on the T1-X frame (pull-up and dip handles, hanging, roman chair, the bench on the frame)."
+    },
+    {
+      "id": "FREE_WEIGHT",
+      "name": "Free weights",
+      "notes": "App-level addition (not in tytax_library.json): dumbbells, barbell and EZ bar used with the T1-X bench."
     }
   ],
   "attachments": [

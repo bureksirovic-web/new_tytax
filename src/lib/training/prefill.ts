@@ -1,6 +1,6 @@
 import type { Modality, SetEntry, WorkoutLog } from '@/contracts/domain';
 import type { PrefillBasis, PrefillFromHistoryFn } from '@/contracts/training';
-import { clean, isDoneWorkingSet, liveLogs, newId } from './common';
+import { clean, isDoneWorkingSet, isTimeSet, liveLogs, newId } from './common';
 
 /** Progression increments by last session's lowest recorded RIR. */
 export const PREFILL_INCREMENT_KG: Readonly<Record<PrefillBasis, number>> = Object.freeze({
@@ -78,6 +78,15 @@ function blankSet(kg: number): SetEntry {
  * otherwise or unrecorded → +0; see `nextKg` for bodyweight (0 kg) and
  * kettlebells. Set i gets `kg = nextKg(last[i].kg)` (or the last set's kg
  * when this session has more sets) and `ghostKg/ghostReps` from `last[i]`.
+ *
+ * Time exercises (F2): a done time set (`isTimeSet`, reps may be 0) is a
+ * "last time" set like any other, so kg progression and `ghostKg` work as
+ * above (a 20 kg hold at RIR 3 → 22.5 kg). `durationSeconds` is never read as
+ * reps: a set whose source is a time set gets no `ghostReps`, and prefilled
+ * sets carry no `durationSeconds` (the user records the new hold). The
+ * contract has no ghost-duration field; last time's seconds are reachable
+ * through `sourceLogId`. A bodyweight (0 kg) hold therefore gets no
+ * progression hint beyond the source log.
  */
 export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, opts) => {
   const requested = opts?.targetSets !== undefined ? Math.max(1, Math.floor(opts.targetSets)) : undefined;
@@ -100,7 +109,7 @@ export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, op
     const set = blankSet(nextKg((prev ?? tail).kg, inc, source.modality, opts?.availableKg));
     if (prev) {
       set.ghostKg = prev.kg;
-      set.ghostReps = prev.reps;
+      if (!isTimeSet(prev)) set.ghostReps = prev.reps;
     }
     return set;
   });

@@ -1,7 +1,9 @@
 /**
  * AC8 data integrity (PLAN §10.2): presets resolve, stations are valid library
- * ids with provenance, unresolved entries are listed against the fixed
- * denominator of 1,436, and the committed catalog matches a fresh build.
+ * ids (5 from tytax_library.json + the app-level FRAME and FREE_WEIGHT) with
+ * provenance, station-less entries are listed against the fixed denominator of
+ * 1,436, time-measured exercises follow `isTimeTarget`, and the committed
+ * catalog matches a fresh build.
  * Command: npm test -- data-integrity
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -13,7 +15,8 @@ import { loadCatalog } from '@/lib/catalog';
 import tytax from '@/data/tytax/exercises.json';
 import library from '@/data/tytax/library.json';
 import legacyNames from '@/data/tytax/legacy-names.json';
-import { buildCatalog } from '../../../scripts/data/catalog-lib';
+import { buildCatalog, isTimeTarget } from '../../../scripts/data/catalog-lib';
+import { APP_LEVEL_NOTE_PREFIX } from '../../../scripts/data/station-rules';
 import { loadInputs, OUTPUT_PATHS, renderOutputs, PREVIOUS_IDS_PATH } from '../../../scripts/data/build-catalog';
 
 const ROOT = resolve(__dirname, '..', '..', '..');
@@ -40,9 +43,10 @@ describe('data integrity (AC8)', () => {
     expect(exercises.every((e) => e.modality === 'tytax')).toBe(true);
   });
 
-  it('every station and attachment is a valid tytax_library.json id with a provenance', () => {
-    // SMITH, BACK_UPPER, BACK_LOWER, LEG_EXTENSION, LEG_CURL
-    expect([...STATION_KEYS].sort()).toEqual(['BACK_LOWER', 'BACK_UPPER', 'LEG_CURL', 'LEG_EXTENSION', 'SMITH']);
+  it('every station and attachment is a valid library.json id with a provenance', () => {
+    // 7 = 5 tytax_library.json STATIONS (SMITH, BACK_UPPER, BACK_LOWER, LEG_EXTENSION, LEG_CURL) + app-level FRAME, FREE_WEIGHT
+    expect(STATION_KEYS.size).toBe(7);
+    expect([...STATION_KEYS].sort()).toEqual(['BACK_LOWER', 'BACK_UPPER', 'FRAME', 'FREE_WEIGHT', 'LEG_CURL', 'LEG_EXTENSION', 'SMITH']);
     const mapped = exercises.filter((e) => e.stationId !== undefined);
     expect(mapped.filter((e) => !STATION_KEYS.has(e.stationId as string)).map((e) => e.id)).toEqual([]);
     expect(exercises.flatMap((e) => e.attachmentIds ?? []).filter((a) => !ATTACHMENT_KEYS.has(a))).toEqual([]);
@@ -52,31 +56,73 @@ describe('data integrity (AC8)', () => {
     expect(exercises.filter((e) => (e.stationId === undefined) !== (e.stationProvenance === undefined)).map((e) => e.id)).toEqual([]);
   });
 
+  it('library.json marks exactly FRAME and FREE_WEIGHT as app-level; the rest are the tytax_library.json STATIONS', () => {
+    const appLevel = library.stations.filter((s) => (s.notes ?? '').startsWith(APP_LEVEL_NOTE_PREFIX)).map((s) => s.id);
+    expect(appLevel).toEqual(['FRAME', 'FREE_WEIGHT']);
+    const source = JSON.parse(read('scripts/data/source/tytax_library.json')).STATIONS as Array<{ key: string }>;
+    expect(library.stations.filter((s) => !appLevel.includes(s.id)).map((s) => s.id)).toEqual(source.map((s) => s.key));
+    expect(library.stations.find((s) => s.id === 'FRAME')?.name).toBe('Frame');
+    expect(library.stations.find((s) => s.id === 'FREE_WEIGHT')?.name).toBe('Free weights');
+  });
+
   it('every exercise without a station is listed in docs/v2/station-unresolved.md against 1,436', () => {
     const doc = read('docs/v2/station-unresolved.md');
     expect(doc).toContain(`Fixed denominator: **${SOURCE_TOTAL}**`);
-    const unresolved = exercises.filter((e) => e.stationId === undefined);
-    const unlisted = unresolved.filter((e) => !doc.includes(`\`${e.id}\``)).map((e) => e.id);
+    const stationless = exercises.filter((e) => e.stationId === undefined);
+    const unlisted = stationless.filter((e) => !doc.includes(`\`${e.id}\``)).map((e) => e.id);
     expect(unlisted).toEqual([]);
-    expect(doc).toContain(`| **Unresolved** (no station) | **${unresolved.length}** |`);
-  });
-
-  it('ratchet: the unresolved count never grows (AC8 "≤ 5 %" is NOT met: 145 of 1,436 = 10.1 %)', () => {
-    // This is a regression ratchet, not the AC8 clause. AC8 asks for ≤ 71 (5 % of 1,436); the G1 report
-    // records the clause as failing, with the cause (no library station for free weights, frame work and
-    // stretches) and the proposed fix. Lower the bound whenever mappings improve.
-    const unresolved = exercises.filter((e) => e.stationId === undefined);
-    expect(unresolved.length).toBeLessThanOrEqual(145);
-    expect(unresolved.length / SOURCE_TOTAL).toBeGreaterThan(0.05);
-  });
-
-  it('proposed amended criterion: machine exercises with an unknown station are ≤ 5 % of 1,436', () => {
-    // Only the "ambiguous" bucket names a machine exercise whose station the name does not reveal; the
-    // other unresolved buckets have no station in tytax_library.json by construction.
     const out = buildCatalog(loadInputs());
-    const ambiguous = out.unresolved.filter((u) => u.category === 'ambiguous');
-    expect(ambiguous.length / SOURCE_TOTAL).toBeLessThanOrEqual(0.05);
-    expect(out.unresolved).toHaveLength(exercises.filter((e) => e.stationId === undefined).length);
+    expect(out.stationless.map((u) => u.id)).toEqual(stationless.map((e) => e.id));
+    expect(doc).toContain(`| **No station by design** (stretches + free-standing bodyweight) | **${out.stats.noStationByDesign}** |`);
+    expect(doc).toContain(`| **Unresolved** (ambiguous machine moves) | **${out.stats.unresolved}** |`);
+    expect(out.stats.noStationByDesign + out.stats.unresolved).toBe(stationless.length);
+  });
+
+  it('AC8: exercises with an unresolved station are ≤ 5 % of 1,436 (28 ambiguous machine moves = 1.9 %)', () => {
+    // Stretches and free-standing bodyweight have no station by design (brief: "Stretches get the station
+    // NONE"); every other station-less entry is unresolved, and today all of those are ambiguous machine moves.
+    const out = buildCatalog(loadInputs());
+    const unresolved = out.stationless.filter((u) => u.kind === 'unresolved');
+    expect(unresolved.every((u) => u.category === 'ambiguous')).toBe(true);
+    // 5 % of 1,436 = 71.8, so at most 71 entries
+    expect(unresolved.length / SOURCE_TOTAL).toBeLessThanOrEqual(0.05);
+    // 28 = the ambiguous bucket of docs/v2/station-unresolved.md (145 before F1 − 36 free weight − 25 frame − 37 stretch − 19 bodyweight)
+    expect(unresolved).toHaveLength(28);
+  });
+
+  it('ratchet: exercises without a station never grow (81 of 1,436 = 5.6 %: 53 by design + 28 unresolved)', () => {
+    // Regression ratchet on the total, lowered from 145 by the app-level stations (F1).
+    // 81 = 145 − 36 FREE_WEIGHT − 28 FRAME (25 frame + 3 frame-bench)
+    expect(exercises.filter((e) => e.stationId === undefined).length).toBeLessThanOrEqual(81);
+  });
+
+  it('ratchet (not an AC8 clause): the no-station-by-design count never grows (53 = 37 stretches + 16 free-standing bodyweight)', () => {
+    // Honest ratchet: these have no station on purpose, so they do not count against AC8, but a rule change
+    // that pushes more entries into this bucket must be seen. 16 = 19 bodyweight − 3 moved to FRAME by frame-bench.
+    const out = buildCatalog(loadInputs());
+    const byDesign = out.stationless.filter((u) => u.kind === 'by-design');
+    expect(byDesign.every((u) => u.category === 'stretch' || u.category === 'bodyweight')).toBe(true);
+    expect(byDesign.length).toBeLessThanOrEqual(53);
+    // no station-less entry is a free weight or frame move any more: those have app-level stations
+    expect(out.stationless.filter((u) => u.category === 'free-weight' || u.category === 'bodyweight-frame').map((u) => u.id)).toEqual([]);
+  });
+
+  it('time-measured sets: every exercise in all three chunks has measure "time" iff isTimeTarget(defaultReps)', async () => {
+    const cat = await loadCatalog();
+    const wrong = cat.exercises.filter((e) => (e.measure === 'time') !== isTimeTarget(e.defaultReps)).map((e) => `${e.id} (${e.defaultReps})`);
+    expect(wrong).toEqual([]);
+    // measure is only ever set to 'time'; undefined means 'reps'
+    expect(cat.exercises.filter((e) => e.measure !== undefined && e.measure !== 'time').map((e) => e.id)).toEqual([]);
+    const timed = (m: string) => cat.exercises.filter((e) => e.modality === m && e.measure === 'time').length;
+    // 74 TYTAX = 41 × '30-60s' + 30 × '2-5 min' + 2 × '20-40s' + 1 × '15-30s hold'
+    expect(timed('tytax')).toBe(74);
+    // 12 bodyweight: 7 plain ranges ('20-60s', '10-30s' ×2, '20-45s' ×2, '5-20s', '30-60s') + 5 '/side' ranges
+    expect(timed('bodyweight')).toBe(12);
+    // 6 kettlebell, all '40s'
+    expect(timed('kettlebell')).toBe(6);
+    const doc = read('docs/v2/time-measured.md');
+    // 92 = 74 + 12 + 6
+    expect(doc).toContain('| **Total** | **92** |');
   });
 
   it('accounts for all 1,436 source entries: catalog + excluded non-exercises', () => {

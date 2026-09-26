@@ -52,14 +52,14 @@ function getWeekStart(day: string): string {
 
 /**
  * Session-level ACWR on daily volume (Σ kg × reps over done working sets of
- * live logs), both ending on the log's local day:
+ * live logs; time sets carry no volume), both ending on the log's local day:
  * - acute = Σ volume over 7 days / 7 (kg/day);
  * - chronic = (Σ volume over 28 days / W) / 7 (kg/day), W = weeks of history
  *   = min(4, floor(days since the first day with volume / 7) + 1), the same
  *   rule as `training.acwr` (`historyWeeks`). A new user is compared with the
  *   weeks they actually trained, not an empty month: a first session gives
- *   ratio 1, not 4. Days without volume (warm-up-only or bodyweight-only
- *   logs) do not start history.
+ *   ratio 1, not 4. Days without volume (warm-up-only, bodyweight-only or
+ *   time-set-only logs) do not start history.
  * ratio = acute / chronic (1 when chronic is 0).
  */
 export function computeACWR(logs: readonly WorkoutLog[]): ACWRWorkoutResult[] {

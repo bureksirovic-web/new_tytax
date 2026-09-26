@@ -21,7 +21,9 @@ import {
   type SourceExercise,
   type SourceLibrary,
 } from './catalog-lib';
-import { renderReconciliation, renderSample, renderUnresolved } from './catalog-docs';
+import { renderReconciliation, renderSample, renderTimeMeasured, renderUnresolved } from './catalog-docs';
+import { BODYWEIGHT_EXERCISES } from '../../src/data/bodyweight/exercises';
+import { KB_EXERCISES } from '../../src/data/kettlebell/exercises';
 
 const ROOT = resolve(__dirname, '..', '..');
 const p = (rel: string) => resolve(ROOT, rel);
@@ -35,6 +37,7 @@ export const OUTPUT_PATHS = {
   unresolvedDoc: 'docs/v2/station-unresolved.md',
   sampleDoc: 'docs/v2/station-sample.md',
   reconciliationDoc: 'docs/v2/catalog-reconciliation.md',
+  timeMeasuredDoc: 'docs/v2/time-measured.md',
 } as const;
 
 function readJson<T>(rel: string, fallback: T): T {
@@ -76,6 +79,11 @@ export function renderOutputs(out: BuildOutput, previousIds: ReadonlySet<string>
     [OUTPUT_PATHS.unresolvedDoc]: renderUnresolved(out),
     [OUTPUT_PATHS.sampleDoc]: renderSample(out),
     [OUTPUT_PATHS.reconciliationDoc]: renderReconciliation(out, previousIds),
+    [OUTPUT_PATHS.timeMeasuredDoc]: renderTimeMeasured([
+      { label: 'TYTAX', exercises: out.exercises },
+      { label: 'Bodyweight', exercises: BODYWEIGHT_EXERCISES },
+      { label: 'Kettlebell', exercises: KB_EXERCISES },
+    ]),
   };
 }
 
@@ -97,9 +105,12 @@ function main(): void {
     else writeFileSync(file, content);
   }
   const s = out.stats;
+  const pct = (n: number) => `${((n / s.sourceTotal) * 100).toFixed(1)}% of ${s.sourceTotal}`;
+  const timed = out.exercises.filter((e) => e.measure === 'time').length;
   console.log(
-    `catalog: source ${s.sourceTotal}, excluded ${s.excluded}, catalog ${s.catalog}, unresolved ${s.unresolved} ` +
-      `(${((s.unresolved / s.sourceTotal) * 100).toFixed(1)}% of ${s.sourceTotal}); provenance ${JSON.stringify(s.byProvenance)}`,
+    `catalog: source ${s.sourceTotal}, excluded ${s.excluded}, catalog ${s.catalog}, unresolved ${s.unresolved} (${pct(s.unresolved)}), ` +
+      `no station by design ${s.noStationByDesign}, without station ${s.stationless} (${pct(s.stationless)}); ` +
+      `provenance ${JSON.stringify(s.byProvenance)}; time-measured ${timed}`,
   );
   if (check && stale.length) {
     console.error(`stale outputs (run npm run catalog:build): ${stale.join(', ')}`);

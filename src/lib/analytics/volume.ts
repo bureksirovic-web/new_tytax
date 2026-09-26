@@ -1,8 +1,8 @@
 import type { WorkoutLog } from '@/contracts/domain';
 import type { ExerciseLookup } from '@/contracts/training';
 import { getWeekKey, parseLocalDay } from '@/lib/utils';
-import { impactWeights } from '@/lib/training/common';
-import { countedSets, exerciseVolume, liveLogs, logVolume } from './sets';
+import { impactWeights, isTimeSet } from '@/lib/training/common';
+import { countedSets, exerciseVolume, liveLogs, logVolume, setVolume } from './sets';
 
 export interface VolumeDataPoint {
   weekKey: string;
@@ -15,8 +15,8 @@ export interface VolumeDataPoint {
 const noLookup: ExerciseLookup = () => undefined;
 
 /**
- * Weekly (ISO week of the local `date`) volume over done working sets of live
- * logs. Muscle shares use the catalog impact (`lookup`), falling back to the
+ * Weekly (ISO week of the local `date`) kg × reps volume over done working
+ * sets of live logs (time sets add none). Muscle shares use the catalog impact (`lookup`), falling back to the
  * log's `muscleImpactSnapshot`.
  */
 export function computeWeeklyVolume(logs: readonly WorkoutLog[], opts: { lookup?: ExerciseLookup } = {}): VolumeDataPoint[] {
@@ -35,7 +35,9 @@ export function computeWeeklyVolume(logs: readonly WorkoutLog[], opts: { lookup?
     for (const ex of log.exercises) {
       const weights = impactWeights(ex, lookup);
       for (const set of countedSets(ex)) {
-        const vol = set.kg * set.reps;
+        // Time sets are counted sets but carry no kg × reps volume.
+        if (isTimeSet(set)) continue;
+        const vol = setVolume(set);
         point.totalVolume += vol;
         const mod = ex.modality ?? 'custom';
         point.byModality[mod] = (point.byModality[mod] ?? 0) + vol;

@@ -5,10 +5,15 @@
 import type { AttachmentDef, Exercise, MuscleImpact, ProgramTemplate, Station, StationProvenance, TechniqueLevel, Video } from '../../src/contracts/domain';
 import { standardizeMuscle } from '../../src/lib/constants';
 import {
+  APP_STATIONS,
   ATTACHMENT_IDS,
+  BODYWEIGHT_NAME,
+  FRAME_NAME,
+  FREE_WEIGHT_NAME,
+  LIBRARY_STATION_IDS,
   SOURCE_STATION_MAP,
   STATION_DISPLAY,
-  STATION_IDS,
+  STRETCH_NAME,
   type StationId,
   decideAttachments,
   decideStation,
@@ -69,29 +74,54 @@ export interface ExcludedEntry {
   why: string;
 }
 
-export type UnresolvedCategory = 'free-weight' | 'bodyweight-frame' | 'bodyweight' | 'stretch' | 'ambiguous';
+/** Name family of an exercise no machine rule places (the reason a library station is missing). */
+export type NoStationCategory = 'free-weight' | 'bodyweight-frame' | 'bodyweight' | 'stretch' | 'ambiguous';
 
-export interface UnresolvedEntry {
+/**
+ * `by-design`: stretches and free-standing bodyweight get no station (the brief: "Stretches get the
+ * station NONE, i.e. no station"). `unresolved`: a station should exist but no rule or reviewed
+ * mapping names it (ambiguous machine moves, or a reviewed `stationId: null` hand mapping).
+ */
+export type NoStationKind = 'by-design' | 'unresolved';
+
+export interface StationlessEntry {
   name: string;
   id: string;
   pattern: string;
   muscleGroup: string;
-  category: UnresolvedCategory;
+  category: NoStationCategory;
+  kind: NoStationKind;
   reason: string;
 }
 
-/** Why an exercise has no T1-X station, from its name. */
-export function unresolvedCategory(name: string): UnresolvedCategory {
+/** Name family, from the name alone (first match: free weight, stretch, frame, bodyweight). */
+export function noStationCategory(name: string): NoStationCategory {
   const n = name.toLowerCase();
-  if (/\b(dumbbell|barbell|ez bar)\b/.test(n)) return 'free-weight';
-  if (/stretch|flexibility|\bsplit\b|twine|mobility/.test(n)) return 'stretch';
-  if (/pull[- ]?up|chin[- ]?up|\bdips?\b|hanging|roman chair|hyperextension/.test(n)) return 'bodyweight-frame';
-  if (/sit[- ]?up|push[- ]?up|\bplank\b|\bsquat\b|glute bridge|bridge|leg hip raise|bottoms up|pelvic/.test(n)) return 'bodyweight';
+  if (FREE_WEIGHT_NAME.test(n)) return 'free-weight';
+  if (STRETCH_NAME.test(n)) return 'stretch';
+  if (FRAME_NAME.test(n)) return 'bodyweight-frame';
+  if (BODYWEIGHT_NAME.test(n)) return 'bodyweight';
   return 'ambiguous';
 }
 
+/** Stretches and free-standing bodyweight have no station by design; anything else without one is unresolved. */
+export function noStationKind(category: NoStationCategory, reviewedNull = false): NoStationKind {
+  return !reviewedNull && (category === 'stretch' || category === 'bodyweight') ? 'by-design' : 'unresolved';
+}
+
+/** A number or range followed by a time unit, at the start of the target. No `g` flag: `test` stays stateless. */
+export const TIME_TARGET = /^\s*\d+(\s*-\s*\d+)?\s*(s|sec|secs|seconds|min|mins|minutes)\b/i;
+
+/**
+ * True when a rep target is a pure time target: '20-40s', '30 sec', '1-2 min', '40s hold', '20-45s/side'.
+ * Rep targets that only mention a pause ('8-12 (2s hold)') are not. Tags `Exercise.measure = 'time'`.
+ */
+export function isTimeTarget(defaultReps: string): boolean {
+  return TIME_TARGET.test(defaultReps);
+}
+
 /** Equipment for station-less bodyweight exercises (contract `EquipmentRequirement`). */
-function bodyweightEquipment(name: string, category: UnresolvedCategory): Exercise['requiresEquipment'] {
+function bodyweightEquipment(name: string, category: NoStationCategory): Exercise['requiresEquipment'] {
   const n = name.toLowerCase();
   // Machine-assisted T1-X stretches need the machine, not nothing.
   if (category === 'stretch' && /\bassisted\b|machine|\bsled\b|\blever\b/.test(n)) return ['tytax'];
@@ -106,6 +136,11 @@ export interface BuildStats {
   catalog: number;
   byProvenance: Record<string, number>;
   byRule: Record<string, number>;
+  /** Catalog exercises without a station: `noStationByDesign + unresolved`. */
+  stationless: number;
+  /** Stretches and free-standing bodyweight (kind `by-design`). */
+  noStationByDesign: number;
+  /** Kind `unresolved`: a station should exist but none is named. */
   unresolved: number;
   genericInSource: number;
 }
@@ -113,7 +148,8 @@ export interface BuildStats {
 export interface BuildOutput {
   exercises: Exercise[];
   excluded: ExcludedEntry[];
-  unresolved: UnresolvedEntry[];
+  /** Every catalog exercise without a station, both kinds, in source order. */
+  stationless: StationlessEntry[];
   legacyNames: Record<string, string>;
   library: { stations: Station[]; attachments: AttachmentDef[] };
   originalPlan: ProgramTemplate;
@@ -217,6 +253,8 @@ interface StationResult {
   provenance?: StationProvenance;
   ruleId?: string;
   unresolvedReason?: string;
+  /** A reviewed hand mapping said `stationId: null`. */
+  reviewedNull?: boolean;
 }
 
 function resolveStation(e: SourceExercise, manual: Readonly<Record<string, ManualMapping>>): StationResult {
@@ -227,7 +265,7 @@ function resolveStation(e: SourceExercise, manual: Readonly<Record<string, Manua
   }
   const hand = manual[e.name];
   if (hand) {
-    if (hand.stationId === null) return { attachmentIds: [], unresolvedReason: hand.reason };
+    if (hand.stationId === null) return { attachmentIds: [], unresolvedReason: hand.reason, reviewedNull: true };
     const attachmentIds = [...new Set(hand.attachmentIds ?? decideAttachments(info, hand.stationId))].sort();
     return { stationId: hand.stationId, attachmentIds, provenance: 'manual', ruleId: 'manual' };
   }
@@ -245,7 +283,11 @@ function resolveStation(e: SourceExercise, manual: Readonly<Record<string, Manua
 
 function toExercise(e: SourceExercise, id: string, st: StationResult, legacyName: string): Exercise {
   const { t1xNumber, techniqueLevel, note } = parseNote(e.note);
-  const requiresEquipment = st.stationId ? undefined : bodyweightEquipment(e.name, unresolvedCategory(e.name));
+  // Frame exercises keep their gear (pull-up bar, dip station) for the equipment filter; machine stations need none.
+  const gear = !st.stationId || st.stationId === 'FRAME' ? bodyweightEquipment(e.name, noStationCategory(e.name)) : undefined;
+  // On the frame "no equipment" still means the machine's bench.
+  const requiresEquipment = st.stationId === 'FRAME' && gear?.[0] === 'none' ? (['tytax'] as Exercise['requiresEquipment']) : gear;
+  const defaultReps = String(e.reps ?? '8-12');
   const sets = Number.parseInt(String(e.sets), 10);
   const videos = orderVideos(e.videos);
   const ex: Exercise = {
@@ -261,8 +303,9 @@ function toExercise(e: SourceExercise, id: string, st: StationResult, legacyName
     pattern: e.pattern,
     isUnilateral: Boolean(e.unilateral),
     defaultSets: Number.isFinite(sets) && sets > 0 ? sets : 3,
-    defaultReps: String(e.reps ?? '8-12'),
+    defaultReps,
     impact: standardImpact(e.impact),
+    ...(isTimeTarget(defaultReps) ? { measure: 'time' as const } : {}),
     ...(techniqueLevel ? { techniqueLevel } : {}),
     ...(requiresEquipment ? { requiresEquipment } : {}),
     tags: [],
@@ -286,7 +329,7 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
 
   const exercises: Exercise[] = [];
   const excluded: ExcludedEntry[] = [];
-  const unresolved: UnresolvedEntry[] = [];
+  const stationless: StationlessEntry[] = [];
   const legacyNames: Record<string, string> = {};
   const byProvenance: Record<string, number> = {};
   const byRule: Record<string, number> = {};
@@ -316,13 +359,16 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
       byProvenance[key] = (byProvenance[key] ?? 0) + 1;
       if (st.ruleId) byRule[st.ruleId] = (byRule[st.ruleId] ?? 0) + 1;
     } else {
-      unresolved.push({
+      const category = noStationCategory(e.name);
+      const kind = noStationKind(category, st.reviewedNull);
+      stationless.push({
         name: displayName(e.name),
         id,
         pattern: e.pattern,
         muscleGroup: e.muscle_group,
-        category: unresolvedCategory(e.name),
-        reason: st.unresolvedReason ?? '',
+        category,
+        kind,
+        reason: kind === 'by-design' ? 'Stretch or free-standing bodyweight: no station by design' : st.unresolvedReason ?? '',
       });
     }
   }
@@ -377,8 +423,12 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
   };
 
   const stations: Station[] = library.STATIONS.map((s) => ({ id: s.key, name: STATION_DISPLAY[s.key as StationId] ?? s.name, notes: s.notes }));
-  for (const id of STATION_IDS) {
+  for (const id of LIBRARY_STATION_IDS) {
     if (!stations.some((s) => s.id === id)) throw new Error(`station ${id} missing from tytax_library.json STATIONS`);
+  }
+  for (const app of APP_STATIONS) {
+    if (stations.some((s) => s.id === app.id)) throw new Error(`app-level station ${app.id} now exists in tytax_library.json STATIONS`);
+    stations.push({ id: app.id, name: app.name, notes: app.notes });
   }
   const attachments: AttachmentDef[] = library.RECOMMENDED_ATTACHMENTS.map((a) => {
     const id = ATTACHMENT_IDS[a.name];
@@ -389,7 +439,7 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
   return {
     exercises,
     excluded,
-    unresolved,
+    stationless,
     legacyNames: sortedRecord(legacyNames),
     library: { stations, attachments },
     originalPlan,
@@ -400,7 +450,9 @@ export function buildCatalog(inputs: BuildInputs): BuildOutput {
       catalog: exercises.length,
       byProvenance,
       byRule,
-      unresolved: unresolved.length,
+      stationless: stationless.length,
+      noStationByDesign: stationless.filter((u) => u.kind === 'by-design').length,
+      unresolved: stationless.filter((u) => u.kind === 'unresolved').length,
       genericInSource: source.filter((e) => e.station === 'Tytax').length,
     },
   };

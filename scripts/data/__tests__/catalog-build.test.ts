@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   cleanLegacyName,
   deriveIds,
+  isTimeTarget,
   mulberry32,
+  noStationCategory,
+  noStationKind,
   orderVideos,
   seededSample,
   standardImpact,
-  unresolvedCategory,
   type SourceExercise,
 } from '../catalog-lib';
-import { decideAttachments, decideStation, nameInfo, nonExerciseReason } from '../station-rules';
+import { decideAttachments, decideStation, nameInfo, nonExerciseReason, STATION_RULES } from '../station-rules';
 import { parseMainframe } from '../build-catalog';
 
 const info = (name: string, pattern = 'Other', muscleGroup = 'CHEST') => nameInfo(name, pattern, muscleGroup);
@@ -42,15 +44,42 @@ describe('station rules', () => {
     expect(station('Standing Cable Leg Curl')?.stationId).toBe('BACK_LOWER');
   });
 
-  it('leaves free weights, frame work and stretches unmapped', () => {
-    expect(station('Dumbbell Bench Press')).toBeUndefined();
-    expect(station('Pull-Up (Parallel Grip)')).toBeUndefined();
+  it('maps free weights and frame work to the app-level stations; stretches, free-standing bodyweight and ambiguous moves stay unmapped', () => {
+    expect(station('Dumbbell Bench Press')).toEqual({ stationId: 'FREE_WEIGHT', ruleId: 'free-weight' });
+    expect(station('Seated EZ Bar Wrist Curl')).toEqual({ stationId: 'FREE_WEIGHT', ruleId: 'free-weight' });
+    expect(station('Pull-Up (Parallel Grip)')).toEqual({ stationId: 'FRAME', ruleId: 'frame' });
+    expect(station('Triceps Dip With Legs On Bench')).toEqual({ stationId: 'FRAME', ruleId: 'frame' });
+    expect(station('Roman Chair Hyperextension')).toEqual({ stationId: 'FRAME', ruleId: 'frame' });
+    expect(station('Incline Sit-Up')).toEqual({ stationId: 'FRAME', ruleId: 'frame-bench' });
+    expect(station('Standing Glute Bridge (with Bench)')).toEqual({ stationId: 'FRAME', ruleId: 'frame-bench' });
+    // no station by design: stretches (even hanging ones) and free-standing bodyweight
     expect(station('Assisted Hip Flexor Stretching')).toBeUndefined();
-    expect(unresolvedCategory('Seated EZ Bar Wrist Curl')).toBe('free-weight');
-    expect(unresolvedCategory('Hanging Leg Raise')).toBe('bodyweight-frame');
-    expect(unresolvedCategory('Assisted Leg Stretching')).toBe('stretch');
-    expect(unresolvedCategory('Plank')).toBe('bodyweight');
-    expect(unresolvedCategory('Lying Curl')).toBe('ambiguous');
+    expect(station('Hanging Hamstring Stretch')).toBeUndefined();
+    expect(station('Plank')).toBeUndefined();
+    expect(station('Standing Glute Bridge')).toBeUndefined();
+    expect(station('Sit Up')).toBeUndefined();
+    // ambiguous machine move: still unresolved
+    expect(station('Lying Curl')).toBeUndefined();
+    expect(noStationCategory('Seated EZ Bar Wrist Curl')).toBe('free-weight');
+    expect(noStationCategory('Hanging Leg Raise')).toBe('bodyweight-frame');
+    expect(noStationCategory('Assisted Leg Stretching')).toBe('stretch');
+    expect(noStationCategory('Plank')).toBe('bodyweight');
+    expect(noStationCategory('Lying Curl')).toBe('ambiguous');
+    expect(noStationKind('stretch')).toBe('by-design');
+    expect(noStationKind('bodyweight')).toBe('by-design');
+    expect(noStationKind('ambiguous')).toBe('unresolved');
+    // a reviewed `stationId: null` hand mapping is unresolved whatever its name family
+    expect(noStationKind('stretch', true)).toBe('unresolved');
+  });
+
+  it('runs the app-level rules after every machine rule, so machine names keep their machine station', () => {
+    expect(STATION_RULES.slice(-3).map((r) => r.id)).toEqual(['free-weight', 'frame', 'frame-bench']);
+    expect(STATION_RULES.slice(0, -3).every((r) => r.station !== 'FRAME' && r.station !== 'FREE_WEIGHT')).toBe(true);
+    // a Smith/sled/assisted/cable word beats the frame and free-weight words
+    expect(station('Smith Machine Barbell Squat')).toEqual({ stationId: 'SMITH', ruleId: 'smith' });
+    expect(station('Sled Assisted Chin Up with Belt')).toEqual({ stationId: 'SMITH', ruleId: 'sled' });
+    expect(station('Assisted Close Grip Chin-Up')).toEqual({ stationId: 'SMITH', ruleId: 'assisted-bodyweight' });
+    expect(station('Cable Hanging Knee Raise')?.stationId).toBe('BACK_LOWER');
   });
 
   it('assigns attachments only on pulleys (and the belt anywhere)', () => {
@@ -144,6 +173,15 @@ describe('catalog build helpers', () => {
     const first = r();
     expect(first).toBeGreaterThanOrEqual(0);
     expect(first).toBeLessThan(1);
+  });
+
+  it('recognises pure time targets only', () => {
+    for (const t of ['20-40s', '30 sec', '1-2 min', '40s hold', '2-5 min', '15-30s hold', '20-45s/side', ' 10 - 30 seconds', '1 minutes', '45 SECS']) {
+      expect([t, isTimeTarget(t)]).toEqual([t, true]);
+    }
+    for (const t of ['8-12', '8-12 (2s hold)', '8-12 (2s hold)/side', '10-15/side', '5 sets', '12 swings', 'AMRAP', '', 'hold 30s', '3x30s']) {
+      expect([t, isTimeTarget(t)]).toEqual([t, false]);
+    }
   });
 
   it('parses the window.TYTAX_MAINFRAME source file', () => {
