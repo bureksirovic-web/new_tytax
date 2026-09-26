@@ -1,5 +1,6 @@
-import type { WorkoutLog } from '@/types/workout';
-import { MUSCLE_NAME_MAP } from '@/lib/constants';
+import type { WorkoutLog } from '@/contracts/domain';
+import { standardizeMuscle } from '@/lib/constants';
+import { dayCutoff, exerciseVolume, liveLogs } from './sets';
 
 export interface MuscleGapResult {
   muscle: string;
@@ -16,12 +17,17 @@ function getMuscleStatus(pct: number): MuscleGapResult['status'] {
   return 'balanced';
 }
 
-export function analyzeMuscleGaps(logs: WorkoutLog[], windowDays = 30): MuscleGapResult[] {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - windowDays);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
-
-  const windowed = logs.filter((l) => l.date >= cutoffStr);
+/**
+ * Impact-weighted volume share per standardised muscle over the last
+ * `windowDays` local calendar days (done working sets of live logs).
+ */
+export function analyzeMuscleGaps(
+  logs: readonly WorkoutLog[],
+  windowDays = 30,
+  opts: { now?: Date } = {},
+): MuscleGapResult[] {
+  const cutoffStr = dayCutoff(opts.now ?? new Date(), windowDays);
+  const windowed = liveLogs(logs).filter((l) => l.date >= cutoffStr);
 
   const volumeByMuscle = new Map<string, number>();
   const lastTrainedByMuscle = new Map<string, string>();
@@ -29,15 +35,14 @@ export function analyzeMuscleGaps(logs: WorkoutLog[], windowDays = 30): MuscleGa
   for (const log of windowed) {
     for (const ex of log.exercises) {
       if (!ex.muscleImpactSnapshot) continue;
-      const exVol = ex.sets.reduce((s, set) => s + set.kg * set.reps, 0);
+      const exVol = exerciseVolume(ex);
+      if (exVol <= 0) continue;
       for (const impact of ex.muscleImpactSnapshot) {
-        const muscle = MUSCLE_NAME_MAP[impact.muscle] ?? impact.muscle;
+        const muscle = standardizeMuscle(impact.muscle);
         const share = exVol * (impact.score / 100);
         volumeByMuscle.set(muscle, (volumeByMuscle.get(muscle) ?? 0) + share);
         const prev = lastTrainedByMuscle.get(muscle);
-        if (!prev || log.date > prev) {
-          lastTrainedByMuscle.set(muscle, log.date);
-        }
+        if (!prev || log.date > prev) lastTrainedByMuscle.set(muscle, log.date);
       }
     }
   }

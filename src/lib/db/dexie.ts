@@ -1,9 +1,16 @@
 import Dexie, { type Table } from 'dexie';
-import type { WorkoutLog, PRRecord, BodyweightEntry } from '@/types/workout';
-import type { Program } from '@/types/program';
-import type { UserProfile, FamilyMember, EquipmentProfile } from '@/types/user';
-import type { SyncOperation, SyncMetadata } from '@/types/sync';
-import type { Exercise } from '@/types/exercise';
+import type {
+  ArsenalEntry,
+  BodyweightEntry,
+  EquipmentInventory,
+  ExerciseNote,
+  PRRecord,
+  Profile,
+  Program,
+  WorkoutLog,
+} from '@/contracts/domain';
+import type { SyncCursor, SyncOperation } from '@/contracts/sync';
+import { migrateToV3 } from './migrations';
 
 /**
  * Current database schema version.
@@ -11,65 +18,52 @@ import type { Exercise } from '@/types/exercise';
  * Each version() call is cumulative in Dexie — it inherits all previous
  * table definitions, so you only need to list tables whose indexes change.
  */
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
-export interface ArsenalExercise extends Exercise {
-  profileId: string;
-  addedAt: string;
-}
+/** Default IndexedDB database name. */
+export const DEFAULT_DB_NAME = 'TytaxDB';
 
-export interface ExerciseNote {
-  id: string;
-  profileId: string;
-  exerciseId: string;
-  content: string;
-  updatedAt: string;
+/** Device-local key/value row (`meta` table), e.g. `activeProfileId`. */
+export interface MetaRow {
+  key: string;
+  value: unknown;
 }
 
 export class TytaxDatabase extends Dexie {
-  // User
-  profiles!: Table<UserProfile, string>;
-  familyMembers!: Table<FamilyMember, string>;
-  equipmentProfiles!: Table<EquipmentProfile, string>;
-
-  // Training
+  // Profiles and profile-owned records (v3 shapes, see src/contracts/domain.ts)
+  profiles!: Table<Profile, string>;
   workoutLogs!: Table<WorkoutLog, string>;
-  prRecords!: Table<PRRecord, string>;
   programs!: Table<Program, string>;
+  prRecords!: Table<PRRecord, string>;
   bodyweightEntries!: Table<BodyweightEntry, string>;
-
-  // Exercises
-  arsenal!: Table<ArsenalExercise, string>;
   exerciseNotes!: Table<ExerciseNote, string>;
+  arsenal!: Table<ArsenalEntry, string>;
+  equipment!: Table<EquipmentInventory, string>;
 
   // Sync
   syncQueue!: Table<SyncOperation, string>;
-  syncMetadata!: Table<SyncMetadata, string>;
+  syncCursors!: Table<SyncCursor, string>;
 
-  constructor() {
-    super('TytaxDB');
+  // Device-local settings
+  meta!: Table<MetaRow, string>;
+
+  constructor(name: string = DEFAULT_DB_NAME) {
+    super(name);
 
     // ─────────────────────────────────────────────────────────────
     // MIGRATION STRATEGY
     // ─────────────────────────────────────────────────────────────
     // Dexie migrations are additive: each version() call inherits
     // every table from the previous version. Only list tables whose
-    // index spec actually changes in a given version block.
-    //
-    // To add a new schema version:
-    //   1. Increment DB_VERSION above.
-    //   2. Add `this.version(N).stores({ ... })` with only the
-    //      tables whose indexes are new or changed.
-    //   3. Chain `.upgrade(async (tx) => { ... })` to perform any
-    //      data transformations (e.g., backfilling new fields).
-    //   4. Update any TypeScript interfaces so new fields are typed.
+    // index spec actually changes in a given version block; `null`
+    // deletes a table (it stays readable inside that version's
+    // upgrade function and is dropped afterwards).
     //
     // Important rules:
-    //   - Never remove or rename an index without a proper migration.
-    //   - The upgrade function runs inside a single transaction, so
-    //     all reads/writes must use `tx.table('...')` — NOT `this`.
-    //   - If a migration can be slow, consider chunking with
-    //     `.modify()` on subsets or Dexie's bulk operations.
+    //   - Never change a primary key (Dexie cannot); v1/v2 specs below
+    //     stay byte-for-byte so existing installs upgrade.
+    //   - The upgrade function runs inside the version-change
+    //     transaction: use `tx.table('...')`, never `this`.
     // ─────────────────────────────────────────────────────────────
 
     // v1 — Initial schema (all tables + indexes)
@@ -97,7 +91,7 @@ export class TytaxDatabase extends Dexie {
       syncMetadata: 'id, profileId, tableName, deviceId, schemaVersion',
     }).upgrade(async (tx) => {
       // Backfill updatedAt on existing workoutLog records.
-      await tx.table('workoutLogs').toCollection().modify((record: WorkoutLog & { updatedAt?: string }) => {
+      await tx.table('workoutLogs').toCollection().modify((record: Record<string, unknown>) => {
         if (!record.updatedAt) {
           record.updatedAt = record.createdAt || new Date().toISOString();
         }
@@ -112,9 +106,37 @@ export class TytaxDatabase extends Dexie {
         deviceId: '',
         lastSyncedAt: new Date().toISOString(),
         schemaVersion: 2,
-      } as SyncMetadata & { schemaVersion: number });
+      });
     });
+
+    // v3 — TYTAX v2 contracts: profile-scoped compound indexes, activeProgramId
+    //       on the profile (no boolean index), new outbox shape, meta table.
+    this.version(3).stores({
+      profiles: 'id, accountId, updatedAt',
+      workoutLogs: 'id, profileId, [profileId+date], programId, updatedAt',
+      programs: 'id, profileId, updatedAt',
+      prRecords: 'id, profileId, [profileId+exerciseId], workoutLogId, updatedAt',
+      bodyweightEntries: 'id, profileId, [profileId+date], updatedAt',
+      exerciseNotes: 'id, profileId, [profileId+exerciseId], updatedAt',
+      arsenal: 'id, profileId, [profileId+exerciseId], updatedAt',
+      equipment: 'id, profileId, updatedAt',
+      syncQueue: 'id, table, createdAt, recordId',
+      syncCursors: 'table',
+      syncMetadata: null,
+      meta: 'key',
+      familyMembers: null,
+      equipmentProfiles: null,
+    }).upgrade(migrateToV3);
   }
 }
 
-export const db = new TytaxDatabase();
+let instance: TytaxDatabase | undefined;
+
+/**
+ * The app database, constructed on first use. Never construct Dexie at module
+ * import time: server rendering imports this module.
+ */
+export function getDb(): TytaxDatabase {
+  if (!instance) instance = new TytaxDatabase();
+  return instance;
+}

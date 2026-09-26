@@ -1,4 +1,23 @@
 import type { NextConfig } from "next";
+import { execSync } from "node:child_process";
+
+/**
+ * Git SHA the app is built from, computed once when the config loads.
+ * Exposed as NEXT_PUBLIC_GIT_SHA (inlined at build/dev-compile time) so
+ * `/api/health` and `window.__tytaxE2E.sha` can report it; the e2e global
+ * setup asserts it equals the worktree HEAD (test isolation, PLAN §10.1 W0.2).
+ */
+function resolveGitSha(): string {
+  const fromEnv = process.env.GIT_SHA || process.env.RENDER_GIT_COMMIT;
+  if (fromEnv) return fromEnv;
+  try {
+    return execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+const gitSha = resolveGitSha();
 
 const isDev = process.env.NODE_ENV === 'development';
 const scriptSrc = isDev 
@@ -7,6 +26,9 @@ const scriptSrc = isDev
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  env: {
+    NEXT_PUBLIC_GIT_SHA: gitSha,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "app.tytax.com" },

@@ -1,210 +1,324 @@
+/**
+ * Persisted workout draft (TYTAX v2).
+ *
+ * Pure state only: no Dexie and no repository calls. Finishing a workout is
+ * `getRepository().finishWorkout(draft, debrief)` followed by `discard()`.
+ *
+ * The draft is persisted to localStorage under `tytax.workout-draft.v3` so an
+ * in-progress workout survives a reload. Hydration is manual
+ * (`skipHydration`): pages call `useWorkoutHydrated()` and must not act on
+ * `draft === null` until it returns true.
+ */
+import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
-import type { LoggedSet, WorkoutLog, ExerciseLog } from '@/types/workout';
-import { db } from '@/lib/db/dexie';
-import { enqueue } from '@/lib/sync/queue';
-import { generateId, isoDate } from '@/lib/utils';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import type {
+  Exercise,
+  Program,
+  ProgramExercise,
+  SessionExercise,
+  SetEntry,
+  WorkoutDraft,
+} from '@/contracts/domain';
 
-interface WorkoutStore {
-  status: 'idle' | 'active' | 'complete';
-  currentExercise: ExerciseLog | null;
-  sets: Record<string, LoggedSet[]>;
-  startTime: number | null;
-  finishedData: WorkoutLog | null;
+export const WORKOUT_DRAFT_STORAGE_KEY = 'tytax.workout-draft.v3';
+export const WORKOUT_DRAFT_VERSION = 3;
 
-  exercises: ExerciseLog[];
-  currentExerciseIndex: number;
-  sessionName: string;
-  programId?: string;
+/** Most sets `addExercise` creates for a new exercise. */
+const MAX_INITIAL_SETS = 3;
 
-  startWorkout: (config: { modality?: string; programSessionId?: string }) => Promise<void>;
-  updateSet: (exerciseId: string, setIndex: number, data: Partial<LoggedSet>) => void;
-  addSet: (exerciseId: string) => void;
-  removeSet: (exerciseId: string, setIndex: number) => void;
-  setCurrentExerciseIndex: (index: number) => void;
-  finishWorkout: (log?: WorkoutLog) => Promise<void>;
-  resetWorkout: () => void;
+export type SetPatch = Partial<Omit<SetEntry, 'id'>>;
+
+/** Returns the working sets for one program slot (e.g. from `training.prefillFromHistory`). */
+export type ProgramPrefill = (exerciseId: string, slot: ProgramExercise) => SetEntry[];
+
+export interface StartFromProgramOptions {
+  prefill?: ProgramPrefill;
 }
 
-export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
-  status: 'idle',
-  currentExercise: null,
-  sets: {},
-  startTime: null,
-  finishedData: null,
+export interface WorkoutState {
+  draft: WorkoutDraft | null;
+}
 
-  exercises: [],
-  currentExerciseIndex: 0,
-  sessionName: '',
+export interface WorkoutActions {
+  /** Starts an empty workout, replacing any current draft. */
+  startQuick(profileId: string, sessionName: string): WorkoutDraft;
+  /**
+   * Starts the program session at `sessionIndex` (wrapped into range).
+   * Returns null and leaves the draft untouched for a rest session or a
+   * program without sessions.
+   */
+  startFromProgram(
+    profileId: string,
+    program: Program,
+    sessionIndex: number,
+    opts?: StartFromProgramOptions,
+  ): WorkoutDraft | null;
+  /** Appends the exercise with a fresh uid; returns the uid, or null without a draft. */
+  addExercise(ex: Exercise): string | null;
+  removeExercise(uid: string): void;
+  moveExercise(uid: string, direction: -1 | 1): void;
+  /** Appends a working set that copies the last set's kg, reps 0. */
+  addSet(uid: string): void;
+  updateSet(uid: string, setId: string, patch: SetPatch): void;
+  removeSet(uid: string, setId: string): void;
+  /** Flips `done`; stamps `completedAt` when it becomes done, clears it otherwise. */
+  toggleSetDone(uid: string, setId: string): void;
+  setNotes(notes: string): void;
+  discard(): void;
+}
 
-  startWorkout: async (config) => {
-    let exercises: ExerciseLog[] = [];
-    let sessionName = 'Quick Workout';
-    let programId: string | undefined = undefined;
-    const sets: Record<string, LoggedSet[]> = {};
+export type WorkoutStore = WorkoutState & WorkoutActions;
 
-    if (config.programSessionId) {
-      const programs = (await db.programs.toArray()).filter((p) => !p.deletedAt);
-      for (const prog of programs) {
-        const session = prog.sessions.find((s) => s.id === config.programSessionId);
-        if (session) {
-          programId = prog.id;
-          sessionName = session.name;
-          exercises = session.exercises.map((e) => {
-            const exerciseSets = Array.from({ length: e.sets }, (_, i) => ({
-              id: crypto.randomUUID(),
-              setNumber: i + 1,
-              type: 'working' as const,
-              kg: 0,
-              reps: 0,
-              done: false,
-              timestamp: new Date().toISOString(),
-            }));
-            sets[e.exerciseId] = exerciseSets;
-            return {
-              exerciseRef: e.exerciseId,
-              exerciseName: e.exerciseName,
-              modality: e.modality,
-              sets: [], // Sets are managed in the `sets` record
-              restSeconds: e.restSeconds,
-            };
-          });
-          break;
-        }
-      }
-    } else if (config.modality) {
-      sessionName = `${config.modality} Workout`;
+// ─── Pure helpers ────────────────────────────────────────────────────────────
+
+const newId = (): string => crypto.randomUUID();
+const nowIso = (): string => new Date().toISOString();
+
+export function emptyWorkingSet(kg = 0): SetEntry {
+  return { id: newId(), type: 'working', kg, reps: 0, done: false };
+}
+
+function emptyWorkingSets(count: number): SetEntry[] {
+  return Array.from({ length: count }, () => emptyWorkingSet());
+}
+
+function sessionExerciseFromSlot(slot: ProgramExercise, prefill?: ProgramPrefill): SessionExercise {
+  const slotSets = slot.sets > 0 ? Math.floor(slot.sets) : 1;
+  const prefilled = prefill ? prefill(slot.exerciseId, slot) : [];
+  const sets =
+    prefilled.length > 0
+      ? prefilled.map((s) => ({ ...s, id: newId(), done: false, completedAt: undefined }))
+      : emptyWorkingSets(slotSets);
+  const ex: SessionExercise = {
+    uid: newId(),
+    exerciseId: slot.exerciseId,
+    exerciseName: slot.exerciseName,
+    modality: slot.modality,
+    sets,
+  };
+  if (slot.restSeconds !== undefined) ex.restSeconds = slot.restSeconds;
+  if (slot.supersetGroup !== undefined) ex.supersetGroup = slot.supersetGroup;
+  return ex;
+}
+
+function sessionExerciseFromCatalog(ex: Exercise): SessionExercise {
+  const count = Math.min(ex.defaultSets || MAX_INITIAL_SETS, MAX_INITIAL_SETS);
+  const out: SessionExercise = {
+    uid: newId(),
+    exerciseId: ex.id,
+    exerciseName: ex.name,
+    modality: ex.modality,
+    sets: emptyWorkingSets(count),
+    muscleImpactSnapshot: ex.impact.map((m) => ({ muscle: m.muscle, score: m.score })),
+  };
+  if (ex.restSeconds !== undefined) out.restSeconds = ex.restSeconds;
+  return out;
+}
+
+function withExercise(
+  draft: WorkoutDraft | null,
+  uid: string,
+  fn: (ex: SessionExercise) => SessionExercise,
+): WorkoutDraft | null {
+  if (!draft) return draft;
+  const idx = draft.exercises.findIndex((e) => e.uid === uid);
+  if (idx === -1) return draft;
+  const exercises = draft.exercises.slice();
+  exercises[idx] = fn(exercises[idx]);
+  return { ...draft, exercises };
+}
+
+function withSet(
+  draft: WorkoutDraft | null,
+  uid: string,
+  setId: string,
+  fn: (s: SetEntry) => SetEntry,
+): WorkoutDraft | null {
+  return withExercise(draft, uid, (ex) => {
+    if (!ex.sets.some((s) => s.id === setId)) return ex;
+    return { ...ex, sets: ex.sets.map((s) => (s.id === setId ? fn(s) : s)) };
+  });
+}
+
+// ─── Persisted-shape validation (localStorage is untrusted input) ────────────
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function isSetEntry(v: unknown): v is SetEntry {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    typeof v.type === 'string' &&
+    typeof v.kg === 'number' &&
+    typeof v.reps === 'number' &&
+    typeof v.done === 'boolean'
+  );
+}
+
+function isSessionExercise(v: unknown): v is SessionExercise {
+  return (
+    isRecord(v) &&
+    typeof v.uid === 'string' &&
+    typeof v.exerciseId === 'string' &&
+    typeof v.exerciseName === 'string' &&
+    typeof v.modality === 'string' &&
+    Array.isArray(v.sets) &&
+    v.sets.every(isSetEntry)
+  );
+}
+
+export function isWorkoutDraft(v: unknown): v is WorkoutDraft {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    typeof v.profileId === 'string' &&
+    typeof v.sessionName === 'string' &&
+    typeof v.startedAt === 'string' &&
+    Array.isArray(v.exercises) &&
+    v.exercises.every(isSessionExercise)
+  );
+}
+
+function draftFromPersisted(persisted: unknown): WorkoutDraft | null {
+  if (!isRecord(persisted)) return null;
+  return isWorkoutDraft(persisted.draft) ? persisted.draft : null;
+}
+
+// ─── Store ───────────────────────────────────────────────────────────────────
+
+export const useWorkoutStore = create<WorkoutStore>()(
+  persist(
+    (set) => ({
+      draft: null,
+
+      startQuick: (profileId, sessionName) => {
+        const draft: WorkoutDraft = {
+          id: newId(),
+          profileId,
+          sessionName,
+          startedAt: nowIso(),
+          exercises: [],
+        };
+        set({ draft });
+        return draft;
+      },
+
+      startFromProgram: (profileId, program, sessionIndex, opts) => {
+        const count = program.sessions.length;
+        if (count === 0) return null;
+        const idx = ((Math.floor(sessionIndex) % count) + count) % count;
+        const session = program.sessions[idx];
+        if (!session || session.isRest) return null;
+        const draft: WorkoutDraft = {
+          id: newId(),
+          profileId,
+          programId: program.id,
+          programSessionId: session.id,
+          sessionName: session.name,
+          startedAt: nowIso(),
+          exercises: session.exercises.map((slot) => sessionExerciseFromSlot(slot, opts?.prefill)),
+        };
+        set({ draft });
+        return draft;
+      },
+
+      addExercise: (ex) => {
+        const entry = sessionExerciseFromCatalog(ex);
+        let added: string | null = null;
+        set((s) => {
+          if (!s.draft) return s;
+          added = entry.uid;
+          return { draft: { ...s.draft, exercises: [...s.draft.exercises, entry] } };
+        });
+        return added;
+      },
+
+      removeExercise: (uid) =>
+        set((s) =>
+          s.draft ? { draft: { ...s.draft, exercises: s.draft.exercises.filter((e) => e.uid !== uid) } } : s,
+        ),
+
+      moveExercise: (uid, direction) =>
+        set((s) => {
+          if (!s.draft) return s;
+          const from = s.draft.exercises.findIndex((e) => e.uid === uid);
+          const to = from + direction;
+          if (from === -1 || to < 0 || to >= s.draft.exercises.length) return s;
+          const exercises = s.draft.exercises.slice();
+          [exercises[from], exercises[to]] = [exercises[to], exercises[from]];
+          return { draft: { ...s.draft, exercises } };
+        }),
+
+      addSet: (uid) =>
+        set((s) => ({
+          draft: withExercise(s.draft, uid, (ex) => {
+            const last = ex.sets[ex.sets.length - 1];
+            return { ...ex, sets: [...ex.sets, emptyWorkingSet(last?.kg ?? 0)] };
+          }),
+        })),
+
+      updateSet: (uid, setId, patch) =>
+        set((s) => ({ draft: withSet(s.draft, uid, setId, (entry) => ({ ...entry, ...patch, id: entry.id })) })),
+
+      removeSet: (uid, setId) =>
+        set((s) => ({
+          draft: withExercise(s.draft, uid, (ex) => ({ ...ex, sets: ex.sets.filter((x) => x.id !== setId) })),
+        })),
+
+      toggleSetDone: (uid, setId) =>
+        set((s) => ({
+          draft: withSet(s.draft, uid, setId, (entry) =>
+            entry.done
+              ? { ...entry, done: false, completedAt: undefined }
+              : { ...entry, done: true, completedAt: nowIso() },
+          ),
+        })),
+
+      setNotes: (notes) => set((s) => (s.draft ? { draft: { ...s.draft, notes } } : s)),
+
+      discard: () => set({ draft: null }),
+    }),
+    {
+      name: WORKOUT_DRAFT_STORAGE_KEY,
+      version: WORKOUT_DRAFT_VERSION,
+      storage: createJSONStorage(() => localStorage),
+      skipHydration: true,
+      partialize: (s) => ({ draft: s.draft }),
+      // Older shapes (the unpersisted v2 store) have nothing worth keeping.
+      migrate: (persisted) => ({ draft: draftFromPersisted(persisted) }),
+      merge: (persisted, current) => ({ ...current, draft: draftFromPersisted(persisted) }),
+    },
+  ),
+);
+
+// ─── Hydration ───────────────────────────────────────────────────────────────
+
+function subscribeHydration(onChange: () => void): () => void {
+  const offStart = useWorkoutStore.persist.onHydrate(onChange);
+  const offFinish = useWorkoutStore.persist.onFinishHydration(onChange);
+  return () => {
+    offStart();
+    offFinish();
+  };
+}
+
+const getHydrated = (): boolean => useWorkoutStore.persist.hasHydrated();
+const getServerHydrated = (): boolean => false;
+
+/**
+ * Rehydrates the persisted draft once on mount and returns true once it has
+ * been read. Until then `draft` is null for reasons that mean nothing, so
+ * callers must not redirect on it.
+ */
+export function useWorkoutHydrated(): boolean {
+  const hydrated = useSyncExternalStore(subscribeHydration, getHydrated, getServerHydrated);
+  useEffect(() => {
+    if (!useWorkoutStore.persist.hasHydrated()) {
+      void useWorkoutStore.persist.rehydrate();
     }
-
-    set({
-      status: 'active',
-      startTime: Date.now(),
-      exercises,
-      currentExerciseIndex: 0,
-      currentExercise: exercises.length > 0 ? exercises[0] : null,
-      sets,
-      sessionName,
-      programId,
-      finishedData: null,
-    });
-  },
-
-  updateSet: (exerciseId, setIndex, data) =>
-    set((s) => {
-      const existingSets = s.sets[exerciseId];
-      if (!existingSets) return {};
-      const updatedSets = [...existingSets];
-      updatedSets[setIndex] = { ...updatedSets[setIndex], ...data };
-      return {
-        sets: { ...s.sets, [exerciseId]: updatedSets },
-      };
-    }),
-
-  addSet: (exerciseId) =>
-    set((s) => {
-      const existingSets = s.sets[exerciseId] || [];
-      const lastSet = existingSets[existingSets.length - 1];
-      const newSet: LoggedSet = {
-        id: crypto.randomUUID(),
-        setNumber: existingSets.length + 1,
-        type: 'working',
-        kg: lastSet?.kg ?? 0,
-        reps: lastSet?.reps ?? 0,
-        done: false,
-        timestamp: new Date().toISOString(),
-      };
-      return {
-        sets: { ...s.sets, [exerciseId]: [...existingSets, newSet] },
-      };
-    }),
-
-  removeSet: (exerciseId, setIndex) =>
-    set((s) => {
-      const existingSets = s.sets[exerciseId];
-      if (!existingSets) return {};
-      const updatedSets = [...existingSets];
-      updatedSets.splice(setIndex, 1);
-      updatedSets.forEach((set, i) => {
-        set.setNumber = i + 1;
-      });
-      return {
-        sets: { ...s.sets, [exerciseId]: updatedSets },
-      };
-    }),
-
-  setCurrentExerciseIndex: (index) =>
-    set((s) => ({
-      currentExerciseIndex: index,
-      currentExercise: s.exercises[index] || null,
-    })),
-
-  finishWorkout: async (log) => {
-    const now = new Date();
-    const startedAt = get().startTime ? new Date(get().startTime!).toISOString() : now.toISOString();
-    const finishedAt = now.toISOString();
-    const durationSeconds = Math.round((now.getTime() - new Date(startedAt).getTime()) / 1000);
-
-    const fullExercises = get().exercises.map((ex) => ({
-      ...ex,
-      sets: get().sets[ex.exerciseRef] || [],
-    }));
-
-    const totalVolumeKg = fullExercises.reduce(
-      (total, ex) =>
-        total + ex.sets.reduce((s, set) => s + (set.done ? set.kg * set.reps : 0), 0),
-      0
-    );
-    const totalSets = fullExercises.reduce(
-      (total, ex) => total + ex.sets.filter((s) => s.done).length,
-      0
-    );
-    const prCount = fullExercises.reduce(
-      (n, ex) => n + ex.sets.filter((s) => s.isPersonalRecord).length,
-      0
-    );
-    const modalitiesUsed = [...new Set(fullExercises.map((e) => e.modality))];
-
-    const workoutLog: WorkoutLog = {
-      id: log?.id ?? generateId(),
-      profileId: log?.profileId ?? 'local',
-      familyMemberId: log?.familyMemberId,
-      programId: log?.programId ?? get().programId,
-      sessionName: log?.sessionName ?? get().sessionName ?? 'Quick Workout',
-      date: log?.date ?? isoDate(),
-      startedAt: log?.startedAt ?? startedAt,
-      finishedAt: log?.finishedAt ?? finishedAt,
-      durationSeconds: log?.durationSeconds ?? durationSeconds,
-      exercises: log?.exercises ?? fullExercises,
-      notes: log?.notes,
-      rpe: log?.rpe,
-      bodyweightKg: log?.bodyweightKg,
-      totalVolumeKg: log?.totalVolumeKg ?? totalVolumeKg,
-      totalSets: log?.totalSets ?? totalSets,
-      prCount: log?.prCount ?? prCount,
-      modalitiesUsed: log?.modalitiesUsed ?? modalitiesUsed,
-      createdAt: log?.createdAt ?? now.toISOString(),
-      updatedAt: now.toISOString(),
-      syncedAt: undefined,
-    };
-
-    await db.workoutLogs.add(workoutLog);
-    await enqueue('workout_logs', 'create', workoutLog.id, workoutLog as unknown as Record<string, unknown>);
-
-    set({
-      status: 'complete',
-      finishedData: workoutLog,
-    });
-  },
-
-  resetWorkout: () =>
-    set({
-      status: 'idle',
-      currentExercise: null,
-      sets: {},
-      startTime: null,
-      finishedData: null,
-      exercises: [],
-      currentExerciseIndex: 0,
-      sessionName: '',
-      programId: undefined,
-    }),
-}));
+  }, []);
+  return hydrated;
+}

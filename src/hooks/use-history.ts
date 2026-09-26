@@ -1,32 +1,42 @@
 'use client';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
-import { db } from '@/lib/db/dexie';
 
+import { useState } from 'react';
+import type { WorkoutLog } from '@/contracts/domain';
+import { useActiveProfile, useRepoQuery } from './use-repo';
+
+interface HistoryPage {
+  logs: WorkoutLog[];
+  total: number;
+}
+
+const EMPTY: HistoryPage = { logs: [], total: 0 };
+
+/** The active profile's finished workouts, newest first, one page at a time (live). */
 export function useHistory(pageSize = 20) {
   const [page, setPage] = useState(0);
+  const { profileId, loading: profileLoading } = useActiveProfile();
 
-  const logs = useLiveQuery(
-    () =>
-      db.workoutLogs
-        .orderBy('date')
-        .reverse()
-        .offset(page * pageSize)
-        .limit(pageSize)
-        .toArray(),
-    [page, pageSize]
+  const { data } = useRepoQuery<HistoryPage>(
+    async (repo) => {
+      if (!profileId) return EMPTY;
+      const [logs, total] = await Promise.all([
+        repo.logs.list(profileId, { limit: pageSize, offset: page * pageSize }),
+        repo.logs.count(profileId),
+      ]);
+      return { logs, total };
+    },
+    [profileId, page, pageSize],
   );
 
-  const total = useLiveQuery(() => db.workoutLogs.count(), []);
-
+  const total = data?.total ?? 0;
   return {
-    logs: logs ?? [],
-    total: total ?? 0,
+    logs: data?.logs ?? [],
+    total,
     page,
     pageSize,
-    hasMore: (total ?? 0) > (page + 1) * pageSize,
+    hasMore: total > (page + 1) * pageSize,
     nextPage: () => setPage((p) => p + 1),
     prevPage: () => setPage((p) => Math.max(0, p - 1)),
-    isLoading: logs === undefined,
+    isLoading: profileLoading || data === undefined,
   };
 }
