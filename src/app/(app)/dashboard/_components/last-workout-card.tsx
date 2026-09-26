@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Units, WorkoutLog } from '@/contracts/domain';
 import { formatDate, formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
+import { durationMinutes } from '@/components/history/log-math';
 import { doneWorkingVolume, pluralCategory } from './dashboard-math';
 import { cardSection, eyebrow } from './styles';
 
@@ -15,7 +16,8 @@ export interface LastWorkoutCardProps {
 export function LastWorkoutCard({ log, units }: LastWorkoutCardProps) {
   const { t, locale } = useT();
   const sets = log.totalSets;
-  const minutes = Math.max(0, Math.round(log.durationSeconds / 60));
+  // Same rounding as /history (floor, minimum 1) so both screens agree on one workout.
+  const minutes = durationMinutes(log.durationSeconds);
   // `date` is a local calendar day; format the start timestamp instead of parsing it as UTC midnight.
   const when = formatDate(log.startedAt, locale, { weekday: 'short', day: 'numeric', month: 'short' });
 

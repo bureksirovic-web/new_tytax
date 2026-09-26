@@ -2,7 +2,7 @@
  * Slot-editor equipment helpers (spec §1.2 slot editor): station resolution,
  * owned-equipment filter and station sort. Pure; the caller passes catalog data.
  */
-import type { AttachmentDef, EquipmentInventory, Exercise, Station } from '@/contracts/domain';
+import type { AttachmentDef, EquipmentInventory, EquipmentRequirement, Exercise, Station } from '@/contracts/domain';
 
 /** Station id of an exercise: `stationId`, else the station whose name matches the display `station`. */
 export function stationIdOf(ex: Exercise, stations: readonly Station[]): string | undefined {
@@ -35,28 +35,53 @@ export interface Ownership {
   attachmentIds: ReadonlySet<string>;
   /** Null: no station restriction. */
   stationIds: ReadonlySet<string> | null;
+  /** Owned bodyweight gear / kettlebell; null (or absent): no gear restriction. */
+  gear?: ReadonlySet<EquipmentRequirement> | null;
+}
+
+type InventoryLike = Pick<EquipmentInventory, 'attachmentIds' | 'stationIds'> &
+  Partial<Pick<EquipmentInventory, 'bodyweightGear' | 'kettlebellsKg'>>;
+
+/** Gear an exercise needs (Settings > Equipment): `requiresEquipment`, plus a kettlebell for KB exercises. */
+export function requiredGearOf(ex: Exercise): EquipmentRequirement[] {
+  const gear = (ex.requiresEquipment ?? []).filter((g) => g !== 'none' && g !== 'tytax');
+  if (ex.modality === 'kettlebell' && !gear.includes('kettlebell')) gear.push('kettlebell');
+  return gear;
 }
 
 /**
- * An inventory with no stations and no attachments counts as "never set up"; it owns
- * the catalog's default attachments (`defaultOwnedAttachments(catalog.attachments)`).
+ * An inventory with nothing selected anywhere (stations, attachments, bodyweight gear,
+ * kettlebells — as Settings' `isUnconfigured`) counts as "never set up": it owns the
+ * catalog's default attachments (`defaultOwnedAttachments(catalog.attachments)`) and all gear.
  */
-export function ownershipFrom(
-  inv: Pick<EquipmentInventory, 'attachmentIds' | 'stationIds'> | undefined,
-  defaultOwned: readonly string[] = DEFAULT_OWNED_ATTACHMENTS,
-): Ownership {
-  const empty = !inv || (inv.attachmentIds.length === 0 && inv.stationIds.length === 0);
-  if (empty) return { attachmentIds: new Set(defaultOwned), stationIds: null };
+export function ownershipFrom(inv: InventoryLike | undefined, defaultOwned: readonly string[] = DEFAULT_OWNED_ATTACHMENTS): Ownership {
+  const gear = inv?.bodyweightGear ?? [];
+  const kbs = inv?.kettlebellsKg ?? [];
+  const empty = !inv || inv.attachmentIds.length + inv.stationIds.length + gear.length + kbs.length === 0;
+  if (empty) return { attachmentIds: new Set(defaultOwned), stationIds: null, gear: null };
+  const owned = new Set<EquipmentRequirement>(gear);
+  if (kbs.length > 0) owned.add('kettlebell');
   return {
     attachmentIds: new Set([...inv.attachmentIds]),
     stationIds: inv.stationIds.length > 0 ? new Set(inv.stationIds) : null,
+    gear: owned,
   };
 }
 
-/** Owned iff every required attachment is owned and (TYTAX) its station is owned when stations are restricted. */
-export function ownsExercise(requiredAttachments: readonly string[], stationId: string | undefined, own: Ownership): boolean {
+/**
+ * Owned iff every required attachment is owned, (TYTAX) its station is owned when
+ * stations are restricted, and all required gear is owned when gear is restricted.
+ */
+export function ownsExercise(
+  requiredAttachments: readonly string[],
+  stationId: string | undefined,
+  own: Ownership,
+  requiredGear: readonly EquipmentRequirement[] = [],
+): boolean {
   if (requiredAttachments.some((a) => !own.attachmentIds.has(a))) return false;
   if (own.stationIds && stationId && !own.stationIds.has(stationId)) return false;
+  const gear = own.gear;
+  if (gear && requiredGear.some((g) => !gear.has(g))) return false;
   return true;
 }
 /** Stable sort by station id, then original order; exercises without a station last (P16). */

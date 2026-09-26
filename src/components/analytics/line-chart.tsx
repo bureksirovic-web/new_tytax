@@ -95,7 +95,7 @@ export function LineChart({ title, points, format, variant = 'line', markBest = 
       </svg>
       <figcaption className="mt-1 flex justify-between gap-2 text-xs text-fg-muted" aria-hidden="true">
         <span>{dayLabel(points[0].day, locale)}</span>
-        <span>{format(best)}</span>
+        <span className="font-medium text-fg-2">{t('ana_chart_best', { value: format(best) })}</span>
         <span>{dayLabel(points.at(-1)!.day, locale)}</span>
       </figcaption>
     </figure>

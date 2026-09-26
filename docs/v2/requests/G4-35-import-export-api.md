@@ -180,3 +180,12 @@ describe('legacy import (integration)', () => {
    asserts the legacy button is disabled right after render. It still passes after step 1 only because the
    API loads asynchronously; once integrated, drop its two `legacy` lines (the null-API case is covered by
    `legacy-import.test.tsx`, "stays disabled with the pending note when the API is unavailable").
+
+## Update 2026-09-27: applied in the merged scratch tree after a refuter finding (S2)
+
+A refuter found the merged tree still shipping the `return null` adapter, so the legacy import button stayed
+disabled. Reproduced there with the step-2 integration test (2 failed: `settings-legacy-import` never enabled).
+Steps 1, 2 and 4 above are now applied in the merged scratch tree (`export-adapter.ts`,
+`__tests__/legacy-import.integration.test.tsx`, the three `legacy` lines of `data-card.test.tsx`); settings
+tests there: 11 files / 71 tests passed, `tsc --noEmit` and eslint clean. v2-g4 keeps `return null` because
+`@/lib/import` does not exist on this branch. G5: carry those three files into `v2` at integration.

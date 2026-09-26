@@ -92,7 +92,7 @@ export default function ProgramDetailPage({ params, searchParams }: Props) {
       />
 
       {program.sessions.some((s) => !s.isRest) ? (
-        <ProgramSessionList program={program} lookup={lookup} onSessionChange={changeSession} />
+        <ProgramSessionList program={program} lookup={lookup} onSessionChange={changeSession} hrefSuffix={isDraft ? '?builder=1' : ''} />
       ) : (
         <EmptyState title={t('prog_slot_empty')} />
       )}

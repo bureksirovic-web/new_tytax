@@ -7,6 +7,8 @@ import { historyHr } from './modules/history';
 import { analyticsHr } from './modules/analytics';
 import { settingsHr } from './modules/settings';
 import { requestsHr } from './modules/requests';
+import { patternsHr } from './modules/patterns';
+import { patterns2Hr } from './modules/patterns2';
 
 // Croatian dictionary (default locale). Same keys as en.ts (parity test).
 const core = {
@@ -329,4 +331,6 @@ export const hr: Record<TranslationKey, string> = {
   ...analyticsHr,
   ...settingsHr,
   ...requestsHr,
+  ...patternsHr,
+  ...patterns2Hr,
 };

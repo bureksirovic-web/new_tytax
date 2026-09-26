@@ -88,7 +88,7 @@ export function ProfilesCard({ activeId }: { activeId: string | undefined }) {
         />
       )}
       <Hint>{t('set_profile_security_note')}</Hint>
-      <ProfileCreateForm profiles={rows.map((r) => r.profile)} onCreated={apply} />
+      <ProfileCreateForm profiles={rows.map((r) => r.profile)} onCreated={requestSwitch} />
 
       <ConfirmDialog
         open={switchTarget !== null}

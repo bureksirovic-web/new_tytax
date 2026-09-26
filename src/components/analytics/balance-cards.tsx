@@ -5,7 +5,7 @@ import type { ExerciseLookup } from '@/contracts/training';
 import { Card, CardHeader } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
 import { localDay, shiftDay } from './analytics-dates';
-import { movementParity } from './exercise-series';
+import { movementParity } from './movement-balance';
 import { num, PATTERN_KEYS } from './labels';
 import { SectionTitle } from './section-title';
 
@@ -17,7 +17,8 @@ interface Props {
 
 /**
  * Movement balance over the last 30 days: volume share per movement pattern
- * against a balanced target (±5 points counts as on target).
+ * against a balanced target (±5 points counts as on target; an untrained
+ * pattern never does).
  * Wave 0's KineticImpactCard was dropped: its score and English explanation
  * came from `lib/analytics`, which imports the eager catalog (`@/data`).
  */

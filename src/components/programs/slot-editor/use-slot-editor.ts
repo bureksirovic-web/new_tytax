@@ -46,10 +46,19 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     return () => clearTimeout(timer);
   }, [textInput]);
 
-  const setFilter = useCallback((patch: Partial<SlotFilterState>) => {
-    setFilterState((f) => ({ ...f, ...patch }));
-    setVisible(PAGE_SIZE);
-  }, []);
+  const kind = useMemo(() => sessionKind(program, session), [program, session]);
+
+  // Turning the smart filter on resets a muscle chip it hides (e.g. picked from the dock) to ALL.
+  const setFilter = useCallback(
+    (patch: Partial<SlotFilterState>) => {
+      setFilterState((f) => {
+        const next = { ...f, ...patch };
+        return next.smart && !f.smart && hiddenChips(kind).has(next.muscle) ? { ...next, muscle: 'ALL' } : next;
+      });
+      setVisible(PAGE_SIZE);
+    },
+    [kind],
+  );
 
   const clearFilters = useCallback(() => {
     setTextInput('');
@@ -57,7 +66,6 @@ export function useSlotEditor(program: Program, session: ProgramSession, profile
     setVisible(PAGE_SIZE);
   }, [baseFilter]);
 
-  const kind = useMemo(() => sessionKind(program, session), [program, session]);
   const hidden = useMemo(() => (filter.smart ? hiddenChips(kind) : new Set<string>()), [filter.smart, kind]);
 
   const results = useMemo<Exercise[]>(() => {

@@ -16,6 +16,18 @@ interface ProgramSessionListProps {
   program: Program;
   lookup: (id: string) => Exercise | undefined;
   onSessionChange: (sessionId: string, fn: (s: ProgramSession) => ProgramSession) => void;
+  /** Appended to slot-editor links (e.g. `?builder=1` for a builder draft). */
+  hrefSuffix?: string;
+}
+
+/** Row keys by exercise id + occurrence, so moving/removing another row keeps an open editor mounted. */
+function rowKeys(session: ProgramSession): string[] {
+  const seen = new Map<string, number>();
+  return session.exercises.map((e) => {
+    const k = seen.get(e.exerciseId) ?? 0;
+    seen.set(e.exerciseId, k + 1);
+    return `${e.exerciseId}#${k}`;
+  });
 }
 
 const linkCls =
@@ -64,7 +76,7 @@ function SessionName({ session, onRename }: { session: ProgramSession; onRename:
 }
 
 /** Training-day cards: day number, rename, focus, exercise rows, link to the slot editor. */
-export function ProgramSessionList({ program, lookup, onSessionChange }: ProgramSessionListProps) {
+export function ProgramSessionList({ program, lookup, onSessionChange, hrefSuffix = '' }: ProgramSessionListProps) {
   const { t } = useT();
   const training = program.sessions.filter((s) => !s.isRest);
   return (
@@ -76,7 +88,8 @@ export function ProgramSessionList({ program, lookup, onSessionChange }: Program
         {training.map((session, i) => {
           const exs = session.exercises.map((e) => lookup(e.exerciseId)).filter((e): e is Exercise => e !== undefined);
           const focus = focusGroup(exs);
-          const editHref = `/programs/${program.id}/session/${session.id}`;
+          const editHref = `/programs/${program.id}/session/${session.id}${hrefSuffix}`;
+          const keys = rowKeys(session);
           const count = session.exercises.length;
           return (
             <li key={session.id} data-testid="session-card" className="overflow-hidden rounded-xl border border-line bg-card">
@@ -101,7 +114,7 @@ export function ProgramSessionList({ program, lookup, onSessionChange }: Program
                 <ul>
                   {session.exercises.map((slot, idx) => (
                     <ExerciseRow
-                      key={`${slot.exerciseId}-${idx}`}
+                      key={keys[idx]}
                       slot={slot}
                       index={idx}
                       count={count}

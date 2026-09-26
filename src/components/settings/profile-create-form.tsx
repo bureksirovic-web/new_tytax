@@ -13,7 +13,10 @@ const PROBLEM_KEY = {
   taken: 'set_profile_name_taken',
 } as const satisfies Record<NameProblem, string>;
 
-/** Creates a family profile (name + units) and makes it active. */
+/**
+ * Creates a family profile (name + units). Activating it is the parent's job
+ * (`onCreated`), so the switch goes through the same workout-in-progress warning.
+ */
 export function ProfileCreateForm({
   profiles,
   onCreated,
@@ -37,7 +40,6 @@ export function ProfileCreateForm({
     setBusy(true);
     try {
       const created = await repo.profiles.create({ name: name.trim(), settings: { units, language: locale } });
-      await repo.profiles.setActive(created.id);
       setName('');
       setTouched(false);
       notify(t('set_profile_created', { name: created.name }));

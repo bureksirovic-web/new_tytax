@@ -1,9 +1,9 @@
 /** Translation-key lookups and small formatters shared by the analytics components. */
-import type { Units } from '@/contracts/domain';
+import type { MuscleGroup, Units } from '@/contracts/domain';
 import { formatDate, fromDisplayWeight, toDisplayWeight, type Locale, type TranslationKey, type TranslationVars } from '@/lib/i18n';
 import { parseDay } from './analytics-dates';
 import type { AcwrZone, DistributionWindow } from './analytics-math';
-import type { MovementPattern } from './exercise-series';
+import type { MovementPattern } from './movement-balance';
 
 export type TFn = (key: TranslationKey, vars?: TranslationVars) => string;
 
@@ -112,4 +112,17 @@ export function parseBodyweight(input: string, unit: Units): BodyweightParse {
 /** A kg value as the number shown in an input for `unit`. */
 export function toInputValue(kg: number, unit: Units): string {
   return String(toDisplayWeight(kg, unit));
+}
+
+/** Standardised muscle → the library's muscle-group filter (`/exercises?mg=`); unmapped muscles get no link. */
+const MUSCLE_GROUP_OF: Readonly<Record<string, MuscleGroup>> = {
+  Chest: 'CHEST', 'Front Delts': 'SHOULDERS', 'Side Delts': 'SHOULDERS', 'Rear Delts': 'SHOULDERS', 'Rotator Cuff': 'SHOULDERS',
+  'Upper Traps': 'BACK_HORIZONTAL', 'Mid/Lower Traps': 'BACK_HORIZONTAL', Rhomboids: 'BACK_HORIZONTAL', Lats: 'BACK_VERTICAL',
+  Biceps: 'BICEPS', Triceps: 'TRICEPS', Forearms: 'FOREARMS_GRIP', Quads: 'QUADS', Adductors: 'QUADS', Hamstrings: 'HAMSTRINGS',
+  Glutes: 'GLUTES', Abductors: 'GLUTES', Calves: 'CALVES', Core: 'CORE', 'Hip Flexors': 'CORE', 'Spinal Erectors': 'CORE', Serratus: 'CORE',
+};
+
+export function exercisesHrefForMuscle(muscle: string): string | undefined {
+  const group = MUSCLE_GROUP_OF[muscle];
+  return group ? `/exercises?mg=${group}` : undefined;
 }

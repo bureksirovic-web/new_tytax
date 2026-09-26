@@ -4,7 +4,6 @@
  * sets of live logs count (warm-ups and undone sets never do).
  */
 import type { WorkoutLog } from '@/contracts/domain';
-import type { ExerciseLookup } from '@/contracts/training';
 import { isDoneWorkingSet, training } from '@/lib/training';
 import { logTimeMs } from './analytics-dates';
 import { liveLogs } from './analytics-math';
@@ -112,49 +111,4 @@ export function pinnedSummary(logs: readonly WorkoutLog[], exerciseId: string): 
   };
 }
 
-// ─── Movement balance ────────────────────────────────────────────────────────
-
-export type MovementPattern = 'push' | 'pull' | 'quad' | 'hinge' | 'carry' | 'core' | 'other';
-
-const PATTERN_WORDS: ReadonlyArray<[string, MovementPattern]> = [
-  ['push', 'push'], ['press', 'push'], ['pull', 'pull'], ['row', 'pull'], ['squat', 'quad'], ['lunge', 'quad'],
-  ['hinge', 'hinge'], ['deadlift', 'hinge'], ['swing', 'hinge'], ['snatch', 'hinge'], ['carry', 'carry'],
-  ['core', 'core'], ['tgu', 'core'], ['windmill', 'core'],
-];
-
-/** Balanced-training target share per pattern, percent (sums to 100). */
-export const PATTERN_TARGETS: Readonly<Record<MovementPattern, number>> = { push: 20, pull: 20, quad: 20, hinge: 20, carry: 5, core: 10, other: 5 };
-
-export function patternOf(exerciseId: string, lookup: ExerciseLookup): MovementPattern {
-  const raw = lookup(exerciseId)?.pattern?.toLowerCase() ?? '';
-  return PATTERN_WORDS.find(([word]) => raw.includes(word))?.[1] ?? 'other';
-}
-
-export interface ParityRow {
-  pattern: MovementPattern;
-  pct: number;
-  target: number;
-  onTarget: boolean;
-}
-
-/** Volume share per movement pattern for logs on or after `fromDay`; [] without volume. */
-export function movementParity(logs: readonly WorkoutLog[], lookup: ExerciseLookup, fromDay: string): ParityRow[] {
-  const vol = new Map<MovementPattern, number>();
-  let total = 0;
-  for (const log of liveLogs(logs)) {
-    if (log.date < fromDay) continue;
-    for (const ex of log.exercises) {
-      const v = ex.sets.filter(isDoneWorkingSet).reduce((sum, s) => sum + s.kg * s.reps, 0);
-      if (v <= 0) continue;
-      const p = patternOf(ex.exerciseId, lookup);
-      vol.set(p, (vol.get(p) ?? 0) + v);
-      total += v;
-    }
-  }
-  if (total <= 0) return [];
-  return (Object.keys(PATTERN_TARGETS) as MovementPattern[]).map((pattern) => {
-    const pct = ((vol.get(pattern) ?? 0) / total) * 100;
-    const target = PATTERN_TARGETS[pattern];
-    return { pattern, pct, target, onTarget: Math.abs(pct - target) <= 5 };
-  });
-}
+export { movementParity, patternOf, PATTERN_TARGETS, type MovementPattern, type ParityRow } from './movement-balance';

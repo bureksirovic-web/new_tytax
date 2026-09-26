@@ -30,6 +30,8 @@ export interface EditExercise {
 
 export interface EditDraft {
   date: string;
+  /** Stored day and timestamps: a date change shifts the timestamps with it. */
+  origin: Pick<WorkoutLog, 'date' | 'startedAt' | 'finishedAt'>;
   sessionName: string;
   notes: string;
   rpe: string;
@@ -50,6 +52,7 @@ function num(n: number): string {
 export function fromLog(log: WorkoutLog, units: Units): EditDraft {
   return {
     date: log.date,
+    origin: { date: log.date, startedAt: log.startedAt, finishedAt: log.finishedAt },
     sessionName: log.sessionName,
     notes: log.notes ?? '',
     rpe: log.rpe != null ? num(log.rpe) : '',
@@ -123,13 +126,33 @@ function toSetEntry(s: EditSet, units: Units): SetEntry {
   return next;
 }
 
-export type LogPatch = Pick<WorkoutLog, 'date' | 'sessionName' | 'exercises'> & { notes?: string; rpe?: number };
+export type LogPatch = Pick<WorkoutLog, 'date' | 'sessionName' | 'exercises'> &
+  Partial<Pick<WorkoutLog, 'startedAt' | 'finishedAt'>> & { notes?: string; rpe?: number };
+
+const dayStart = (day: string) => {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+/** Moves a timestamp by whole local calendar days (keeps wall-clock time across DST). */
+export function shiftDays(iso: string, fromDay: string, toDay: string): string {
+  const days = Math.round((dayStart(toDay).getTime() - dayStart(fromDay).getTime()) / 86_400_000);
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
 
 export function toPatch(draft: EditDraft, units: Units): LogPatch {
   const rpe = parseNumber(draft.rpe);
   const notes = draft.notes.trim();
+  const { origin } = draft;
+  const moved = draft.date !== origin.date;
   return {
     date: draft.date,
+    ...(moved && {
+      startedAt: shiftDays(origin.startedAt, origin.date, draft.date),
+      finishedAt: shiftDays(origin.finishedAt, origin.date, draft.date),
+    }),
     sessionName: draft.sessionName.trim(),
     notes: notes === '' ? undefined : draft.notes,
     rpe: rpe === null ? undefined : rpe,

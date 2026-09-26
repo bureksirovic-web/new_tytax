@@ -2,6 +2,7 @@
 import type { Exercise } from '@/contracts/domain';
 import { Badge } from '@/components/ui/badge';
 import { useT } from '@/lib/i18n/use-t';
+import { patternKey } from '@/lib/i18n/pattern';
 import { FavouriteButton } from './favourite-button';
 import { attachmentKey, labelOr, modalityKey, muscleGroupKey, stationKey } from './labels';
 
@@ -45,7 +46,7 @@ export function ExerciseHeader({ exercise, favourite, favouriteDisabled, onToggl
         {exercise.isUnilateral && <li><Badge>{t('ex_unilateral')}</Badge></li>}
       </ul>
       <p className="text-sm text-fg-2">
-        {t('ex_pattern', { pattern: exercise.pattern })} · {t('ex_default_prescription', { sets: exercise.defaultSets, reps: exercise.defaultReps })}
+        {t('ex_pattern', { pattern: labelOr(t, patternKey(exercise.pattern), exercise.pattern) })} · {t('ex_default_prescription', { sets: exercise.defaultSets, reps: exercise.defaultReps })}
         {exercise.tempo ? ` · ${t('ex_tempo', { tempo: exercise.tempo })}` : ''}
       </p>
     </header>

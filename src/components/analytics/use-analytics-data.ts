@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BodyweightEntry, Units, WorkoutLog } from '@/contracts/domain';
 import type { Repository } from '@/contracts/repo';
 import type { ExerciseLookup } from '@/contracts/training';
@@ -16,9 +16,20 @@ export function localDayDaysAgo(days: number, now: Date = new Date()): string {
   return localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - days));
 }
 
-/** Clock for one mounted screen: fixed per mount so memoised maths does not churn. */
-function useNow(): Date {
-  const [now] = useState(() => new Date());
+/**
+ * Clock for the analytics screen. Checked every `intervalMs`, but only replaced
+ * when the local calendar day changes, so memoised maths does not churn every
+ * minute while day windows still roll over past midnight in a long-open PWA.
+ */
+export function useNow(intervalMs = 60_000): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = new Date();
+      setNow((cur) => (localDay(cur) === localDay(next) ? cur : next));
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
   return now;
 }
 

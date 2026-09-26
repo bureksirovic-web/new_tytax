@@ -6,6 +6,8 @@ import { historyEn } from './modules/history';
 import { analyticsEn } from './modules/analytics';
 import { settingsEn } from './modules/settings';
 import { requestsEn } from './modules/requests';
+import { patternsEn } from './modules/patterns';
+import { patterns2En } from './modules/patterns2';
 
 // English dictionary. hr.ts must carry exactly the same keys (parity test).
 const core = {
@@ -330,4 +332,6 @@ export const en = {
   ...analyticsEn,
   ...settingsEn,
   ...requestsEn,
+  ...patternsEn,
+  ...patterns2En,
 } as const;

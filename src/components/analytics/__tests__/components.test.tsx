@@ -93,7 +93,7 @@ describe('MuscleDistribution', () => {
     // Chest 2 of 3 sets-weight → 66.7 %
     expect(within(list()).getByText('66.7% of load')).toBeInTheDocument();
     expect(screen.getByText('Lagging muscle: Quads')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Show exercises' })).toHaveAttribute('href', '/exercises?muscle=Quads');
+    expect(screen.getByRole('link', { name: 'Show exercises' })).toHaveAttribute('href', '/exercises?mg=QUADS');
   });
 });
 

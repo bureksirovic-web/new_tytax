@@ -21,15 +21,20 @@ export function logMuscleShares(log: WorkoutLog, lookup: Parameters<typeof train
     .sort((a, b) => b.share - a.share || a.muscle.localeCompare(b.muscle));
 }
 
-/** Where this workout's stimulus went (done working sets × catalog impact). */
+/**
+ * Where this workout's stimulus went (done working sets × catalog impact).
+ * While the catalog loads or when it fails, each exercise's stored
+ * `muscleImpactSnapshot` is used instead, so the card still shows offline.
+ */
 export function MuscleImpact({ log }: { log: WorkoutLog }) {
   const { t, locale } = useT();
-  const { catalog, error } = useCatalog();
+  const { catalog, loading } = useCatalog();
   const shares = useMemo(
-    () => (catalog ? logMuscleShares(log, (id) => catalog.getById(id)) : []),
+    () => logMuscleShares(log, (id) => catalog?.getById(id)),
     [catalog, log],
   );
-  if (error || !catalog) return null;
+  // No snapshot to show yet: wait for the catalog rather than flash "none".
+  if (shares.length === 0 && loading) return null;
   const top = shares[0]?.share ?? 1;
   const pct = (share: number) => new Intl.NumberFormat(locale === 'hr' ? 'hr-HR' : 'en-GB', { maximumFractionDigits: 0 }).format(share * 100);
 

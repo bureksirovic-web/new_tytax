@@ -6,7 +6,13 @@ import { Button, Input } from '@/components/ui';
 import { fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { SettingsCard } from './settings-section';
-import { localDay, notify, parseDecimal, validateProfileName } from './settings-utils';
+import { localDay, notify, parseDecimal, PROFILE_NAME_MAX, validateProfileName, type NameProblem } from './settings-utils';
+
+const NAME_PROBLEM_KEY = {
+  required: 'set_profile_name_required',
+  too_long: 'set_profile_name_too_long',
+  taken: 'set_profile_name_taken',
+} as const satisfies Record<NameProblem, string>;
 
 /**
  * Name and bodyweight of the active profile. Bodyweight is entered in the
@@ -41,7 +47,9 @@ export function ProfileEditForm({ profile }: { profile: Profile }) {
         if (entry) await repo.bodyweight.update(profile.id, entry.id, { valueKg: kg });
         else await repo.bodyweight.add(profile.id, { date: today, valueKg: kg });
       }
-      await repo.profiles.update(profile.id, { name: name.trim(), bodyweightKg: kg ?? profile.bodyweightKg });
+      // An emptied field clears the profile's bodyweight; past bodyweight entries stay in the log.
+      const bodyweightKg = parsedBw === null ? undefined : (kg ?? profile.bodyweightKg);
+      await repo.profiles.update(profile.id, { name: name.trim(), bodyweightKg });
       notify(t('set_profile_saved'));
     } catch (error: unknown) {
       console.error('[settings] save profile failed', error);
@@ -63,8 +71,9 @@ export function ProfileEditForm({ profile }: { profile: Profile }) {
         <Input
           label={t('set_profile_name')}
           value={name}
+          maxLength={PROFILE_NAME_MAX + 10}
           data-testid="settings-profile-edit-name"
-          error={nameProblem === 'taken' ? t('set_profile_name_taken') : nameProblem ? t('set_profile_name_required') : undefined}
+          error={nameProblem ? t(NAME_PROBLEM_KEY[nameProblem]) : undefined}
           onChange={(e) => setName(e.target.value)}
         />
         <Input

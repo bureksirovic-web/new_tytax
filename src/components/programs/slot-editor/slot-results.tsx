@@ -3,6 +3,7 @@ import type { Exercise, Station } from '@/contracts/domain';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
+import { patternKey } from '@/lib/i18n/pattern';
 import { MODALITY_KEYS, MUSCLE_KEYS, stationKey } from '../lib/labels';
 import { stationIdOf } from '../lib/slot-filter';
 import type { SlotEditorState } from './use-slot-editor';
@@ -15,6 +16,8 @@ function ExerciseOption({ ex, stations, selected, onToggle }: { ex: Exercise; st
   const { t } = useT();
   const sid = stationIdOf(ex, stations);
   const sKey = sid ? stationKey(sid) : undefined;
+  const pKey = patternKey(ex.pattern);
+  const pattern = pKey ? t(pKey) : ex.pattern || t('prog_slot_isolation');
   const badge = sKey ? t(sKey) : ex.modality === 'tytax' ? t('prog_station_free_weight') : t(MODALITY_KEYS[ex.modality]);
   return (
     <li>
@@ -30,7 +33,7 @@ function ExerciseOption({ ex, stations, selected, onToggle }: { ex: Exercise; st
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium text-fg">{ex.name}</span>
           <span className="block text-xs text-fg-muted">
-            {ex.pattern || t('prog_slot_isolation')} · {t(MUSCLE_KEYS[ex.muscleGroup])}
+            {pattern} · {t(MUSCLE_KEYS[ex.muscleGroup])}
           </span>
           <span className="mt-1 flex flex-wrap gap-1">
             <Badge variant={ex.modality}>{badge}</Badge>

@@ -5,10 +5,10 @@
  */
 import type { Exercise, Modality, MuscleGroup, Program, ProgramSession, Station } from '@/contracts/domain';
 import { matchesText, queryWords } from '@/lib/catalog/query';
-import { ownsExercise, stationIdOf, type Ownership } from './slot-equipment';
+import { ownsExercise, requiredGearOf, stationIdOf, type Ownership } from './slot-equipment';
 
 export {
-  DEFAULT_OWNED_ATTACHMENTS, defaultOwnedAttachments, ownershipFrom, ownsExercise, sortIdsByStation, stationIdOf, type Ownership,
+  DEFAULT_OWNED_ATTACHMENTS, defaultOwnedAttachments, ownershipFrom, ownsExercise, requiredGearOf, sortIdsByStation, stationIdOf, type Ownership,
 } from './slot-equipment';
 
 export type SessionKind = 'full' | 'upper' | 'lower' | 'push' | 'pull' | 'legs';
@@ -136,7 +136,7 @@ export function filterSlotExercises(all: readonly Exercise[], f: SlotFilterState
     if (!matchesChip(ex, f.muscle)) return false;
     if (f.stationId && stationIdOf(ex, ctx.stations) !== f.stationId) return false;
     if (f.favouritesOnly && !ctx.favourites.has(ex.id)) return false;
-    if (f.ownedOnly && !ownsExercise(ctx.requiredAttachments(ex), stationIdOf(ex, ctx.stations), ctx.own)) return false;
+    if (f.ownedOnly && !ownsExercise(ctx.requiredAttachments(ex), stationIdOf(ex, ctx.stations), ctx.own, requiredGearOf(ex))) return false;
     return matchesText(ex, words);
   });
 }

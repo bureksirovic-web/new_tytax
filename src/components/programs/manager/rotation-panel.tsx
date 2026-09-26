@@ -51,7 +51,8 @@ export function RotationPanel({ program, onPatch, onAligned, today = () => today
           return (
             <li key={s.id} aria-current={isNext ? 'step' : undefined} className="flex flex-wrap items-center gap-1 border-t border-line py-1 first:border-t-0">
               <span className="w-6 text-center font-mono text-xs text-fg-muted">{i + 1}</span>
-              <span className={`min-w-0 flex-1 truncate text-sm ${s.isRest ? 'italic text-fg-muted' : 'text-fg'}`}>{s.name}</span>
+              {/* basis-40: on phones the actions wrap to a second line instead of squeezing the name to "F…". */}
+              <span className={`min-w-0 flex-1 basis-40 truncate text-sm ${s.isRest ? 'italic text-fg-muted' : 'text-fg'}`}>{s.name}</span>
               {isNext ? (
                 <Badge variant="success">{t('prog_rotation_next')}</Badge>
               ) : (

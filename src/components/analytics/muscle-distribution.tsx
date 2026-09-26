@@ -7,7 +7,7 @@ import { Card, CardHeader, FilterChips } from '@/components/ui';
 import { SectionTitle } from './section-title';
 import { useT } from '@/lib/i18n/use-t';
 import { DISTRIBUTION_WINDOWS, muscleDistribution, type DistributionWindow } from './analytics-math';
-import { muscleLabel, num, WINDOW_KEYS } from './labels';
+import { exercisesHrefForMuscle, muscleLabel, num, WINDOW_KEYS } from './labels';
 
 interface Props {
   logs: readonly WorkoutLog[];
@@ -25,6 +25,7 @@ export function MuscleDistribution({ logs, lookup, now }: Props) {
   const visible = showAll ? shares : shares.slice(0, TOP_N);
   const top = shares[0]?.share ?? 1;
   const pct = (share: number) => num(share * 100, locale, 1);
+  const laggingHref = lagging ? exercisesHrefForMuscle(lagging.muscle) : undefined;
 
   return (
     <Card>
@@ -77,12 +78,14 @@ export function MuscleDistribution({ logs, lookup, now }: Props) {
                       {t('ana_lagging_detail', { actual: pct(lagging.actualShare), target: pct(lagging.targetShare) })}
                     </p>
                   </div>
-                  <Link
-                    href={`/exercises?muscle=${encodeURIComponent(lagging.muscle)}`}
-                    className="inline-flex min-h-11 items-center rounded-lg border border-line px-3 text-sm text-fg hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
-                  >
-                    {t('ana_lagging_cta')}
-                  </Link>
+                  {laggingHref && (
+                    <Link
+                      href={laggingHref}
+                      className="inline-flex min-h-11 items-center rounded-lg border border-line px-3 text-sm text-fg hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
+                    >
+                      {t('ana_lagging_cta')}
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-fg-2">{t('ana_no_lagging')}</p>
