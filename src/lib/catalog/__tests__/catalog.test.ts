@@ -10,8 +10,8 @@ beforeEach(() => {
 
 describe('loadCatalog', () => {
   it('loads each chunk with its full exercise count', async () => {
-    // 1420 = entries in src/data/tytax/exercises.json (header of src/data/tytax/exercises.ts)
-    expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1420);
+    // 1404 = 1436 source entries − 32 non-exercises (docs/v2/station-unresolved.md)
+    expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1404);
     // 82 = objects with an `id: 'bw_…'` key in src/data/bodyweight/exercises.ts
     expect((await loadCatalog(['bodyweight'])).exercises).toHaveLength(82);
     // 75 = objects with an `id: 'kb_…'` key in src/data/kettlebell/exercises.ts
@@ -20,8 +20,8 @@ describe('loadCatalog', () => {
 
   it('defaults to every chunk, in canonical order', async () => {
     const all = await loadCatalog();
-    // 1420 + 82 + 75 = 1577
-    expect(all.exercises).toHaveLength(1577);
+    // 1404 + 82 + 75 = 1561
+    expect(all.exercises).toHaveLength(1561);
     expect(all.chunks).toEqual(['tytax', 'bodyweight', 'kettlebell']);
     expect(all.exercises[0].modality).toBe('tytax');
     expect(all.exercises.at(-1)?.modality).toBe('kettlebell');
@@ -44,10 +44,11 @@ describe('loadCatalog', () => {
 
   it('only the tytax chunk carries stations and attachments', async () => {
     const t = await loadCatalog(['tytax']);
-    // 6 stations in src/data/tytax/stations.ts, 9 attachments in attachments.ts
-    expect(t.stations).toHaveLength(6);
+    // 5 STATIONS and 9 RECOMMENDED_ATTACHMENTS in tytax_library.json (src/data/tytax/library.json)
+    expect(t.stations).toHaveLength(5);
     expect(t.attachments).toHaveLength(9);
-    expect(t.stations.find((s) => s.id === 'smith')?.name).toBe('Smith Machine');
+    expect(t.stations.find((s) => s.id === 'SMITH')?.name).toBe('Smith Machine');
+    expect(t.attachments.map((a) => a.id)).toContain('TRICEPS_ROPE');
     const bw = await loadCatalog(['bodyweight']);
     expect(bw.stations).toHaveLength(0);
     expect(bw.attachments).toHaveLength(0);
@@ -103,8 +104,8 @@ describe('search', () => {
     const kb = await search({ modality: 'kettlebell' });
     // 75 kettlebell entries (see chunk count above)
     expect(kb).toHaveLength(75);
-    // 1577 = all chunks
-    expect(await search({ modality: 'all' })).toHaveLength(1577);
+    // 1561 = all chunks
+    expect(await search({ modality: 'all' })).toHaveLength(1561);
     expect(await search({ modality: 'custom' })).toHaveLength(0);
   });
 
@@ -123,13 +124,15 @@ describe('search', () => {
   });
 
   it('filters by station and attachment', async () => {
-    const legExt = await search({ stationId: 'leg-extension' });
-    // 2 entries have station 'Leg Extension' in exercises.json
+    const legExt = await search({ stationId: 'LEG_EXTENSION' });
+    // 2 from the source's 'Leg Extension Seat' + 2 cable leg extensions (name-rule:leg-extension)
     expect(legExt.map((e) => e.id).sort()).toEqual([
       'tytax_leg-extension_seated-leg-extension',
       'tytax_leg-extension_seated-single-leg-leg-extension',
+      'tytax_tytax_seated-alternating-cable-leg-extension',
+      'tytax_tytax_seated-cable-leg-extension',
     ]);
-    const rope = await search({ attachmentId: 'rope', text: 'face pull' });
+    const rope = await search({ attachmentId: 'TRICEPS_ROPE', text: 'face pull' });
     expect(rope.length).toBeGreaterThan(0);
     expect(rope.every((e) => e.modality === 'tytax')).toBe(true);
     expect(await search({ stationId: 'no-such-station' })).toHaveLength(0);

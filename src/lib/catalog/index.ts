@@ -13,23 +13,16 @@ import {
   type CatalogQuery,
 } from '@/contracts/exercise-catalog';
 import { TYTAX_STATIONS } from '@/data/tytax/stations';
-import { CABLE_ATTACHMENTS_DATA } from '@/data/tytax/attachments';
+import { TYTAX_ATTACHMENTS } from '@/data/tytax/attachments';
 import { chunkForId, loadChunk, resetChunkCacheForTests } from './chunks';
 import { filterExercises } from './query';
 
 export { normalizeText } from './query';
 export type { Catalog, CatalogApi, CatalogChunkId, CatalogQuery } from '@/contracts/exercise-catalog';
 
-/**
- * Stations/attachments mapped from the current hand-written TYTAX data.
- * A later phase regenerates them from `tytax_library.json`.
- */
-const STATIONS: readonly Station[] = Object.freeze(
-  TYTAX_STATIONS.map((s) => ({ id: s.id, name: s.name, notes: s.description })),
-);
-const ATTACHMENTS: readonly AttachmentDef[] = Object.freeze(
-  CABLE_ATTACHMENTS_DATA.map((a) => ({ id: a.id, name: a.name, why: a.description })),
-);
+/** Stations/attachments generated from `tytax_library.json` by `npm run catalog:build` (small; no exercise data). */
+const STATIONS: readonly Station[] = TYTAX_STATIONS;
+const ATTACHMENTS: readonly AttachmentDef[] = TYTAX_ATTACHMENTS;
 const STATION_NAME_BY_ID: ReadonlyMap<string, string> = new Map(STATIONS.map((s) => [s.id, s.name]));
 
 /** Chunks in canonical order, deduplicated. `undefined` → all. */
@@ -45,8 +38,10 @@ function buildCatalog(chunks: readonly CatalogChunkId[], parts: ReadonlyArray<re
   const byLegacy = new Map<string, Exercise>();
   for (const e of exercises) {
     if (!byId.has(e.id)) byId.set(e.id, e);
-    const key = (e.legacyName ?? e.name).toLowerCase();
-    if (!byLegacy.has(key)) byLegacy.set(key, e);
+    // Legacy logs use either the master-list form ("TYTAX T1 | X") or the plain name.
+    for (const key of [e.legacyName, e.name]) {
+      if (key && !byLegacy.has(key.toLowerCase())) byLegacy.set(key.toLowerCase(), e);
+    }
   }
   const hasTytax = chunks.includes('tytax');
   return Object.freeze({

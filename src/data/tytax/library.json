@@ -1,0 +1,85 @@
+{
+  "stations": [
+    {
+      "id": "SMITH",
+      "name": "Smith Machine",
+      "notes": "High stability, fixed bar path. Great for beginners and consistent tension."
+    },
+    {
+      "id": "BACK_UPPER",
+      "name": "Back Upper Pulley",
+      "notes": "Constant tension. Use for pulldowns, face pulls, pushdowns, crunches."
+    },
+    {
+      "id": "BACK_LOWER",
+      "name": "Back Lower Pulley",
+      "notes": "Constant tension. Use for rows, curls, pull-throughs, wrist work."
+    },
+    {
+      "id": "LEG_EXTENSION",
+      "name": "Leg Extension",
+      "notes": "Knee extension isolation."
+    },
+    {
+      "id": "LEG_CURL",
+      "name": "Leg Curl",
+      "notes": "Knee flexion isolation."
+    }
+  ],
+  "attachments": [
+    {
+      "id": "D_HANDLES",
+      "name": "Pair of single D-handles",
+      "priority": "High",
+      "why": "Unlocks single-arm presses/rows/curls/raises; best for symmetry and shoulder comfort."
+    },
+    {
+      "id": "TRICEPS_ROPE",
+      "name": "Triceps rope",
+      "priority": "High",
+      "why": "Best for pushdowns, face pulls, overhead extensions."
+    },
+    {
+      "id": "STRAIGHT_BAR",
+      "name": "Short straight bar (cable bar)",
+      "priority": "High",
+      "why": "Curls, pushdowns, wrist curls, straight-arm pulldowns."
+    },
+    {
+      "id": "V_HANDLE",
+      "name": "V-handle / close-grip row handle",
+      "priority": "High",
+      "why": "Neutral-grip pulldowns and close rows."
+    },
+    {
+      "id": "ANKLE_STRAP",
+      "name": "Ankle strap",
+      "priority": "High",
+      "why": "Glute kickbacks, hip abduction/adduction, standing ham curls."
+    },
+    {
+      "id": "AB_STRAP",
+      "name": "Ab strap (cable crunch strap)",
+      "priority": "Medium",
+      "why": "More comfortable heavy cable crunches than holding a bar."
+    },
+    {
+      "id": "LAT_BAR",
+      "name": "Lat bar",
+      "priority": "Owned",
+      "why": "Wide/standard pulldown and straight-arm pulldown patterns."
+    },
+    {
+      "id": "EZ_LAT_BAR",
+      "name": "EZ/angled lat bar",
+      "priority": "Owned",
+      "why": "Comfort grip variations; good for underhand/angled pulldowns."
+    },
+    {
+      "id": "DIP_BELT",
+      "name": "Dip belt or strong assistance band",
+      "priority": "Optional",
+      "why": "If you want assisted pull-ups using the Smith bar setup."
+    }
+  ]
+}
