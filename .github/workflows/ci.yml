@@ -1,39 +1,229 @@
+# TYTAX v2 CI (G5 draft, 2026-09-26). Local mirror: scripts/ci-local.sh
+#
+# Assumes Wave 0 has added: @axe-core/playwright, fake-indexeddb, zod, supabase
+# CLI dev dep, eslint i18n plugin, and scripts/check-bundle.mjs.
+# `npm run test:sync` is added by G5 (vitest integration suite against local Supabase).
+# Other not-yet-scripted steps are called through npx / node directly on purpose.
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+  push:
+    branches: [main, v2]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Explicit `shell: bash` gives `bash -eo pipefail` (needed for `| tee`).
+    shell: bash
+
+env:
+  PORT: "3100"
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
-  ci:
+  quality:
+    name: quality (lint, types, unit, build, bundle)
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - name: Pick Node version (.nvmrc or 22)
+        id: node
+        run: |
+          if [ -f .nvmrc ]; then echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+          else echo "version=22" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ steps.node.outputs.version }}
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Guard - no .only / .skip / .fixme in tests
+        run: |
+          pattern='\b(test|it|describe|suite|bench)(\.(describe|serial|parallel|concurrent|sequential))?\.(only|skip|fixme|todo|skipIf|runIf)\b'
+          hits=""
+          if [ -d src ]; then
+            hits+=$(grep -rnE --include='*.test.*' "$pattern" src || true)
+          fi
+          if [ -d e2e ]; then
+            hits+=$(grep -rnE "$pattern" e2e || true)
+          fi
+          if [ -n "$hits" ]; then
+            echo "::error::Focused/skipped tests are forbidden (PLAN 10.2: zero skips)"
+            echo "$hits"
+            exit 1
+          fi
+          echo "No .only/.skip/.fixme found."
 
-      - name: Run linting
-        run: npm run lint
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:coverage
+      - run: npm run build
+      - name: JS budget (scripts/check-bundle.mjs, /dashboard first load < 250 kB gz)
+        run: node scripts/check-bundle.mjs
 
-      - name: Run TypeScript type checking
-        run: npx tsc --noEmit
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14
 
-      - name: Run unit tests with coverage
-        run: npm run test:coverage
+  e2e:
+    name: e2e (chromium + Pixel 7)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SYNC_ENABLED: ""
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build the app
-        run: npm run build
+      - name: Pick Node version (.nvmrc or 22)
+        id: node
+        run: |
+          if [ -f .nvmrc ]; then echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+          else echo "version=22" >> "$GITHUB_OUTPUT"; fi
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Playwright (desktop chromium + one mobile project)
+        run: npx playwright test --project=chromium --project="Pixel 7"
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  sync-e2e:
+    # Mandatory (AC12): no continue-on-error, zero skips.
+    name: sync-e2e (local Supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick Node version (.nvmrc or 22)
+        id: node
+        run: |
+          if [ -f .nvmrc ]; then echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+          else echo "version=22" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.118.0
+
+      - run: npm ci
+
+      - name: Start local Supabase (config in supabase/)
+        run: supabase start
+
+      - name: Database tests (pgTAP)
+        run: supabase test db
+
+      - name: Export Supabase env (keys masked)
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/sb.env"
+          get() { sed -nE "s/^$1=\"?([^\"]*)\"?\$/\1/p" "$RUNNER_TEMP/sb.env" | head -n1; }
+          api_url=$(get API_URL)
+          anon=$(get ANON_KEY)
+          service=$(get SERVICE_ROLE_KEY)
+          rm -f "$RUNNER_TEMP/sb.env"
+          if [ -z "$api_url" ] || [ -z "$anon" ] || [ -z "$service" ]; then
+            echo "::error::Could not read API_URL / ANON_KEY / SERVICE_ROLE_KEY from 'supabase status -o env'"
+            exit 1
+          fi
+          echo "::add-mask::$anon"
+          echo "::add-mask::$service"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$api_url"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$anon"
+            echo "SUPABASE_URL=$api_url"
+            echo "SUPABASE_ANON_KEY=$anon"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$service"
+            echo "NEXT_PUBLIC_SYNC_ENABLED=true"
+          } >> "$GITHUB_ENV"
+
+      - name: Sync integration suite (fails on any skip)
+        run: |
+          npm run test:sync -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/test-sync.log"
+          if grep -qi 'skipped' "$RUNNER_TEMP/test-sync.log"; then
+            echo "::error::test:sync reported skipped tests; AC12 requires zero skips"
+            grep -ni 'skipped' "$RUNNER_TEMP/test-sync.log"
+            exit 1
+          fi
+
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Sync + auth e2e
+        run: npx playwright test e2e/sync-*.spec.ts e2e/auth-*.spec.ts --project=chromium
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-sync
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  security:
+    name: security (gitleaks, npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks-action lists PR commits via the API
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pick Node version (.nvmrc or 22)
+        id: node
+        run: |
+          if [ -f .nvmrc ]; then echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+          else echo "version=22" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: npm audit (full tree, high+)
+        run: npm audit --audit-level=high
