@@ -1,161 +1,169 @@
-# new_tytax
+# TYTAX
 
-> Military-grade workout tracker for TYTAX T1, bodyweight, and kettlebell training.
-> Offline-first PWA built with Next.js 14, Supabase, and Dexie.js.
+A home-gym training app for the **TYTAX T1** multi-gym, plus **bodyweight** and **kettlebell** training.
+It is a local-first PWA: all data lives on the device (IndexedDB), and it works fully offline.
+Croatian is the default language; English is available. Several family members can share one device,
+each with their own profile.
+
+> **Status: v2 (in progress).** Branch `v2` is an overnight rewrite of the broken layers of
+> `new_tytax` 0.1.0 (see `docs/v2/PLAN.md`). The 0.1.0 core loop does not work: a quick workout
+> cannot start, the active program is never found, and sync cannot work. Items marked
+> *v2 (in progress)* below are planned for v2 and are not yet verified. This README is
+> finalised at integration.
+
+Built AI-first (Claude/Codex agents) under human ownership.
 
 ## Features
 
-- **1,577 exercises** across 3 modalities: TYTAX T1 (1,420), Bodyweight (82), Kettlebell (75)
-- **Offline-first** — all data stored locally in IndexedDB (Dexie.js), syncs when online
-- **Active Workout Logger** — set/rep tracking, rest timer, PR detection
-- **Ghost Mode** — compare today's workout against any past session
-- **ACWR Fatigue Tracking** — Acute:Chronic Workload Ratio with traffic-light zones
-- **Volume Parity** — push/pull/hinge/quad balance analysis
-- **Kinetic Impact Score** — composite 0-100 workout quality score
-- **Program Builder** — custom programs + 5 built-in presets
-- **e1RM Tracking** — Brzycki formula, progression charts
-- **Warmup Calculator** — auto-generates 40/60/80/90% warmup sets
-- **Export CSV** — full workout history export
-- **EN/HR** — bilingual (English + Croatian)
-- **OLED theme** — true black for AMOLED screens
-- **PWA** — installable on iOS and Android
+| Area | State |
+|---|---|
+| Exercise library: TYTAX T1, bodyweight and kettlebell data | present in 0.1.0; v2 (in progress): full 1,436-exercise TYTAX catalog with real stations/attachments, lazy-loaded |
+| Workout logger: kg / reps / RIR per set, rest timer, warm-ups | v2 (in progress): draft survives reload, same exercise twice per session |
+| Programs: TYTAX 6-day preset, builder, rotation that advances | v2 (in progress) |
+| Progression: prefill from last session (RIR ≥3 → +2.5 kg, RIR 2 → +1.25 kg), ghost reps | v2 (in progress) |
+| PRs: e1RM (Brzycki) detection on done working sets only | v2 (in progress) |
+| Analytics: recovery (48 h), ACWR, volume, impact / lagging muscle | pure functions exist; v2 (in progress): correctness fixes |
+| Tools: plate calculator, 1RM calculator | v2 (in progress) |
+| Family profiles on one device | v2 (in progress) |
+| Legacy import from `tytax-autonomous` backups | v2 (in progress) |
+| JSON backup/restore, CSV export | v2 (in progress): CSV formula-injection escaping |
+| Optional Supabase sync | v2 (in progress); off by default |
+| PWA install, offline use, hr/en i18n | v2 (in progress) |
 
-## Tech Stack
+## Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS v4 |
-| State | Zustand (ephemeral), Dexie.js/IndexedDB (persistent) |
-| Backend | Supabase (PostgreSQL + Auth) |
-| Sync | Outbox pattern: Dexie (IndexedDB queue) → Supabase |
-| Deploy | Render.com (Docker standalone) |
-| Tests | Playwright (E2E), Vitest (unit) |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS 4 |
+| Local data | Dexie 4 over IndexedDB (source of truth) |
+| UI state | zustand 5 |
+| Charts | recharts |
+| Optional sync / auth | Supabase (Postgres + magic-link auth, RLS) |
+| Tests | Vitest (unit, jsdom), Playwright (e2e) |
 
-## Quick Start (Local)
+## Quick start
 
-### Prerequisites
-- Node.js 18+
-- A Supabase project (free tier works)
+Requires Node.js 22 and npm. No Supabase and no `.env` file are needed to run the app.
 
-### 1. Clone and install
 ```bash
 git clone https://github.com/bureksirovic-web/new_tytax
 cd new_tytax
-npm install
+npm ci
+PORT=3100 npm run dev     # http://localhost:3100
 ```
 
-### 2. Configure environment
-```bash
-cp .env.example .env.local
-```
+## Scripts
 
-Edit `.env.local`:
-```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+| Script | What it does |
+|---|---|
+| `npm run dev` | Next dev server (set `PORT`) |
+| `npm run build` | Production build (standalone output) |
+| `npm start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npx tsc --noEmit` | Type check |
+| `npm test` | Unit tests (Vitest, once) |
+| `npm run test:watch` | Unit tests in watch mode |
+| `npm run test:coverage` | Unit tests with V8 coverage |
+| `npm run test:e2e` | Playwright e2e (starts its own dev server) |
+| `npm run test:e2e:ui` | Playwright UI mode |
+| `npm run test:sync` | v2 (in progress): sync tests against local Supabase |
 
-### 3. Set up Supabase database
-In Supabase SQL Editor, run the migration:
-```bash
-# Copy contents of supabase/migrations/001_initial_schema.sql
-# Paste and run in Supabase SQL Editor
-```
+## Environment variables
 
-### 4. Start the app
-```bash
-npm run dev
-# → http://localhost:3000
-```
+Copy `.env.example` to `.env.local`. All variables are optional; with none set, the app runs local-only.
 
-> **Note:** The app works fully offline without Supabase. Auth and sync are optional.
+| Variable | Needed for | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SYNC_ENABLED` | turning sync on | Unset or not `true` = sync off, and no network calls to Supabase |
+| `NEXT_PUBLIC_SUPABASE_URL` | sync / auth | Local: from `supabase status`; public by design |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sync / auth | Public by design; RLS protects the data |
+| `NEXT_PUBLIC_APP_URL` | magic-link redirects | e.g. `http://localhost:3100` |
+| `SUPABASE_SERVICE_ROLE_KEY` | sync tests only | Test harness only. **Never** prefix it with `NEXT_PUBLIC_`, never ship it to the client, never commit it |
 
-## Deploy to Render
+`NEXT_PUBLIC_*` values are compiled into the client bundle. Never put a secret in one.
 
-### 1. Fork or push to GitHub
+## Sync (optional)
 
-### 2. Create Render Web Service
-- Go to [render.com](https://render.com) → New → Web Service
-- Connect `bureksirovic-web/new_tytax`
-- Render auto-detects `render.yaml`
+- **Off by default.** With `NEXT_PUBLIC_SYNC_ENABLED` unset, the app is fully usable offline and never talks to Supabase.
+- **Model (v2, in progress):** Dexie stays the source of truth. Changes are queued locally, then pushed and pulled per table with a cursor.
+  Conflicts resolve as last-write-wins on the **server** `updated_at`. Deletes are tombstones (`deleted_at`), so they propagate
+  to other devices. Retries do not block the UI, and a re-push is idempotent.
+- **Local Supabase** (Docker required; the CLI is run through `npx`, it is not a dependency):
 
-### 3. Set environment variables in Render dashboard
-| Variable | Value |
-|----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
-| `NEXT_PUBLIC_APP_URL` | `https://your-app.onrender.com` |
+  ```bash
+  npx -y supabase@2.118.0 start      # this project's own project_id, ports 5442x
+  npx -y supabase@2.118.0 status     # prints the local URL and anon key for .env.local
+  npx -y supabase@2.118.0 db reset   # re-applies supabase/migrations
+  npx -y supabase@2.118.0 stop
+  ```
 
-### 4. Deploy
-Click "Create Web Service". First deploy takes ~5 minutes.
+  Details (ports, SQL tests, RLS checks) are in `supabase/README.md`.
+- Only local Supabase is used in development and CI. No cloud project is required or configured by this repo.
 
-## Supabase Setup
+## Data and privacy
 
-### Auth
-- Go to Supabase → Authentication → Email → Enable "Magic Links"
-- Add redirect URL: `https://your-app.onrender.com/auth/callback`
+- Training history, bodyweight and settings are stored in the browser's IndexedDB on the device.
+- **Family profiles are NOT a security boundary: anyone with the device can see every family profile's data; only the Supabase account (when sync is on) is protected by RLS.**
+- With sync on, rows are scoped to the signed-in Supabase account by row-level security (`using` + `with check` on every table, v2 in progress).
+- The Supabase anon key is public by design. API routes log status and a request id, never payloads.
+- Imports are validated and size-capped; CSV export escapes spreadsheet formulas (v2, in progress).
 
-### Database
-Run `supabase/migrations/001_initial_schema.sql` in SQL Editor. This creates:
-- `profiles`, `family_members`, `equipment_profiles`
-- `workout_logs`, `pr_records`, `programs`
-- `bodyweight_entries`, `exercise_notes`
-- `sync_metadata`
-- Row Level Security on all tables
-
-## Running Tests
+## Testing
 
 ```bash
-# Unit tests (no server needed)
-npm test
-
-# E2E tests (starts dev server automatically)
-npm run test:e2e
-
-# With UI
-npm run test:e2e:ui
+npm test                                            # unit
+npm run test:coverage                               # unit + coverage (target ≥70 % lines on src/lib, src/stores)
+PORT=3100 npx playwright test --project=chromium    # e2e; always pass PORT
+npm run test:sync                                   # v2 (in progress): needs `supabase start` + NEXT_PUBLIC_SYNC_ENABLED=true
 ```
 
-## Project Structure
+Rules for the suites: no skipped or `.only` tests, no conditional-visibility guards in e2e, and at least three expects per e2e test.
+
+## CI
+
+`.github/workflows/ci.yml`. Today it runs lint, type check, unit coverage, build and e2e on pushes and PRs to `main`.
+v2 (in progress) adds: `playwright install --with-deps`, e2e on chromium plus one mobile project, the bundle budget check,
+a mandatory `sync-e2e` job on disposable local Supabase, gitleaks, and `npm audit --audit-level=high`.
+
+## Deploy
+
+**Nothing is deployed.** The old Render service is gone. The target (Render via `render.yaml`, or the rig/VPS) is decided later.
+
+Release protocol:
+1. Semver tag on the merged commit (`git tag vX.Y.Z && git push origin vX.Y.Z`).
+2. `gh release create vX.Y.Z` with user-visible changes, the rollback tag and the AI-first disclosure.
+3. Deploy **from the tag**, never from a branch head. `CHANGELOG.md` `[Unreleased]` is rolled into the tag.
+
+`render.yaml` builds with `npm run build`, serves `.next/standalone/server.js`, and health-checks `/api/health`.
+
+## Rollback
+
+- **Deploy:** redeploy the previous release tag.
+- **Code:** `git checkout <previous-tag>`. Before v2 merges, `main` is untouched, so `git checkout main` is the rollback.
+- **Data:** Dexie schema migrations are additive, and a JSON export of the local database is taken automatically before a migration runs (v2, in progress). Restore it from Settings → Backup.
+
+## Legacy import (tytax-autonomous)
+
+v2 (in progress): Settings imports a JSON backup from the original single-file app `bureksirovic-web/tytax-autonomous`
+(its localStorage keys such as `tytax_logs`, `tytax_training_plan`, `tytax_session_order`, `tytax_bodyweight_log`,
+`tytax_custom_protocols`, `tytax_users_list`, including per-user `_<user>` suffixes). It maps old exercise names onto
+the new catalog, runs as one transaction (a failed import changes nothing), is idempotent on re-run, and never writes to
+the old app's storage.
+
+## Project layout
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── (app)/             # Authenticated app shell
-│   │   ├── dashboard/     # Home/command center
-│   │   ├── workout/       # Active workout logger
-│   │   ├── exercises/     # Exercise library (1,577 exercises)
-│   │   ├── programs/      # Program manager & builder
-│   │   ├── analytics/     # ACWR, volume trends, Kinetic Impact
-│   │   ├── history/       # Past workouts
-│   │   └── settings/      # Preferences, sync, export
-│   └── auth/              # Magic link auth flow
-├── components/
-│   ├── ui/                # Design system (18 primitives)
-│   ├── layout/            # Header, sidebar, bottom nav
-│   ├── workout/           # Workout-specific components
-│   └── sync/              # Sync status indicator
-├── data/
-│   ├── tytax/             # 1,420 TYTAX T1 exercises (JSON)
-│   ├── bodyweight/        # 82 exercises, 10 progression chains
-│   └── kettlebell/        # 75 exercises, 12 categories
-├── hooks/                 # Custom React hooks
-├── lib/
-│   ├── analytics/         # ACWR, volume, PR tracker, gap analysis
-│   ├── auth/              # Supabase auth helpers
-│   ├── db/                # Dexie.js schema (IndexedDB)
-│   ├── export/            # CSV export
-│   ├── i18n/              # EN/HR translations
-│   ├── programs/          # Program utils & presets
-│   ├── supabase/          # Client & server Supabase clients
-│   ├── sync/              # Outbox sync engine
-│   └── workout/           # e1RM, Ghost Mode, warmup calculator
-├── stores/                # Zustand stores (workout, UI)
-└── types/                 # TypeScript interfaces
+  app/          Next.js routes: (app)/ screens, auth/, api/ (health, profile, sync, workout)
+  components/   UI primitives, layout, workout, sync
+  contracts/    v2 (in progress): frozen domain / repo / training / catalog / sync interfaces
+  data/         exercise data: tytax, bodyweight, kettlebell
+  hooks/        React hooks
+  lib/          db (Dexie), sync, auth, supabase, analytics, i18n, export, ...
+  stores/       zustand stores
+  types/        TypeScript types
+supabase/       migrations (and, in v2, config + SQL tests)
+e2e/            Playwright specs
+docs/v2/        v2 plan, goals and reports
 ```
-
-## Built With
-
-This app was built by a swarm of 10 AI coding agents running in parallel waves,
-generating ~9,000 lines of TypeScript in approximately 4 hours wall-clock time.
