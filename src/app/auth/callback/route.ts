@@ -18,17 +18,24 @@ function sanitizeProviderCode(params: URLSearchParams): string {
   return PROVIDER_CODE_RE.test(raw) ? raw : 'auth_failed';
 }
 
-/** Logs status + request id + our own outcome label; never the code, token or query. */
-function redirect(request: NextRequest, requestId: string, path: string, outcome: Outcome) {
-  const response = NextResponse.redirect(new URL(path, request.url));
+/**
+ * A relative Location: the browser resolves it against the URL it requested, so
+ * the redirect always stays on the public origin. `request.url` is the
+ * server's own view (dev reports `localhost` for 127.0.0.1; behind a hosting
+ * proxy it can be the internal host), which would drop the session cookie.
+ * `path` is always ours or safeNextPath() output: one leading '/', never '//'.
+ * Logs status + request id + our own outcome label; never the code, token or query.
+ */
+function redirect(requestId: string, path: string, outcome: Outcome) {
+  const response = new NextResponse(null, { status: 307, headers: { Location: path } });
   const line = JSON.stringify({ route: '/auth/callback', status: response.status, outcome, requestId });
   if (outcome === 'ok') console.info(line);
   else console.warn(line);
   return response;
 }
 
-function loginWithError(request: NextRequest, requestId: string, code: string, outcome: Outcome) {
-  return redirect(request, requestId, `/auth/login?error=${code}`, outcome);
+function loginWithError(requestId: string, code: string, outcome: Outcome) {
+  return redirect(requestId, `/auth/login?error=${code}`, outcome);
 }
 
 export async function GET(request: NextRequest) {
@@ -36,30 +43,30 @@ export async function GET(request: NextRequest) {
   const params = new URL(request.url).searchParams;
 
   if (params.has('error') || params.has('error_code')) {
-    return loginWithError(request, requestId, sanitizeProviderCode(params), 'provider_error');
+    return loginWithError(requestId, sanitizeProviderCode(params), 'provider_error');
   }
 
   if (!getSupabaseEnv()) {
-    return loginWithError(request, requestId, 'auth_not_configured', 'auth_not_configured');
+    return loginWithError(requestId, 'auth_not_configured', 'auth_not_configured');
   }
 
   const code = params.get('code');
   if (!code) {
-    return loginWithError(request, requestId, 'missing_code', 'missing_code');
+    return loginWithError(requestId, 'missing_code', 'missing_code');
   }
 
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return loginWithError(request, requestId, 'auth_exchange_failed', 'auth_exchange_failed');
+      return loginWithError(requestId, 'auth_exchange_failed', 'auth_exchange_failed');
     }
   } catch (err) {
     if (err instanceof AuthNotConfiguredError) {
-      return loginWithError(request, requestId, 'auth_not_configured', 'auth_not_configured');
+      return loginWithError(requestId, 'auth_not_configured', 'auth_not_configured');
     }
-    return loginWithError(request, requestId, 'auth_exchange_failed', 'auth_exchange_failed');
+    return loginWithError(requestId, 'auth_exchange_failed', 'auth_exchange_failed');
   }
 
-  return redirect(request, requestId, safeNextPath(params.get('next')), 'ok');
+  return redirect(requestId, safeNextPath(params.get('next')), 'ok');
 }

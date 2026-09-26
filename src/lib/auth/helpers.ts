@@ -1,11 +1,20 @@
-import { createClient } from '@/lib/supabase/client';
-import { AuthNotConfiguredError, getSupabaseEnv } from '@/lib/supabase/env';
+import type { Session } from '@supabase/supabase-js';
+import { AuthNotConfiguredError, getSupabaseEnv, isSyncEnabled } from '@/lib/supabase/env';
 import { safeNextPath } from './redirect';
 
 export type MagicLinkErrorCode = 'auth_not_configured' | 'invalid_email' | 'send_failed';
 
 export interface MagicLinkResult {
   error: { code: MagicLinkErrorCode; message: string } | null;
+}
+
+/**
+ * The browser Supabase client, loaded on first use: pages that import these
+ * helpers (Settings, login) do not pull supabase-js into their bundle, and
+ * with sync off nothing loads at all.
+ */
+async function browserClient() {
+  return (await import('@/lib/supabase/client')).createClient();
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,7 +55,7 @@ export async function signInWithMagicLink(email: string, next?: string | null): 
   const emailRedirectTo = `${appOrigin}/auth/callback?next=${encodeURIComponent(safeNextPath(next))}`;
 
   try {
-    const supabase = createClient();
+    const supabase = await browserClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: { emailRedirectTo },
@@ -59,19 +68,23 @@ export async function signInWithMagicLink(email: string, next?: string | null): 
   }
 }
 
-/** Signs out; a no-op when auth is not configured. */
+/** Signs out; a no-op when sync is off (NEXT_PUBLIC_SYNC_ENABLED) or auth is not configured. */
 export async function signOut(): Promise<void> {
-  if (!getSupabaseEnv()) return;
-  const supabase = createClient();
+  if (!isSyncEnabled()) return;
+  const supabase = await browserClient();
   await supabase.auth.signOut();
 }
 
-/** Current session; `{ session: null }` without error when auth is not configured. */
-export async function getSession() {
-  if (!getSupabaseEnv()) {
+/**
+ * Current session; `{ session: null }` without error and without any network
+ * call when sync is off or auth is not configured (a stale session cookie is
+ * then never refreshed against the auth server).
+ */
+export async function getSession(): Promise<{ data: { session: Session | null }; error: Error | null }> {
+  if (!isSyncEnabled()) {
     return { data: { session: null }, error: null };
   }
-  const supabase = createClient();
+  const supabase = await browserClient();
   const {
     data: { session },
     error,

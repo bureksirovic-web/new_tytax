@@ -1,8 +1,8 @@
 /**
  * Post-login redirect target validation (PLAN §7 threat sketch: open redirect
  * via `next=`). Only same-origin relative paths whose first segment is an
- * explicitly allowed app section are accepted; everything else falls back to
- * DEFAULT_NEXT_PATH.
+ * explicitly allowed app section, or one of ALLOWED_NEXT_EXACT, are accepted;
+ * everything else falls back to DEFAULT_NEXT_PATH.
  */
 
 export const DEFAULT_NEXT_PATH = '/dashboard';
@@ -21,6 +21,15 @@ export const ALLOWED_NEXT_SEGMENTS = [
 export type AllowedNextSegment = (typeof ALLOWED_NEXT_SEGMENTS)[number];
 
 const ALLOWED = new Set<string>(ALLOWED_NEXT_SEGMENTS);
+
+/**
+ * Exact paths outside the section allow-list (G5's account page). Only these
+ * paths themselves (with an optional trailing slash, query or hash), never
+ * anything below them, so the rest of /auth (login, callback) stays excluded.
+ */
+export const ALLOWED_NEXT_EXACT = ['/auth/account'] as const;
+
+const EXACT = new Set<string>(ALLOWED_NEXT_EXACT);
 
 /** Longest `next` we accept; anything longer is not a path we generate. */
 const MAX_NEXT_LENGTH = 2048;
@@ -42,6 +51,8 @@ function isSafeRelativePath(value: string): boolean {
   const pathEnd = value.search(/[?#]/);
   const path = pathEnd === -1 ? value : value.slice(0, pathEnd);
   const segments = path.split('/').slice(1); // drop the empty segment before the leading '/'
+
+  if (EXACT.has(path) || EXACT.has(path.replace(/\/$/, ''))) return true;
 
   const [first, ...rest] = segments;
   if (!first || !ALLOWED.has(first)) return false;

@@ -16,6 +16,7 @@ vi.mock('@/lib/supabase/client', () => ({
 import { getSession, signInWithMagicLink, signOut } from '../helpers';
 
 function configure() {
+  vi.stubEnv('NEXT_PUBLIC_SYNC_ENABLED', 'true');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://127.0.0.1:54421');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-key');
   vi.stubEnv('NEXT_PUBLIC_APP_URL', ' https://tytax.test/ ');
@@ -142,6 +143,18 @@ describe('signOut / getSession when not configured', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');
     await expect(getSession()).resolves.toEqual({ data: { session: null }, error: null });
     expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it('with the Supabase env set but NEXT_PUBLIC_SYNC_ENABLED off, never loads or calls the client', async () => {
+    configure();
+    for (const off of ['', 'false', 'TRUE']) {
+      vi.stubEnv('NEXT_PUBLIC_SYNC_ENABLED', off);
+      await expect(getSession()).resolves.toEqual({ data: { session: null }, error: null });
+      await expect(signOut()).resolves.toBeUndefined();
+    }
+    expect(createClient).not.toHaveBeenCalled();
+    expect(authGetSession).not.toHaveBeenCalled();
+    expect(authSignOut).not.toHaveBeenCalled();
   });
 
   it('signOut calls Supabase when configured', async () => {

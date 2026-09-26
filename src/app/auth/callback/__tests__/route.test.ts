@@ -47,14 +47,14 @@ describe('GET /auth/callback', () => {
       req('?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+%3Cscript%3E')
     );
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=otp_expired`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=otp_expired`);
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
   it('provider error with an unsafe code → auth_failed', async () => {
     const res = await GET(req('?error=https%3A%2F%2Fevil.com&code=' + SECRET_CODE));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=auth_failed`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=auth_failed`);
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
@@ -62,14 +62,14 @@ describe('GET /auth/callback', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '   ');
     const res = await GET(req(`?code=${SECRET_CODE}`));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=auth_not_configured`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=auth_not_configured`);
     expect(createClient).not.toHaveBeenCalled();
   });
 
   it('missing code → missing_code', async () => {
     const res = await GET(req('?next=/workout'));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=missing_code`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=missing_code`);
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
@@ -77,7 +77,7 @@ describe('GET /auth/callback', () => {
     exchangeCodeForSession.mockResolvedValue({ data: {}, error: { message: 'invalid grant', status: 400 } });
     const res = await GET(req(`?code=${SECRET_CODE}&next=/workout`));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=auth_exchange_failed`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=auth_exchange_failed`);
     expect(exchangeCodeForSession).toHaveBeenCalledWith(SECRET_CODE);
   });
 
@@ -85,7 +85,7 @@ describe('GET /auth/callback', () => {
     exchangeCodeForSession.mockRejectedValue(new Error('network down'));
     const res = await GET(req(`?code=${SECRET_CODE}`));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=auth_exchange_failed`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=auth_exchange_failed`);
     expect(exchangeCodeForSession).toHaveBeenCalledTimes(1);
   });
 
@@ -93,18 +93,18 @@ describe('GET /auth/callback', () => {
     createClient.mockRejectedValueOnce(new AuthNotConfiguredError());
     const res = await GET(req('?code=' + SECRET_CODE));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/auth/login?error=auth_not_configured`);
+    expect(res.headers.get('location')).toBe(`/auth/login?error=auth_not_configured`);
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(loggedText()).toContain('"outcome":"auth_not_configured"');
     expect(loggedText()).not.toContain(SECRET_CODE);
   });
 
-  it('success with allowed next → that path on the request origin, query preserved', async () => {
+  it('success with allowed next → that path (relative), query preserved', async () => {
     exchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
     const next = encodeURIComponent('/settings?tab=sync');
     const res = await GET(req(`?code=${SECRET_CODE}&next=${next}`));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/settings?tab=sync`);
+    expect(res.headers.get('location')).toBe(`/settings?tab=sync`);
     expect(exchangeCodeForSession).toHaveBeenCalledWith(SECRET_CODE);
   });
 
@@ -112,7 +112,7 @@ describe('GET /auth/callback', () => {
     exchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
     const res = await GET(req(`?code=${SECRET_CODE}`));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/dashboard`);
+    expect(res.headers.get('location')).toBe(`/dashboard`);
   });
 
   it.each([
@@ -125,7 +125,17 @@ describe('GET /auth/callback', () => {
     exchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
     const res = await GET(req(`?code=${SECRET_CODE}&next=${encodeURIComponent(evil)}`));
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe(`${ORIGIN}/dashboard`);
+    expect(res.headers.get('location')).toBe(`/dashboard`);
+  });
+
+  it('Location is relative even when the server sees an internal host', async () => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
+    const res = await GET(new NextRequest(`http://localhost:10000/auth/callback?code=${SECRET_CODE}&next=/history`));
+    const location = res.headers.get('location') ?? '';
+    expect(location).toBe('/history');
+    expect(location).not.toContain('localhost');
+    // A browser resolves it against the public URL it requested.
+    expect(new URL(location, 'https://tytax.example').href).toBe('https://tytax.example/history');
   });
 
   it('logs status + request id, never the code', async () => {

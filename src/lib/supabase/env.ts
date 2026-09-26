@@ -25,6 +25,15 @@ export function getSupabaseEnv(): SupabaseEnv | null {
   return { url, anonKey };
 }
 
+/**
+ * Sync (and with it every browser-side Supabase call) is on only when
+ * NEXT_PUBLIC_SYNC_ENABLED is exactly 'true' and the Supabase env is set.
+ * Keep the reference literal: Next.js inlines only literal `process.env.NEXT_PUBLIC_*`.
+ */
+export function isSyncEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_SYNC_ENABLED === 'true' && getSupabaseEnv() !== null;
+}
+
 /** Like getSupabaseEnv, but throws AuthNotConfiguredError instead of returning null. */
 export function requireSupabaseEnv(): SupabaseEnv {
   const env = getSupabaseEnv();

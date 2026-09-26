@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { getRepository } from '@/lib/db';
+import { installSyncAdapter } from '@/lib/sync/install';
 
 /** First-run profile name. User data (renamed in settings), not a UI string. */
 const DEFAULT_PROFILE_NAME = 'Profil 1';
@@ -10,6 +11,9 @@ const DEFAULT_PROFILE_NAME = 'Profil 1';
 let booting: Promise<void> | null = null;
 
 async function bootstrap(): Promise<void> {
+  // Idempotent; the providers module already did it. Here it guarantees the
+  // ordering even when AppBootstrap is mounted on its own (tests).
+  if (process.env.NEXT_PUBLIC_SYNC_ENABLED === 'true') installSyncAdapter();
   const repo = getRepository();
   await repo.profiles.ensureActive(DEFAULT_PROFILE_NAME);
   // Inlined at build time: a production build without NEXT_PUBLIC_E2E_HOOKS=1

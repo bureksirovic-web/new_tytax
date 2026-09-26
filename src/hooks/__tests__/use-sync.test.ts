@@ -1,134 +1,103 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useSync } from '../use-sync';
-import * as syncEngineModule from '@/lib/sync/engine';
-import type { SyncResult } from '@/lib/sync/engine';
-import * as dexieReactHooksModule from 'dexie-react-hooks';
+import { noopSyncAdapter, type SyncAdapter, type SyncState } from '@/contracts/sync';
+import * as sync from '@/lib/sync';
+import { resetAccountStoreForTests, resetSyncAdapterForTests } from '@/lib/sync';
+import { useAccount, useSync, useSyncState } from '../use-sync';
 
-vi.mock('@/lib/db/dexie', () => {
-  const mockDb = {
-    syncQueue: {
-      count: vi.fn().mockResolvedValue(3),
-    },
-    meta: {
-      get: vi.fn().mockResolvedValue({ key: 'lastSyncedAt:test-device', value: '2026-03-01T10:00:00.000Z' }),
-    },
-  };
-  return { getDb: () => mockDb };
+vi.mock('@supabase/ssr', () => {
+  throw new Error('flag off must never import @supabase/ssr');
 });
 
-vi.mock('@/lib/sync/engine', () => ({
-  syncEngine: {
-    sync: vi.fn(),
-  },
-}));
+/** A minimal enabled adapter whose state the test drives. */
+function drivenAdapter(initial: SyncState) {
+  let state = initial;
+  const listeners = new Set<(s: SyncState) => void>();
+  const adapter: SyncAdapter = {
+    enabled: true,
+    notifyChanged: () => {},
+    syncNow: vi.fn(async () => ({ pushed: 1, pulled: 2, failed: 0, state })),
+    getState: () => state,
+    subscribe: (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+  };
+  const set = (next: SyncState) => {
+    state = next;
+    listeners.forEach((l) => l(state));
+  };
+  return { adapter, set };
+}
 
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: vi.fn().mockReturnValue({
-    from: vi.fn().mockReturnValue({
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }),
-  }),
-}));
+describe('use-sync', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('dexie-react-hooks', () => ({
-  useLiveQuery: vi.fn(),
-}));
-
-describe('useSync', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('test-device');
-    vi.mocked(dexieReactHooksModule.useLiveQuery).mockImplementation(
-      () => 3
-    );
+    vi.stubEnv('NEXT_PUBLIC_SYNC_ENABLED', '');
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    resetSyncAdapterForTests();
+    resetAccountStoreForTests();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    resetSyncAdapterForTests();
+    resetAccountStoreForTests();
   });
 
-  it('returns sync status from engine', async () => {
+  it('flag off: disabled state and account, syncNow resolves disabled, zero network', async () => {
     const { result } = renderHook(() => useSync());
-
+    expect(result.current.enabled).toBe(false);
+    expect(result.current.state).toEqual({ status: 'disabled', lastSyncedAt: null, pending: 0 });
+    expect(result.current.account).toEqual({ status: 'disabled', email: null });
     expect(result.current.isSyncing).toBe(false);
-    expect(result.current.pendingCount).toBe(3);
+    expect(result.current.pendingCount).toBe(0);
+    expect(result.current.lastSync).toBeNull();
+
+    let out: Awaited<ReturnType<typeof result.current.syncNow>> | undefined;
+    await act(async () => {
+      out = await result.current.syncNow();
+      await result.current.signOut();
+    });
+    expect(out?.state.status).toBe('disabled');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('triggerSync calls syncEngine.sync', async () => {
-    vi.mocked(syncEngineModule.syncEngine.sync).mockResolvedValue({
-      status: 'ok',
-      synced: 2,
-      failed: 0,
-      pending: 1,
-      conflictsResolved: 0,
-    });
+  it('useSyncState follows the installed adapter; syncNow goes through it', async () => {
+    const { adapter, set } = drivenAdapter({ status: 'idle', lastSyncedAt: null, pending: 2 });
+    vi.spyOn(sync, 'getInstalledSyncAdapter').mockReturnValue(adapter);
 
-    const { result } = renderHook(() => useSync());
+    const { result } = renderHook(() => ({ state: useSyncState(), all: useSync() }));
+    expect(result.current.state.pending).toBe(2);
+    expect(result.current.all.enabled).toBe(true);
+
+    act(() => set({ status: 'syncing', lastSyncedAt: null, pending: 2 }));
+    expect(result.current.state.status).toBe('syncing');
+    expect(result.current.all.isSyncing).toBe(true);
+
+    act(() => set({ status: 'idle', lastSyncedAt: '2026-09-26T10:00:00.000Z', pending: 0 }));
+    expect(result.current.all.lastSync).toBe('2026-09-26T10:00:00.000Z');
+    expect(result.current.all.pendingCount).toBe(0);
 
     await act(async () => {
-      await result.current.sync();
+      await result.current.all.sync();
     });
-
-    expect(syncEngineModule.syncEngine.sync).toHaveBeenCalled();
+    expect(adapter.syncNow).toHaveBeenCalledTimes(1);
   });
 
-  it('handles sync errors', async () => {
-    vi.mocked(syncEngineModule.syncEngine.sync).mockRejectedValue(new Error('Network error'));
-
-    const { result } = renderHook(() => useSync());
-
-    await act(async () => {
-      try {
-        await result.current.sync();
-      } catch {
-        // Expected error
-      }
+  it('useAccount reads the account store', () => {
+    const signedIn = { status: 'signed_in', email: 'ana@example.com' } as const;
+    vi.spyOn(sync, 'getAccountStore').mockReturnValue({
+      getState: () => signedIn,
+      subscribe: () => () => {},
+      signOut: async () => {},
     });
-
-    expect(result.current.isSyncing).toBe(false);
-  });
-
-  it('sets isSyncing to true during sync', async () => {
-    let resolveSync: () => void;
-    const syncPromise = new Promise<void>((resolve) => {
-      resolveSync = resolve;
-    });
-    vi.mocked(syncEngineModule.syncEngine.sync).mockReturnValue(syncPromise as unknown as Promise<SyncResult>);
-
-    const { result } = renderHook(() => useSync());
-
-    act(() => {
-      result.current.sync();
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(result.current.isSyncing).toBe(true);
-
-    resolveSync!();
-    await syncPromise;
-  });
-
-  it('returns lastResult after successful sync', async () => {
-    const expectedResult = {
-      status: 'ok' as const,
-      synced: 5,
-      failed: 0,
-      pending: 0,
-      conflictsResolved: 0,
-    };
-    vi.mocked(syncEngineModule.syncEngine.sync).mockResolvedValue(expectedResult);
-
-    const { result } = renderHook(() => useSync());
-
-    await act(async () => {
-      await result.current.sync();
-    });
-
-    expect(result.current.lastResult).toEqual(expectedResult);
-  });
-
-  it('handles null lastSyncMeta when no deviceId', async () => {
-    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
-
-    const { result } = renderHook(() => useSync());
-
-    expect(result.current.lastSync).toBe(null);
+    const { result } = renderHook(() => useAccount());
+    expect(result.current).toEqual({ status: 'signed_in', email: 'ana@example.com' });
+    expect(sync.getInstalledSyncAdapter()).toBe(noopSyncAdapter);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

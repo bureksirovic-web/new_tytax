@@ -41,6 +41,13 @@ const cases: Array<[string, string | null | undefined, string]> = [
   ['case mismatch', '/Dashboard', D],
   ['not in allow-list', '/admin', D],
   ['auth route not allowed', '/auth/login', D],
+  ['account page (exact) allowed', '/auth/account', '/auth/account'],
+  ['account page trailing slash + query', '/auth/account/?x=1', '/auth/account/?x=1'],
+  ['below the account page not allowed', '/auth/account/x', D],
+  ['account prefix not allowed', '/auth/accountx', D],
+  ['callback not allowed', '/auth/callback?next=/auth/account', D],
+  ['encoded account path not special', '/auth/%61ccount', D],
+  ['traversal from account', '/auth/account/../login', D],
   ['api route not allowed', '/api/sync', D],
   // whitespace and control characters
   ['leading space', ' /dashboard', D],
