@@ -177,3 +177,122 @@ Contract and library follow-ups:
 - Wall clock: estimate 6–8 h; actual about 2 h 05 m (22:10 to 00:15), including 45 min waiting for Wave 0, which was spent on the i18n, PWA, shell sweep and specs.
 - Agents: 5 workflow runs, 31 subagents (≤7 concurrent). No DSH/Qwen lane was used; all fan-out ran as ultracode subagents.
 - Commits on `v2-g4` since the plan commit: 34 (including the Wave 0 merge and this report).
+
+---
+
+# Wave 2 (2026-09-27 00:20–01:40)
+
+Merged, as instructed in `signals/WAVE2.md` and by the coordinator: `v2-w2-contracts` (twice: `1505da7`, then `7c8e087`) and `v2-g1` (G1's finished Wave 2). G4's own Wave 2 work is 14 non-merge commits.
+
+## Gate (worktree `g4`, 01:30)
+Command: `npm run lint && npx tsc --noEmit && npm test && npm run build && node scripts/check-bundle.mjs`
+```
+✖ 7 problems (0 errors, 7 warnings)      # all 7: i18next/no-literal-string in G5's src/app/auth/login/page.tsx
+LINT_RC=0
+TSC_RC=0
+ Test Files  138 passed (138)
+      Tests  968 passed (968)
+✓ Compiled successfully
+BUILD_RC=0
+route /analytics: 249.8 kB gzip, catalog leak: no
+route /dashboard: 245.8 kB gzip, catalog leak: no  budget 250 kB: ok
+route /exercises: 241.7 kB gzip, catalog leak: no
+route /history: 237.2 kB gzip, catalog leak: no
+route /programs: 240.3 kB gzip, catalog leak: no
+route /settings: 245.9 kB gzip, catalog leak: no
+check-bundle: OK
+```
+After the merged-tree fixes (commit "G4 tests and adapters correct against latest G2/G3/G5"), `npx vitest run` gave `Test Files 139 passed (139); Tests 973 passed (973)`, and tsc was clean. After the final i18n fold, `npx vitest run src/lib/i18n` gave 25/25.
+
+Owned e2e, `PORT=3104 npx playwright test e2e/{nav,a11y,profiles-ui,slice}.spec.ts --project=chromium`:
+```
+  5 failed
+  19 passed (25.0s)
+```
+All 5 failures are on G3 routes, as in Wave 1: `/tools/*` is missing (2 route tests plus the dead-link test), and `/workout` has no `page-heading-workout` (G4-02), which fails nav and a11y. The new test "secondary G4 screens have no serious axe violations" passes. It covers /programs, /analytics, /analytics/[id], /exercises/[id], /history/[id] and /history/[id]/edit.
+
+Offline, on a production build: `3 passed (5.4s)`.
+
+Merged tree (v2-g4 + v2-g2 + v2-g3 + v2-g5 at 01:50):
+- **Unit tests:** `Test Files 3 failed | 295 passed (298); Tests 5 failed | 2338 passed (2343)`. None of the 5 failures is in G4 files; see "Unfixed findings".
+- **e2e:** `3 failed | 21 passed`.
+  - 2 are `/workout` page-heading (G4-02, still not applied on G3's side).
+  - 1 is `slice.spec.ts` quick workout. It timed out on a URL wait under full load and **passed on a solo re-run** (`PORT=3104 … -g "quick workout"`), so it is a load flake, not a defect.
+
+## Items
+| Item | Status | Evidence |
+|---|---|---|
+| 1 (S2) Fold pending i18n (G1/G3/G5 md tables and G3's live `strings/*.ts` tables) | done | 282 request keys in `modules/{requests,g3Tools,g3Picker,g3Workout,g3Session,g5Auth}.ts`, with hr/en parity. A drift test (`requests.test.ts`) compares G3/G5 tables with the dictionary once merged. It passes in the merged tree (25/25) and was proven non-vacuous by editing 2 values. Switch list for G5: `G4-W2-01`. Lint: the merged tree has 0 `no-literal-string`. The "52 warnings" were stale Wave 0 copies of G4 files in the other branches. |
+| 2 (S2) G2-02 settings wiring + restore confirmation | done | `backup-service.ts` adapter: local path plus `fromG2Service` (passes `confirmOverwrite` only after the user acknowledges). `restore-dialog.tsx` lists each profile as new or existing, and an acknowledgement checkbox is required when a profile already exists. Error codes map to i18n; the raw-message finding is fixed. CSV passes `{units}`, and the units hint is probed from the real CSV header. The pre-migration export offer is included. Integration switch: `G4-W2-06`. |
+| 3 G3-03 test ids | done | `dashboard-next-session`; `install-preset` with `data-preset-id`. |
+| 4 G3-04 foreign draft | done | Dashboard card: owner name, switch to owner, confirmed discard. Settings: the draft stays with its owner on switch; deleting the owner discards the draft and says so in the confirmation. |
+| 5 F8 catalog lookup | done | `use-analytics-data.ts` passes the lookup. A test shows program logs without snapshots now count muscle volume. |
+| 6 F4 `/settings` < 250 kB | done | 275.3 kB (G1 measurement) down to 245.9 kB, using lazy panels. `/analytics` 250.4 down to 248.2 kB (249.8 after hardening). `/auth/login` is 292.1 kB and belongs to G5: `G4-W2-05`. |
+| 7a Machine setup editor | done | `/exercises/[id]`: seat/pin/backrest/bench/cable/other. The adapter uses G2's `notes.setSetup` (present in the merged tree). On v2-g4 it is read-only with an explanation. Clearing a note asks for confirmation when a setup exists (`G4-W2-55`; G2 implemented keep-setup). |
+| 7b History "Repeat workout" | done | Uses G3's `startFromLog(profileId, log)` (present in the merged tree). Hidden without it. Asks before replacing your own draft, never replaces a foreign draft, and re-checks for a draft that appeared since render (a mutation test proves the guard). |
+| 7c Pinned exercises on dashboard and analytics | done | `ProfileSettings.pinnedExerciseIds` via `updateSettings`. localStorage is a fallback only for an older repo, with a one-time migration. A missing exercise shows its stored name or "removed exercise", never the raw id. |
+| 7d Station filter chip row | done | Built from `catalog.stations` (7 stations incl. FRAME/FREE_WEIGHT from G1), with G1's `station_*` keys, counts and URL state. |
+| 8 A11y re-check | done | e2e axe on 6 more screens: 0 serious. A damaged-entry axe unit test was added. |
+| G1 follow-ups (coordinator) | done | Deleted `components/programs/lib/{load,slot-equipment}` and calendar copies in favour of `@/lib/programs/*` (thin G4-only `slot-filter` wrapper kept for gear/kettlebell ownership). `video-links.ts` now maps G1's `buildVideoLinks`. `rankableE1rm`/`E1RM_MAX_REPS`/`isTimeSet` are imported directly. Kinetic-impact explanation text is not shown anywhere in G4. |
+| Time-measured sets | done | History detail and editor show and edit durations (mm:ss). Exercise detail and analytics exclude time sets from e1RM and kg volume. |
+
+## Hardening: 2 local refuters (DSH/Qwen, `dsh --profile headless`, engine queue 0 at launch)
+Reports: `docs/v2/goals/G4-W2-refuter1.md` (settings/history/dashboard) and `G4-W2-refuter2.md` (exercises/programs/analytics/i18n/sw/layout). Each finding was then reproduced with a failing vitest before its fix.
+
+| Finding | Sev | Result |
+|---|---|---|
+| Restore accepts log rows without exercises/date/totals, after which /history crashes forever | S2 | reproduced and fixed: row validation (`backup-validate.ts`); stored bad rows render as a deletable "damaged entry" |
+| Count and list disagree for bad rows ("Load more" dead end, `NaN kg`) | S3 | reproduced and fixed |
+| A restored partial `settings` object makes every setting unsaveable | S2 | reproduced and fixed: defaults filled on restore; `settingsRepairs` on save; VALIDATION message |
+| A second delete kills the first delete's undo | S3 | reproduced and fixed: undo stack, "{n} workouts deleted" |
+| History page metadata hard-coded in English | S3 | reproduced and fixed |
+| CSV units hint inferred from an export name | suspect | not reproduced at HEAD; hardened anyway (probe the real header) |
+| Per-muscle volume exceeds kg lifted | S1 | **not reproduced** after the G1 merge: Smith drag curl 3×50×10 gives Biceps 1,380 kg (≤ 1,500), because G1's `impactWeights` max-collapse fixed it. Kept as a regression test. |
+| ACWR zone changes with clock time | S2 | reproduced and fixed: day-stable `now` |
+| First-week muscle shows ratio 4 / "danger" | S2 | reproduced and fixed: per-muscle baseline gate |
+| Pinned card shows the raw id | S3 | reproduced and fixed |
+| Bodyweight chart caption says "Best" | S3 | reproduced and fixed |
+| Weekly volume % compares a partial week with a full week | S3 | reproduced and fixed: same elapsed portion of last week |
+| Program editor rejects rep targets the app stores (`30s/side`, `8-12/leg`, …; 22 of 71 distinct values) | S2 | reproduced and fixed: free text of 1–24 characters |
+| Preset slots missing from the catalog are invisible in the slot editor | S2 | reproduced and fixed: an "unknown slots" section. Missing preset ids after the G1 merge: **0 of 112** (the refuter measured 15 before the merge). |
+| The same e1RM shows different lb values on two screens | S3 | reproduced and fixed |
+| Clearing a note wipes the machine setup | S3 | reproduced; G2 fixed it after `G4-W2-55`; G4 shows a confirmation |
+| PR count stale after an edit | S2 | already G4-47; G2 Wave 2 item 1 |
+| LocaleProvider shows English on first paint | S3 | already G4-01/G4-40 (G5) |
+
+## Requests (Wave 2)
+- `G4-W2-01` (G5): switch the G3/G5 local string tables to the dictionary.
+- `G4-W2-05` (G5): `/auth/login` is 292.1 kB.
+- `G4-W2-06` (G5, integration): backup-service switch to G2's service.
+- `G4-W2-07` (G5): the `settings-account` test id in G5's tests.
+- `G4-W2-15` (G3, landed): `startFromLog`.
+- `G4-W2-16` (G2): the repo stores e1RM on time sets.
+- `G4-W2-20` (G2, landed): `notes.setSetup`.
+- `G4-W2-30`: analytics lookup and time sets, no switch needed.
+- `G4-W2-40` (G1/G2): restore row validation in `importBackup`.
+- `G4-W2-45` (G1): day-stable ACWR and a per-muscle baseline in the engine.
+- `G4-W2-55` (G2, landed): clearing a note keeps the setup.
+
+## Unfixed findings (Wave 2)
+- **G3 tests fail once G2 is merged (S3, test-only)**
+  - **What:** `src/stores/__tests__/setup-adapter.test.ts` (3 tests) and `src/hooks/__tests__/use-workout-w2.test.ts` (1 test) fail in the merged tree and pass in v2-g3 alone.
+  - **Evidence:** `AssertionError: expected true to be false` at `setup-adapter.test.ts:43`.
+  - **Why not fixed:** G3's files. The tests assume a repo without `notes.setSetup`, which G2 now provides.
+  - **Proposed fix:** G3 or G5 updates those tests at integration. The coordinator was told at 01:50.
+- **G5 settings test waits for a removed test id (S3, test-only)**
+  - **What / evidence:** `settings-flag-off.test.tsx` waits for `settings-account`.
+  - **Why not fixed:** G5's file.
+  - **Proposed fix:** `G4-W2-07`, a one-line change.
+- **Hydration mismatch (S2)**
+  - **What:** as in Wave 1; still present.
+  - **Proposed fix:** G4-01/G4-40.
+- **`/workout` page-heading test id missing (S3)**
+  - **Proposed fix:** G4-02.
+- **Load flake in `slice.spec.ts` (S3)**
+  - **What:** URL-wait timeout when 5 goals run e2e on one machine.
+  - **Evidence:** passes solo.
+  - **Proposed fix:** none in G4. If it recurs in CI, G5 could raise the navigation timeout.
+
+## Estimate vs actual (Wave 2)
+- Wall clock: 00:20 → about 01:55 (deadline 03:30).
+- Agents: 6 workflow runs, 18 Claude subagents (at most 6 concurrent), plus 2 local DSH/Qwen refuters.
