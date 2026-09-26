@@ -1,0 +1,50 @@
+1. **What breaks first:** test isolation. [playwright.config.ts](/home/tomi/Projects/new_tytax/playwright.config.ts) hardcodes port 3000 and enables `reuseExistingServer` outside CI: sessions can test another worktree’s app and report false greens. Allocate unique ports, verify the served commit, and isolate Supabase instances/reset operations. Next comes ownership deadlock: [CLAUDE.md](/home/tomi/Projects/new_tytax/CLAUDE.md) still assigns A–I ownership and makes Dexie/schema/stores read-only, contradicting G2/G3. Supersede those rules in Wave 0.
+
+2. **Gameable acceptance criteria:**
+   - **AC12:** unset the flag and sync passes without execution. Replace with: “A mandatory sync-enabled CI job runs against disposable local Supabase; zero skipped tests; verifies round-trip persistence and cross-user SELECT/INSERT/UPDATE/DELETE denial.”
+   - **AC11:** status ≠404 accepts 500s and login redirects, and proves nothing about calculators/timers/swaps. Require successful destination rendering plus deterministic interaction assertions for each tool.
+   - **AC8:** replacing “Tytax” with an arbitrary station satisfies the superficial check. Require valid taxonomy IDs, per-exercise mapping provenance, an independently reviewed sample, and explicit unresolved records with a fixed denominator. Define the JS budget’s compression, included resources and cold-load measurement command.
+   - **AC2/16:** CI never explicitly runs coverage. Require `test:coverage` in CI with fixed inclusion/exclusion rules.
+   - Apply “zero unexpected skips; mandatory assertions” to **all** acceptance suites.
+
+3. **Cheaper path:** deliver one local-only vertical slice first: profile → exercise → persistent draft → finish → history → program rotation. Keep existing types/components behind adapters; repair useful analytics instead of simultaneously rewriting every layer. Follow with import and production offline support. Defer cloud sync/auth expansion, exhaustive station remapping and archive housekeeping to separate milestones. Two implementation lanes plus integration reduce coordination cost substantially; broader fan-out is useful after contracts work end-to-end.
+
+4. **Missing ownership, contracts and merge rules:** assign `package.json`/lockfile, `next.config.ts`, `src/types/**`, `src/lib/programs/**`, Supabase clients, providers, app layout, and existing workout/PR/history/analytics/exercise/sync hooks. Those hooks currently bypass repositories or eagerly import catalogs. Make E2E filename ownership exhaustive; clarify G5’s `e2e/**` scope. Name contract approvers; replace the shared request file with one file per request.
+
+   Specify account-versus-family-profile identity, legacy exercise-ID mapping, repository subscriptions/errors, draft hydration, units, and an atomic, idempotent finish operation covering logs/PRs/rotation/sync enqueue. Define sync conflicts, tombstones, retries and cursors. Add migration/import atomicity and repeat-import tests, duplicate-exercise tests, and offline reload using a previously unopened lazy catalog.
+
+   G5-before-G3/G4 enables full E2E CI before its UI exists. Land the harness in Wave 0; use dependency-stacked branches or an integration branch, with full acceptance mandatory before promotion.
+
+5. **STANDING BLOCKER:** launching five sessions before Wave 0 proves a runnable vertical slice, resolves ownership contradictions, and isolates test services. Throwing stubs and successful compilation are insufficient launch gates.
+astra rc=0
+=========
+**1) Breaks first**
+- Playwright `webServer` is pinned to port 3000 with `reuseExistingServer: !CI`. Five worktrees on one box: goal A's e2e silently runs against goal B's dev server. Every overnight e2e result is untrustworthy. Fix: per-worktree `PORT`, `reuseExistingServer: false`.
+- Wave 0 stubs throw `NotImplemented`. G3's AC3–6 and G4's dashboard cannot go green without G1+G2 code. An ultracode goal told "make it green" will reimplement repo/catalog in its own tree or edit forbidden dirs. Expect duplicate persistence layers at merge.
+- Unowned files every goal will edit: `package.json` + lockfile, `src/types/**` (45 importers), `src/hooks/*` (7 files, all touch db or stores), `src/lib/{workout,programs,supabase,constants,utils,validation}`, `src/providers`, `src/components/{providers,sync}`, `src/app/(app)/layout.tsx`, `next.config.ts`, `tsconfig.json`.
+- `v2` equals `main` today and `docs/` is untracked. Wave 0 is not committed, so worktrees start without contracts.
+
+**2) Unverifiable or gameable**
+- AC14 "every UI string in the dictionary" has no detector. Fix: eslint `no-literal-string` on `src/**/*.tsx` at error level plus a hr/en key-parity test. Proving command becomes `npm run lint`.
+- AC8 first-load JS <250 kB: Next 16 build table is not stable to parse. Fix: a script that reads `.next/app-build-manifest.json` and asserts summed bytes for `/dashboard`.
+- AC11 nav crawl is gameable by deleting links. Fix: an explicit route list must appear in nav and return 200.
+- AC3 "no conditional skips": the current vacuous pattern is `if (await x.isVisible())` at `e2e/03-workout-flow.spec.ts:32`, not `test.skip`. Fix: CI grep forbids `isVisible()`/`count()` inside `if`, and each spec needs a minimum expect count.
+- AC2 70 % threshold lives in G5's `vitest.config.ts`. If bumped early, G1 and G2 fail AC1 at merge. Fix: bump in the last merge, enforce per-goal coverage on owned dirs only.
+- AC17 "issues filed" has no count or names.
+
+**3) Cheaper path**
+Serialize the coupling: Wave 0 + G1 + G2 as one Opus or Codex worktree, since contracts and repo are most of the shared surface. Then fan out only G3, G4, G5. Push station mapping and i18n extraction to Qwen before the fan-out, not inside it. Move AC12 round-trip to a follow-up milestone, since D1 already says the app is usable with sync off. Saves two ultracode fan-outs and the morning de-duplication.
+
+**4) Missing**
+- Assign the orphans in point 1: hooks to G3, `src/types` frozen or deleted in favour of `src/contracts/domain.ts` (two sources of truth otherwise), `lib/workout` and `lib/programs` to G1 or deleted, providers and `components/sync` to G5, lockfile changes only via contract request.
+- Repo contract lacks a batch or transaction API, the Dexie v2→v3 migration of existing logs into `SessionExercise[]`, `isActive` stored as 0/1, and a default soft-delete filter.
+- E2E fixtures are owned by G5 but needed by G3 and G4 from minute one. The fixture API belongs in Wave 0.
+- Merge order puts G5's config changes after G1 and G2, which already need them. Move G5's config-only commits into Wave 0.
+- `middleware.ts` → `proxy.ts` rename touches every route. State it happens in Wave 0.
+- No per-goal done signal or PR template. Morning Opus cannot tell which goal gave up.
+
+**5) Standing blocker**
+None.
+fable rc=0
+
+[exited with code 0]
