@@ -80,3 +80,53 @@ Lines        : 98.22% ( 1441/1467 )
 ## Estimate vs actual
 - Wall clock: est 6–8 h (PLAN §8) / actual ≈ 1 h 50 min (22:10 → 23:58, build + review), Wave 0 wait ≈ 45 min used for pre-Wave-0 tools and loop runtime.
 - Paid tokens: 4 Claude workflows (22 subagents, ≈2.4 M subagent tokens) + 1 read-only research agent. Local lane: not used.
+
+---
+
+# Wave 2 (2026-09-27, per signals/WAVE2.md)
+
+Branch `v2-g3` now also contains `v2-w2-contracts` (7c8e087) and `v2-g1` (G1 Wave 2), merged on the coordinator's instruction. Code SHA `1552427`; final SHA in `signals/G3_DONE`.
+
+## Gate (run on the bytes of 1552427)
+Command: `npm run lint && npx tsc --noEmit && npm test && npm run build && npm run check-bundle && PORT=3103 npx playwright test e2e/workout-*.spec.ts e2e/program-rotation.spec.ts e2e/progression.spec.ts e2e/pr.spec.ts e2e/tools.spec.ts e2e/slice.spec.ts --project=chromium --workers=4`
+```
+✖ 53 problems (0 errors, 53 warnings)          # none in G3 paths
+tsc: exit 0
+ Test Files  125 passed (125)
+      Tests  1058 passed (1058)
+ƒ  (Dynamic)  server-rendered on demand
+/workout 218.7 kB, /workout/active 233.1 kB, /workout/debrief 219.2 kB gzip, catalog leak: no — check-bundle: OK
+  31 passed (21.8s)
+```
+Store coverage: `npx vitest run src/stores --coverage --coverage.include='src/stores/**'` → `All files | 97.73 | 94.89 | 98.49 | 99.49` (stmts, branches, funcs, lines).
+Compatibility with G2: scratch merge of `v2-g2` (07139b3) in a throwaway worktree — "Automatic merge went well", `vitest src/stores src/hooks src/components/workout src/components/tools` → 596 passed, `tsc` exit 0; merge aborted, worktree removed.
+
+## Wave 2 items
+| # | Item | Status | Proof |
+|---|---|---|---|
+| 1 | (S2) G1-03 items for G3 (decimal comma, profile-scoped draft, rest-day dead end, others) | done (Wave 1) | Wave 1 table above; `e2e/workout-foreign-draft.spec.ts`, `program-rotation.spec.ts` "a rest session is completed…", `wave0-followup-ui.test.tsx` "stores 62,5 as 62.5 kg" |
+| 2 | Time sets (duration input + hold timer, RIR optional) | done | `workout-wave2.spec.ts` "time set: typed 45 s and a 30 s hold are saved as durations with no kg volume", "a finished 45 s hold comes back as the placeholder only"; measure from catalog (92 tagged, 0 heuristic mismatches) |
+| 3 | Machine setup at workout time + quick-edit sheet | done, read-only on this branch | writer detected as G2's `notes.getSetup`/`notes.setSetup`; on this branch `workout-wave2.spec.ts` "machine setup: … read-only with a notice"; after the G2 merge saving is live (scratch-merge unit tests green) |
+| 4 | Order by station | done | G1's `orderByStation` from `@/lib/workout/order-by-station` (adapter deleted); `workout-wave2.spec.ts` "order by station puts the Smith exercise before the leg curl and survives a reload" |
+| 5 | G4-25 Repeat workout (`startFromLog`) | done (store + hook) | `startFromLog(profileId, log, measureOf?) → WorkoutDraft \| null` (null over an existing draft); drops programId so a repeat never advances rotation (differs from G4-25's proposal on purpose); unit tests `workout-store-w2.test.ts`, `workout-orchestrator-w2.test.ts`. The button is G4's. |
+| 6 | 1RM tool warning above 12 reps | done | `tools.spec.ts` "1RM calculator warns above 12 reps and still shows the estimate" (100×15 → 163.5 + warning; 100×5 → 112.5, none); uses G1 `E1RM_MAX_REPS` |
+| 7 | 360 px set-row clipping | done | measured before: set-kg 48.66 wide, scrollWidth 66 > clientWidth 47 (clipped); after: 63.53 / 62 / 62; all 30 controls ≥44×44; `documentElement.scrollWidth` 360 — `workout-wave2.spec.ts` "360 px phone" (2 tests) |
+| 8 | i18n for new strings | done | strings tables + parity tests; keys under "Wave 2" in `docs/v2/requests/G3-i18n.md` |
+| — | G1 follow-ups (use-pr mirrors detectPRs, selectors skip time sets, holdSeconds, ghostDurationSeconds placeholder, availableKg) | done | commit 7669a4e; `livePRCheck` 12/13-rep and time-set tests; debrief `debrief-hold` |
+| — | G4-02 `page-heading-workout` | done | `start-page.test.tsx`, `tool-pages.test.tsx` |
+
+## Hardening (2 local DSH/Qwen refuters, engine queue 0 at start, one live at a time)
+- **Refuter 1** (Wave 1 stores at a102e43): 10 findings, **10 reproduced with failing tests, 10 fixed** (commit a64dc42): cross-tab draft clobber (storage/visibility rehydrate), station filter hid all TYTAX exercises, warm-up ticks counted as logged work in swap, lax all-or-nothing draft validation (now strict + sanitising), 0 kg done sets, kettlebell prefill ignoring owned bells, weak point never firing (fallback ≥60 impact), deload dropping done sets, two warm-up bases (now heaviest working kg), persisted timer `totalS 0`. Failing output before: `scratchpad/hardening-before.txt`.
+- **Refuter 2** (Wave 2 at dc5b5d1): 10 findings; 8 fixed with failing-first tests (13 failed / 3 passed on 7669a4e), 1 routed (history rendering, G4), 1 dropped (`stationRank` no longer exists — `grep` finds no definition in src). Key fixes: last hold only as a placeholder, never logged unless adopted; a revived or stale hold can't overwrite a typed value (30 min cap, keys cleared on remove/discard); done-ness from the set, not the exercise measure; time-aware repeat. Commit 3a46f2e.
+
+## Requests made in Wave 2
+- `G3-W2-01.md` (G2): notes setup writer — G2 has implemented `getSetup`/`setSetup`; nothing further needed beyond the merge.
+- `G3-W2-02.md` (G5, FYI G1/G2): integration notes for the hardening (e2e-hooks' looser `isWorkoutDraft`; seeds need ISO `startedAt`).
+- `G3-W2-03.md` (G4 + G5, S2): History must render time sets as m:ss (today `0 kg × 0 reps`); `SeedSetInput.durationSeconds` for e2e seeds.
+
+## Unfixed findings (Wave 2)
+- **What:** History shows a finished hold as `0 kg × 0 reps`. **Evidence:** refuter 2 finding 3 (`scratchpad/dsh-refuter-2-full.md`). **Why not fixed:** History is G4's. **Proposed fix:** G3-W2-03.
+- **What:** Repeat with no draft has no catalog loaded, so an old hold logged as reps repeats with reps. **Evidence:** h2 verify note; `draft-ops.ts` falls back to the set check without `measureOf`. **Why not fixed:** needs `repeatLog` to load the catalog asynchronously — an API change for G4's button, too late for 03:30. **Proposed fix:** make `useWorkout().repeatLog` async and await `catalog.loadCatalog()` before `startFromLog`.
+- **What:** machine setup is read-only until `v2-g2` is merged. **Why:** G2-owned writer. **Proposed fix:** merge at integration; flip `workout-wave2.spec.ts` setup test to edit → reload → shown (noted in G3-W2-01).
+- **What:** the kg input at 360 px has 0 px spare with "102.5". **Evidence:** 62/62 scrollWidth/clientWidth. **Why not fixed:** within spec; a 6-character value or fallback font could clip. **Proposed fix:** G4 a11y pass or `text-[15px]` on phones.
+- Mobile Playwright project not run by G3 (chromium only).
