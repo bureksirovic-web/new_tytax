@@ -41,6 +41,9 @@ export const g5AuthEn = {
   'sync.account.signed_out': 'Not signed in. Your data stays on this device until you sign in.',
   'sync.account.sign_in': 'Sign in to sync',
   'sync.account.sign_out': 'Sign out',
+  'app.boot.error_title': 'The app could not start',
+  'app.boot.error_body': 'The data on this device could not be opened. Try again; if it keeps failing, reload the page.',
+  'app.boot.retry': 'Try again',
 } as const;
 
 export const g5AuthHr: Record<keyof typeof g5AuthEn, string> = {
@@ -84,4 +87,7 @@ export const g5AuthHr: Record<keyof typeof g5AuthEn, string> = {
   'sync.account.signed_out': 'Nema prijavljenog računa. Podaci ostaju na ovom uređaju dok se ne prijaviš.',
   'sync.account.sign_in': 'Prijavi se za sinkronizaciju',
   'sync.account.sign_out': 'Odjava',
+  'app.boot.error_title': 'Aplikacija se nije mogla pokrenuti',
+  'app.boot.error_body': 'Podaci na ovom uređaju nisu se mogli otvoriti. Pokušaj ponovno; ako se greška ponavlja, ponovno učitaj stranicu.',
+  'app.boot.retry': 'Pokušaj ponovno',
 };

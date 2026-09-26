@@ -49,6 +49,14 @@ export const requestsEn = {
   attachment_EZ_LAT_BAR: 'EZ lat bar',
   attachment_DIP_BELT: 'Dip belt',
   program_preset_tytax_original: 'TYTAX 6-day split (original)',
+  station_FRAME: 'Frame',
+  station_FREE_WEIGHT: 'Free weights',
+  ki_no_data: 'No workout data yet to calculate a score.',
+  ki_no_recent: 'No recent workouts to calculate a score.',
+  ki_excellent: 'Training load is balanced and consistent; movement balance is well distributed.',
+  ki_good: 'Good training quality overall. Review the components to reach the optimum.',
+  ki_fair: 'Some imbalance or inconsistency. Focus on lagging movement patterns.',
+  ki_poor: 'Training is below optimal. Review recovery, consistency and exercise balance.',
 } as const;
 
 export const requestsHr: Record<keyof typeof requestsEn, string> = {
@@ -100,4 +108,12 @@ export const requestsHr: Record<keyof typeof requestsEn, string> = {
   attachment_EZ_LAT_BAR: 'EZ lat šipka',
   attachment_DIP_BELT: 'Pojas za dipove',
   program_preset_tytax_original: 'TYTAX 6-dnevni split (originalni)',
+  station_FRAME: 'Okvir',
+  station_FREE_WEIGHT: 'Slobodni utezi',
+  ki_no_data: 'Još nema podataka o treninzima za izračun ocjene.',
+  ki_no_recent: 'Nema nedavnih treninga za izračun ocjene.',
+  ki_excellent: 'Opterećenje je uravnoteženo i dosljedno; obrasci pokreta su dobro raspoređeni.',
+  ki_good: 'Dobra kvaliteta treninga. Pregledaj komponente za optimalnu razinu.',
+  ki_fair: 'Neka neravnoteža ili nedosljednost. Usmjeri se na zaostale obrasce pokreta.',
+  ki_poor: 'Trening je ispod optimalnog. Provjeri oporavak, dosljednost i ravnotežu vježbi.',
 };
