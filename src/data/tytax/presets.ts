@@ -105,7 +105,7 @@ export const TYTAX_ELITE_V3: ProgramTemplate = {
         { exerciseId: 'tytax_back-lower-pulley_lower-pulley-single-arm-lateral-raise', exerciseName: 'Lower Pulley Single-Arm Lateral Raise', modality: 'tytax', sets: 3, reps: '12-15/side', restSeconds: 60 },
         { exerciseId: 'tytax_back-lower-pulley_lower-pulley-bayesian-curl-cable-behind-body', exerciseName: 'Lower Pulley Bayesian Curl (cable behind body)', modality: 'tytax', sets: 3, reps: '10-15/side', restSeconds: 60 },
         { exerciseId: 'tytax_back-upper-pulley_upper-pulley-single-arm-triceps-pushdown', exerciseName: 'Upper Pulley Single-Arm Triceps Pushdown', modality: 'tytax', sets: 3, reps: '12-15/side', restSeconds: 60 },
-        { exerciseId: 'tytax_back-upper-pulley_upper-pulley-high-to-low-woodchop', exerciseName: 'Upper Pulley High-to-Low Woodchop', modality: 'tytax', sets: 3, reps: '12-15/side', restSeconds: 60 },
+        { exerciseId: 'tytax_back-lower-pulley_lower-pulley-low-to-high-woodchop', exerciseName: 'Lower Pulley Low-to-High Woodchop', modality: 'tytax', sets: 3, reps: '12-15/side', restSeconds: 60 },
         { exerciseId: 'tytax_tytax_cable-wrist-curl', exerciseName: 'Cable Wrist Curl', modality: 'tytax', sets: 3, reps: '15-20', restSeconds: 45 },
       ],
     },
