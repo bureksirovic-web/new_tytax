@@ -85,7 +85,8 @@ describe('workout store — Wave 2 time sets', () => {
   });
 
   it('persisted drafts with a non-number durationSeconds are rejected', () => {
-    const good = { id: 'd', profileId: 'p', sessionName: 'S', startedAt: 'x', exercises: [se('a', [set('1', { durationSeconds: 30 })])] };
+    // startedAt must parse since hardening F4 ('x' was accepted before).
+    const good = { id: 'd', profileId: 'p', sessionName: 'S', startedAt: '2026-09-20T10:00:00.000Z', exercises: [se('a', [set('1', { durationSeconds: 30 })])] };
     expect(isWorkoutDraft(good)).toBe(true);
     const bad = { ...good, exercises: [se('a', [{ ...set('1'), durationSeconds: '30' as unknown as number }])] };
     expect(isWorkoutDraft(bad)).toBe(false);

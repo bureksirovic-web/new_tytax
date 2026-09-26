@@ -6,6 +6,7 @@
  * catalog order is kept.
  */
 import type { EquipmentInventory, Exercise, MuscleGroup } from '@/contracts/domain';
+import { ownsStation } from '@/stores/weak-point';
 import { foldText } from './runtime/swap-suggestions';
 
 export type PickerModality = 'all' | 'tytax' | 'bodyweight' | 'kettlebell';
@@ -58,11 +59,12 @@ export function filterPickerExercises(all: readonly Exercise[], filter: PickerFi
 /**
  * Inventory rule for swaps: TYTAX exercises need their station unless the
  * inventory records no stations at all (nothing recorded = everything
- * available); every other modality is always available.
+ * available); every other modality is always available. Stations match as in
+ * the weak-point injector (`ownsStation`): `stationId`, else the display
+ * `station`, compared case/format-insensitively; no station = available.
  */
 export function swapAvailability(inventory: EquipmentInventory | null | undefined): (ex: Exercise) => boolean {
   const stations = inventory?.stationIds ?? [];
   if (stations.length === 0) return () => true;
-  const owned = new Set(stations);
-  return (ex) => ex.modality !== 'tytax' || (ex.stationId !== undefined && owned.has(ex.stationId));
+  return (ex) => ex.modality !== 'tytax' || ownsStation(ex, stations);
 }

@@ -33,7 +33,7 @@ export interface BuildSessionExerciseInput {
   repTarget?: string;
   /** Default true. */
   warmups?: boolean;
-  /** Kettlebells the profile owns (`EquipmentInventory.kettlebellsKg`); prefill snaps to a real bell. */
+  /** Kettlebells the profile owns (`EquipmentInventory.kettlebellsKg`); prefill snaps to a real bell (`snapToBells`). */
   availableKg?: readonly number[];
   /** Overrides `measureOf(exercise)` (e.g. a slot without a catalog entry). */
   measure?: ExerciseMeasure;
@@ -44,6 +44,32 @@ export interface BuildSessionExerciseInput {
  * v2-g1). Typed as an intersection so this compiles before and after that merge.
  */
 type PrefillOptionsWithBells = PrefillOptions & { availableKg?: readonly number[] };
+
+/** Heaviest non-warm-up kg of `sets`; 0 when none. */
+export function heaviestKg(sets: readonly SetEntry[]): number {
+  return sets.reduce((max, x) => (x.type === 'warmup' ? max : Math.max(max, x.kg)), 0);
+}
+
+/**
+ * LOCAL ADAPTER until v2-g1 merges (F6): this branch's `prefillFromHistory`
+ * ignores `availableKg`, so a kettlebell suggestion can be a bell the profile
+ * does not own (16 kg + 2.5 → 18.5). Mirrors G1's final `nextKg`: where the
+ * prefill raised a set above last time's kg (`ghostKg`; sets past last
+ * session's count use the last ghost seen), the set snaps UP to the lightest
+ * owned bell ≥ the suggestion, or holds last time's kg when no owned bell is
+ * that heavy. Sets that did not progress are left alone. Idempotent on G1's
+ * already snapped output, so it can stay or go at integration.
+ */
+export function snapToBells(sets: readonly SetEntry[], availableKg: readonly number[]): SetEntry[] {
+  const bells = availableKg.filter((k) => Number.isFinite(k) && k > 0).sort((a, b) => a - b);
+  let base: number | undefined;
+  return sets.map((set) => {
+    if (set.ghostKg !== undefined) base = set.ghostKg;
+    if (base === undefined || !(base > 0) || !(set.kg > base)) return set;
+    const up = bells.find((k) => k >= set.kg);
+    return { ...set, kg: up ?? base };
+  });
+}
 
 function snapshotOf(ex: Exercise | undefined): SessionExercise['muscleImpactSnapshot'] {
   return ex ? ex.impact.map((m) => ({ muscle: m.muscle, score: m.score })) : undefined;
@@ -94,17 +120,20 @@ export function buildSessionExercise(input: BuildSessionExerciseInput): SessionE
   const options: PrefillOptionsWithBells = { targetSets, repTarget: input.repTarget ?? slot?.reps };
   if (modality === 'kettlebell' && input.availableKg && input.availableKg.length > 0) options.availableKg = input.availableKg;
   const prefill = training.prefillFromHistory(exerciseId, history, options);
+  const working = options.availableKg ? snapToBells(prefill.sets, options.availableKg) : prefill.sets;
   const isTime = (input.measure ?? measureOf(exercise)) === 'time';
-  const wantWarmups = !isTime && input.warmups !== false && WARMUP_MODALITIES.has(modality) && prefill.suggestedKg > 0;
+  // One warm-up rule everywhere (F9): the ladder climbs to the HEAVIEST working kg, as the card's add-warm-up button does.
+  const warmupBase = heaviestKg(working);
+  const wantWarmups = !isTime && input.warmups !== false && WARMUP_MODALITIES.has(modality) && warmupBase > 0;
   const warm = wantWarmups
-    ? training.generateWarmups(prefill.suggestedKg, settings.warmupStrategy, { barKg: settings.barWeightKg })
+    ? training.generateWarmups(warmupBase, settings.warmupStrategy, { barKg: settings.barWeightKg })
     : [];
   const out: SessionExercise = {
     uid: newUuid(),
     exerciseId,
     exerciseName: slot?.exerciseName ?? exercise?.name ?? exerciseId,
     modality,
-    sets: isTime ? timeSets(targetSets, exerciseId, history) : [...warm, ...prefill.sets],
+    sets: isTime ? timeSets(targetSets, exerciseId, history) : [...warm, ...working],
   };
   const rest = slot?.restSeconds ?? exercise?.restSeconds;
   if (rest !== undefined) out.restSeconds = rest;

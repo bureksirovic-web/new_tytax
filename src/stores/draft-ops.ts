@@ -8,6 +8,7 @@
  */
 import type { Exercise, SessionExercise, SetEntry, WorkoutDraft, WorkoutLog } from '@/contracts/domain';
 import { newUuid } from '@/lib/db/ids';
+import { countsAsWork } from './workout-selectors';
 
 const newId = newUuid;
 
@@ -50,9 +51,14 @@ function freshWorkingSets(count: number): SetEntry[] {
   return Array.from({ length: Math.max(1, count) }, () => ({ id: newId(), type: 'working' as const, kg: 0, reps: 0, done: false }));
 }
 
-/** Working sets of `ex` a swap should carry over: all of them, or only the undone ones once any set is done. */
+/** True when the exercise has logged work (`countsAsWork`: a done warm-up is not logged work). */
+export function hasLoggedWork(ex: SessionExercise): boolean {
+  return ex.sets.some(countsAsWork);
+}
+
+/** Working sets of `ex` a swap should carry over: all of them, or only the undone ones once it has logged work. */
 export function remainingWorkingCount(ex: SessionExercise): number {
-  const trained = ex.sets.some((s) => s.done);
+  const trained = hasLoggedWork(ex);
   return ex.sets.filter((s) => s.type !== 'warmup' && !(trained && s.done)).length;
 }
 
@@ -82,8 +88,10 @@ export interface SwapResult {
 
 /**
  * Swap rule: a swap never discards logged work (the legacy app silently lost
- * done sets). If the old exercise has no done set it is replaced in place
- * (same uid and position; its notes are dropped). If any set is done, the old
+ * done sets). If the old exercise has no logged work it is replaced in place
+ * (same uid and position; its notes are dropped). If it has logged work
+ * (`countsAsWork`: a done working set with reps or seconds; a ticked warm-up
+ * is not logged work and is dropped with the in-place replace), the old
  * exercise keeps only its done sets (the undone plan moves to the new
  * exercise) and the new one is inserted right after it with a fresh uid.
  * `sets` default: fresh empty working sets, as many as the old working sets
@@ -95,7 +103,7 @@ export function swapInDraft(draft: WorkoutDraft | null, uid: string, exercise: E
   if (idx === -1) return { draft, uid: null, inserted: false };
   const old = draft.exercises[idx];
   const exercises = draft.exercises.slice();
-  if (old.sets.some((s) => s.done)) {
+  if (hasLoggedWork(old)) {
     const entry = swappedEntry(old, exercise, newId(), sets);
     delete entry.supersetGroup;
     exercises[idx] = { ...old, sets: old.sets.filter((s) => s.done).map((s) => ({ ...s })) };

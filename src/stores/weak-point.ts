@@ -4,7 +4,10 @@
  *
  * Availability rule (`isAvailable`): with no inventory, or an inventory with
  * nothing recorded (all four lists empty), everything is available. Otherwise:
- * - tytax: needs `stationId` in `inventory.stationIds`;
+ * - tytax: its station (`stationId`, else the display `station`) must be in
+ *   `inventory.stationIds`, compared by `stationKey` (case/format-insensitive:
+ *   wave-0 'back-upper' = G1 'BACK_UPPER' = 'Back Upper Pulley'); an exercise
+ *   with no station at all is unknown, not missing, and counts as available;
  * - kettlebell: needs at least one kettlebell in `inventory.kettlebellsKg`;
  * - bodyweight: every `requiresEquipment` item is 'none', in
  *   `inventory.bodyweightGear`, or ('tytax' → any station, 'kettlebell' → any bell);
@@ -14,12 +17,15 @@ import type { EquipmentInventory, Exercise, ProfileSettings, SessionExercise, Wo
 import type { ExerciseLookup } from '@/contracts/training';
 import { standardizeMuscle } from '@/lib/constants';
 import { training } from '@/lib/training';
+import { exerciseStationKey, stationKey } from './order-by-station';
 import { buildSessionExercise } from './session-exercise';
 
 /** Working sets the weak-point injector adds. */
 export const WEAK_POINT_SETS = 2;
 /** Minimum impact score for a "primary" mover of the lagging muscle. */
 export const WEAK_POINT_MIN_IMPACT = 90;
+/** Fallback floor when no available exercise reaches `WEAK_POINT_MIN_IMPACT` for the lagging muscle. */
+export const WEAK_POINT_FALLBACK_MIN_IMPACT = 60;
 /** Days (including today) the lagging-muscle distribution looks back. */
 export const WEAK_POINT_WINDOW_DAYS = 7;
 
@@ -42,11 +48,17 @@ function isEmptyInventory(inv: Inventory): boolean {
   );
 }
 
+/** True when the exercise has no known station, or its station is among `stationIds` (any id format). */
+export function ownsStation(exercise: Pick<Exercise, 'stationId' | 'station'>, stationIds: readonly string[]): boolean {
+  const key = exerciseStationKey(exercise);
+  return key === undefined || stationIds.some((id) => stationKey(id) === key);
+}
+
 export function isAvailable(exercise: Exercise, inventory?: Inventory | null): boolean {
   if (!inventory || isEmptyInventory(inventory)) return true;
   switch (exercise.modality) {
     case 'tytax':
-      return exercise.stationId !== undefined && inventory.stationIds.includes(exercise.stationId);
+      return ownsStation(exercise, inventory.stationIds);
     case 'kettlebell':
       return inventory.kettlebellsKg.length > 0;
     case 'bodyweight':
@@ -104,12 +116,21 @@ export function weakPoint(input: WeakPointInput): WeakPointPick | null {
   const lagging = training.laggingMuscle(distribution);
   if (!lagging) return null;
   const inSession = new Set(input.sessionExercises.map((e) => e.exerciseId));
-  const candidates = input.catalogExercises
-    .filter((e) => !inSession.has(e.id))
+  const usable = input.catalogExercises.filter((e) => !inSession.has(e.id) && isAvailable(e, input.inventory));
+  const primary = usable
     .filter((e) => impactFor(e, lagging.muscle) >= WEAK_POINT_MIN_IMPACT)
-    .filter((e) => isAvailable(e, input.inventory))
     .sort((a, b) => impactMuscleCount(a) - impactMuscleCount(b) || a.name.localeCompare(b.name));
-  const exercise = candidates[0];
+  // Fallback (F7): some muscles (e.g. Upper Traps) have no exercise at >= 90 in the catalog.
+  const fallback = () =>
+    usable
+      .filter((e) => impactFor(e, lagging.muscle) >= WEAK_POINT_FALLBACK_MIN_IMPACT)
+      .sort(
+        (a, b) =>
+          impactFor(b, lagging.muscle) - impactFor(a, lagging.muscle) ||
+          impactMuscleCount(a) - impactMuscleCount(b) ||
+          a.name.localeCompare(b.name),
+      );
+  const exercise = primary[0] ?? fallback()[0];
   if (!exercise) return null;
   const sessionExercise = buildSessionExercise({
     exercise,

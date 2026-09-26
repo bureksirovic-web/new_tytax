@@ -9,6 +9,11 @@
  * (`skipHydration`): pages call `useWorkoutHydrated()` and must not act on
  * `draft === null` until it returns true.
  *
+ * Hardening: the persisted draft is repaired, not dropped, when one row is
+ * bad (`sanitizeDraft`, ./draft-validation.ts); another tab's write re-reads
+ * it (`syncAcrossTabs`, ./cross-tab.ts); `toggleSetDone` needs kg > 0 unless
+ * the exercise is bodyweight (same rule as set-rules `canCompleteSet`).
+ *
  * G3 actions (pure immutable updates, helpers in ./draft-ops.ts):
  * - `startDraft(input: StartDraftInput): WorkoutDraft` — start from prepared
  *   exercises (program start, deload, weak point); replaces any draft.
@@ -54,6 +59,8 @@ import type {
 } from '@/contracts/domain';
 import { useRestTimerStore } from './rest-timer-store';
 import { draftFromLog, makeDraft, prependWarmupsTo, reorderByUids, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
+import { syncAcrossTabs } from './cross-tab';
+import { sanitizeDraft } from './draft-validation';
 import { cleanSeconds, isTimeSet } from './measure';
 
 export type { StartDraftInput } from './draft-ops';
@@ -184,6 +191,10 @@ function withExercise(
   return { ...draft, exercises };
 }
 
+function modalityOf(draft: WorkoutDraft | null, uid: string): SessionExercise['modality'] | undefined {
+  return draft?.exercises.find((e) => e.uid === uid)?.modality;
+}
+
 function withSet(
   draft: WorkoutDraft | null,
   uid: string,
@@ -196,51 +207,14 @@ function withSet(
   });
 }
 
-// ─── Persisted-shape validation (localStorage is untrusted input) ────────────
+// ─── Persisted-shape validation: ./draft-validation.ts (strict predicate + repair) ─
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isSetEntry(v: unknown): v is SetEntry {
-  return (
-    isRecord(v) &&
-    typeof v.id === 'string' &&
-    typeof v.type === 'string' &&
-    typeof v.kg === 'number' &&
-    typeof v.reps === 'number' &&
-    typeof v.done === 'boolean' &&
-    (v.durationSeconds === undefined || typeof v.durationSeconds === 'number')
-  );
-}
-
-function isSessionExercise(v: unknown): v is SessionExercise {
-  return (
-    isRecord(v) &&
-    typeof v.uid === 'string' &&
-    typeof v.exerciseId === 'string' &&
-    typeof v.exerciseName === 'string' &&
-    typeof v.modality === 'string' &&
-    Array.isArray(v.sets) &&
-    v.sets.every(isSetEntry)
-  );
-}
-
-export function isWorkoutDraft(v: unknown): v is WorkoutDraft {
-  return (
-    isRecord(v) &&
-    typeof v.id === 'string' &&
-    typeof v.profileId === 'string' &&
-    typeof v.sessionName === 'string' &&
-    typeof v.startedAt === 'string' &&
-    Array.isArray(v.exercises) &&
-    v.exercises.every(isSessionExercise)
-  );
-}
+export { isWorkoutDraft } from './draft-validation';
 
 function draftFromPersisted(persisted: unknown): WorkoutDraft | null {
-  if (!isRecord(persisted)) return null;
-  return isWorkoutDraft(persisted.draft) ? persisted.draft : null;
+  if (typeof persisted !== 'object' || persisted === null) return null;
+  const draft = (persisted as Record<string, unknown>).draft;
+  return draft === null || draft === undefined ? null : sanitizeDraft(draft, nowIso());
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -347,8 +321,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
           draft: withSet(s.draft, uid, setId, (entry) => {
             if (entry.done) return { ...entry, done: false, completedAt: undefined };
             // Empty reps adopt last session's ghost reps; with neither, a set cannot be done.
+            // Mirrors set-rules `canCompleteSet`: a weight is needed unless bodyweight (F5).
             const reps = entry.reps > 0 ? entry.reps : Math.round(entry.ghostReps ?? 0);
             if (reps <= 0) return entry;
+            if (!(entry.kg > 0) && modalityOf(s.draft, uid) !== 'bodyweight') return entry;
             return { ...entry, reps, done: true, completedAt: nowIso() };
           }),
         })),
@@ -436,6 +412,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
 );
 
 // ─── Hydration ───────────────────────────────────────────────────────────────
+
+// Another tab's write (or this tab becoming visible again) re-reads the draft (F1).
+syncAcrossTabs(WORKOUT_DRAFT_STORAGE_KEY, () => useWorkoutStore.persist.rehydrate());
 
 function subscribeHydration(onChange: () => void): () => void {
   const offStart = useWorkoutStore.persist.onHydrate(onChange);

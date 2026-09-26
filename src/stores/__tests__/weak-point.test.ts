@@ -60,7 +60,9 @@ describe('weakPoint', () => {
     const recent = [log(1, [{ exerciseId: 'bench', sets: [{ kg: 80, reps: 8 }] }])];
     expect(weakPoint({ ...base, history: recent })).toBeNull(); // recovering
     expect(weakPoint({ ...base, history: [] })).toBeNull(); // nothing lagging
-    expect(weakPoint({ ...base, catalogExercises: [bench, lunge] })).toBeNull();
+    // Hardening F7: nothing at ≥ 90 → fallback to the highest impact ≥ 60 (lunge, Quads 85); below 60 → null.
+    expect(weakPoint({ ...base, catalogExercises: [bench, lunge] })?.exercise.id).toBe('lunge');
+    expect(weakPoint({ ...base, catalogExercises: [bench, ex('half', [['Quads', 59]])] })).toBeNull();
     // A log older than the 7-day window does not count → nothing trained → null.
     expect(weakPoint({ ...base, history: [log(8, [{ exerciseId: 'bench', sets: [{ kg: 80, reps: 8 }] }])] })).toBeNull();
   });
@@ -74,7 +76,8 @@ describe('isAvailable / impactFor', () => {
     const custom = ex('c', [], { modality: 'custom' });
     const noStation = ex('ns', []);
     const i = inv({ stationIds: ['SMITH'] });
-    expect([isAvailable(kb, i), isAvailable(dip, i), isAvailable(bwT, i), isAvailable(custom, i), isAvailable(noStation, i)]).toEqual([false, false, false, true, false]);
+    // F2 (hardening): a tytax exercise with no station is unknown, not missing → available.
+    expect([isAvailable(kb, i), isAvailable(dip, i), isAvailable(bwT, i), isAvailable(custom, i), isAvailable(noStation, i)]).toEqual([false, false, false, true, true]);
     const full = inv({ stationIds: ['SMITH'], kettlebellsKg: [16], bodyweightGear: ['dip-station'] });
     expect([isAvailable(kb, full), isAvailable(dip, full), isAvailable(bwT, full), isAvailable(kb, null)]).toEqual([true, true, true, true]);
     expect(isAvailable(ex('bw', [], { modality: 'bodyweight' }), i)).toBe(true);

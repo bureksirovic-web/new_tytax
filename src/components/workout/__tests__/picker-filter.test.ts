@@ -79,7 +79,8 @@ describe('swapAvailability', () => {
     const ok = swapAvailability(inventory(['st1']));
     expect(ok(owned)).toBe(true);
     expect(ok(missing)).toBe(false);
-    expect(ok(noStation)).toBe(false);
+    // Hardening F2: no station = unknown station → available.
+    expect(ok(noStation)).toBe(true);
     expect(ok(bw)).toBe(true);
   });
 });

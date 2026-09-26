@@ -15,6 +15,8 @@
  *   (whole seconds), `restProgress(timer, now)` (0..1), `restRunning(timer, now)`,
  *   `formatRest(seconds)` → "m:ss".
  * - `useRestTimerHydrated(): boolean`.
+ * - A persisted timer needs `totalS > 0`; another tab's write re-reads it
+ *   (`syncAcrossTabs`, ./cross-tab.ts).
  *
  * Wiring with `useRestTimer` (runtime/use-rest-timer.ts): pass
  * `initialState: useRestTimerStore.getState().timer` after hydration and
@@ -32,6 +34,7 @@ import {
   start as startTimer,
   type RestTimerState,
 } from '@/components/workout/runtime/rest-timer';
+import { syncAcrossTabs } from './cross-tab';
 
 export const REST_TIMER_STORAGE_KEY = 'tytax.rest-timer.v1';
 export const REST_TIMER_VERSION = 1;
@@ -49,9 +52,11 @@ export interface RestTimerStoreActions {
 
 export type RestTimerStore = RestTimerStoreState & RestTimerStoreActions;
 
+/** Persisted timer, or null. A timer needs `totalS > 0` (a 0 s total would show 100 % with a live countdown). */
 function timerFromPersisted(persisted: unknown): RestTimerState | null {
   if (typeof persisted !== 'object' || persisted === null) return null;
-  return parseRestTimerState((persisted as Record<string, unknown>).timer);
+  const timer = parseRestTimerState((persisted as Record<string, unknown>).timer);
+  return timer && timer.totalS > 0 ? timer : null;
 }
 
 export const useRestTimerStore = create<RestTimerStore>()(
@@ -96,6 +101,9 @@ export function formatRest(seconds: number): string {
 }
 
 // ─── Hydration ───────────────────────────────────────────────────────────────
+
+// Another tab's write (or this tab becoming visible again) re-reads the timer (F1).
+syncAcrossTabs(REST_TIMER_STORAGE_KEY, () => useRestTimerStore.persist.rehydrate());
 
 function subscribeHydration(onChange: () => void): () => void {
   const offStart = useRestTimerStore.persist.onHydrate(onChange);

@@ -333,7 +333,9 @@ describe('workout store', () => {
     expect(
       isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: 't', exercises: [{ uid: 'u' }] }),
     ).toBe(false);
-    expect(isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: 't', exercises: [] })).toBe(true);
+    // Hardening F4: startedAt must be a parseable date.
+    expect(isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: 't', exercises: [] })).toBe(false);
+    expect(isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: '2026-09-20T10:00:00.000Z', exercises: [] })).toBe(true);
   });
 
   it('useWorkoutHydrated rehydrates once on mount and then reports true', async () => {

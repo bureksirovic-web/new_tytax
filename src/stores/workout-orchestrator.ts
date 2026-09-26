@@ -238,7 +238,7 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       const catalog = await deps.loadCatalog();
       const current = store.getState().draft;
       if (!current || current.id !== draft.id) return false;
-      const uids = orderByStation(current.exercises, (id) => catalog.getById(id)).map((e) => e.uid);
+      const uids = orderByStation(current.exercises, catalog).map((e) => e.uid);
       store.getState().reorderExercises(uids);
       return store.getState().draft !== current;
     },
