@@ -13,6 +13,9 @@ const CACHE_VERSION = 'v2-1';
 const SHELL_CACHE = `tytax-shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `tytax-static-${CACHE_VERSION}`;
 const OFFLINE_FALLBACK = '/offline.html';
+// Registered as /sw.js?dev=1 by `next dev`: chunk URLs are not hashed there, so
+// static files go network-first (fresh while online, cached for offline).
+const DEV = new URL(self.location.href).searchParams.get('dev') === '1';
 
 const SHELL_ROUTES = [
   '/dashboard',
@@ -124,6 +127,19 @@ async function cacheFirst(request) {
   return response;
 }
 
+async function networkFirstStatic(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return (await caches.match(request)) || Response.error();
+  }
+}
+
 async function networkFirstPage(request) {
   const url = new URL(request.url);
   try {
@@ -147,7 +163,7 @@ self.addEventListener('fetch', (event) => {
   if (isExcluded(url)) return;
 
   if (isCacheableStatic(url)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(DEV ? networkFirstStatic(request) : cacheFirst(request));
     return;
   }
 

@@ -1,10 +1,14 @@
 'use client';
 import { useEffect } from 'react';
 
-interface ServiceWorkerProps {
-  /** Loads every lazy chunk the app may need offline (e.g. all catalog chunks). */
-  warm?: () => Promise<unknown>;
+/** Loads every catalog chunk so the worker sees (and caches) them. Dynamic: stays out of first-load JS. */
+async function warmCatalog(): Promise<void> {
+  const { catalog } = await import('@/lib/catalog');
+  await catalog.preloadAll();
 }
+
+/** In dev, chunk URLs are not content-hashed: the worker must prefer the network. */
+const SW_URL = process.env.NODE_ENV === 'production' ? '/sw.js' : '/sw.js?dev=1';
 
 /** Same-origin static chunk URLs this page has already loaded. */
 function loadedStaticUrls(): string[] {
@@ -39,15 +43,15 @@ function postCacheUrls(sw: ServiceWorker, urls: string[]): Promise<void> {
  * chunks so the shell and the whole catalog work offline after the first visit.
  * Sets `data-sw-ready` on <html> when done (used by e2e/offline.spec.ts).
  */
-export function ServiceWorker({ warm }: ServiceWorkerProps) {
+export function ServiceWorker() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     let cancelled = false;
     (async () => {
       try {
-        await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.register(SW_URL);
         const reg = await navigator.serviceWorker.ready;
-        if (warm) await warm();
+        await warmCatalog();
         const active = reg.active;
         if (!active || cancelled) return;
         await postCacheUrls(active, [...loadedStaticUrls(), window.location.pathname]);
@@ -59,6 +63,6 @@ export function ServiceWorker({ warm }: ServiceWorkerProps) {
     return () => {
       cancelled = true;
     };
-  }, [warm]);
+  }, []);
   return null;
 }
