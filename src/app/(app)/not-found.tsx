@@ -6,7 +6,7 @@ export default function NotFound() {
   const { t } = useLocale();
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-4">
+    <div data-testid="not-found" className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-4">
       <h1 className="font-display text-2xl uppercase text-highlight">{t('error_not_found_title')}</h1>
       <p className="max-w-sm text-center text-sm text-fg-muted">{t('error_not_found_desc')}</p>
       <Link

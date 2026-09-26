@@ -19,7 +19,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div role="alert" className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-4">
+    <div role="alert" data-testid="error-boundary" className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-4">
       <h1
         ref={headingRef}
         tabIndex={-1}

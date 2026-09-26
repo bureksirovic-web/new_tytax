@@ -35,7 +35,7 @@ export default function GlobalError({
   return (
     <html lang={locale}>
       <body className="m-0 flex min-h-dvh flex-col items-center justify-center bg-gunmetal-900 p-4 font-sans text-gunmetal-50">
-        <main role="alert" className="flex flex-col items-center">
+        <main role="alert" data-testid="error-boundary" className="flex flex-col items-center">
           <h1 className="mb-2 font-display text-2xl uppercase text-tactical-amber-300">
             {t('error_title', locale)}
           </h1>

@@ -51,7 +51,17 @@ const isExcluded = (url) =>
   url.pathname.startsWith('/api/') ||
   url.pathname.startsWith('/auth/');
 
-// A route that fails to precache (e.g. not built yet) must not abort install.
+// Chunk URLs referenced by a page: <script src>, <link href> and the RSC flight
+// data inlined in the HTML (escaped strings such as \"/_next/static/chunks/x.js\").
+// Some Next versions list client chunks without the /_next/ prefix ("static/chunks/x.js").
+const CHUNK_RE = /(?:\/_next\/)?static\/(?:chunks|css|media)\/[^"'\\\s)<>]+/g;
+
+function chunkUrlsIn(html) {
+  const found = html.match(CHUNK_RE) || [];
+  return [...new Set(found.map((m) => (m.startsWith('/_next/') ? m : `/_next/${m}`)))];
+}
+
+// A URL that fails to precache (e.g. offline, not built yet) must not abort install.
 async function cacheEach(cacheName, urls) {
   const cache = await caches.open(cacheName);
   await Promise.all(
@@ -60,10 +70,34 @@ async function cacheEach(cacheName, urls) {
         const res = await fetch(u, { cache: 'no-cache' });
         if (res.ok) await cache.put(u, res);
       } catch {
-        /* offline during install: skip, the network-first path will fill it */
+        /* skip: the network-first paths fill it later */
       }
     })
   );
+}
+
+// Cache pages plus every chunk their HTML references, so a page first opened
+// offline still has its route JS.
+async function cachePages(paths) {
+  const shell = await caches.open(SHELL_CACHE);
+  const chunks = new Set();
+  await Promise.all(
+    paths.map(async (p) => {
+      try {
+        const res = await fetch(p, { cache: 'no-cache' });
+        if (!res.ok) return;
+        const html = await res.clone().text();
+        await shell.put(p, res);
+        for (const c of chunkUrlsIn(html)) chunks.add(c);
+      } catch {
+        /* offline: keep what is cached */
+      }
+    })
+  );
+  const statics = await caches.open(STATIC_CACHE);
+  const missing = [];
+  for (const c of chunks) if (!(await statics.match(c))) missing.push(c);
+  await cacheEach(STATIC_CACHE, missing);
 }
 
 self.addEventListener('install', (event) => {
@@ -71,7 +105,7 @@ self.addEventListener('install', (event) => {
     (async () => {
       const shell = await caches.open(SHELL_CACHE);
       await shell.addAll(SHELL_ASSETS);
-      await cacheEach(SHELL_CACHE, SHELL_ROUTES);
+      await cachePages(SHELL_ROUTES);
       await self.skipWaiting();
     })()
   );
@@ -110,7 +144,8 @@ self.addEventListener('message', (event) => {
       const missing = [];
       for (const u of statics) if (!(await cache.match(u))) missing.push(u);
       await cacheEach(STATIC_CACHE, missing);
-      await cacheEach(SHELL_CACHE, pages);
+      // Re-fetch all shell routes: their chunks may be new since install.
+      await cachePages([...new Set([...pages, ...SHELL_ROUTES])]);
       if (port) port.postMessage({ type: 'CACHE_URLS_DONE', cached: missing.length + pages.length });
     })()
   );
