@@ -68,6 +68,15 @@ describe('workout start page', () => {
     useWorkoutStore.getState().discard();
   });
 
+  it('marks its only h1 with page-heading-workout (G4-02)', () => {
+    hook.current = makeHook();
+    render(<WorkoutPage />);
+    const headings = screen.getAllByRole('heading', { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]).toBe(screen.getByTestId('page-heading-workout'));
+    expect(headings[0].textContent?.trim()).not.toBe('');
+  });
+
   it('starts a quick workout with the localized session name', async () => {
     const h = makeHook();
     hook.current = h;

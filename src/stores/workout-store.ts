@@ -41,8 +41,12 @@
  *   duration: the previous hold becomes the new set's `ghostDurationSeconds`.
  * - Hold timers (refuter-2 F2): `removeSet`, `removeExercise` and `discard`
  *   clear the stored starts of the sets they drop (`clearHoldStarts`, ./hold-storage.ts).
- * - `startFromLog(profileId, log, measureOf?)` → WorkoutDraft: "repeat workout", replaces
- *   any draft (the caller confirms); rules in `draftFromLog` (./draft-ops.ts).
+ * - `startFromLog(profileId, log, measureOf?)` → WorkoutDraft | null: "repeat
+ *   workout" (G4-25); rules in `draftFromLog` (./draft-ops.ts). Returns null and
+ *   changes nothing while a draft is in progress; to replace one, `discard()`
+ *   first (the orchestrator's `repeatLog({ replace: true })` does). Unlike
+ *   G4-25's proposal, `programId`/`programSessionId` are dropped: a repeat is a
+ *   quick workout and never advances the program rotation.
  * - `reorderExercises(uids)` → applies an exact permutation of the draft's
  *   uids; anything else is a no-op.
  */
@@ -119,8 +123,8 @@ export interface WorkoutActions {
    * with neither it stays not done.
    */
   toggleTimeSetDone(uid: string, setId: string, ghostSeconds?: number): void;
-  /** Repeat workout: a new draft from a history log (see `draftFromLog`); replaces any draft. */
-  startFromLog(profileId: string, log: WorkoutLog, measureOf?: (exerciseId: string) => ExerciseMeasure | undefined): WorkoutDraft;
+  /** Repeat workout: a new draft from a history log (see `draftFromLog`); null (no change) while a draft is in progress. */
+  startFromLog(profileId: string, log: WorkoutLog, measureOf?: (exerciseId: string) => ExerciseMeasure | undefined): WorkoutDraft | null;
   /** Reorders the draft to `uids` when it is an exact permutation of its uids; otherwise no-op. */
   reorderExercises(uids: readonly string[]): void;
   setNotes(notes: string): void;
@@ -229,7 +233,7 @@ function draftFromPersisted(persisted: unknown): WorkoutDraft | null {
 
 export const useWorkoutStore = create<WorkoutStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       draft: null,
 
       startQuick: (profileId, sessionName) => {
@@ -356,6 +360,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         })),
 
       startFromLog: (profileId, log, measureOf) => {
+        if (get().draft) return null; // G4-25: never overwrite a workout in progress
         const draft = draftFromLog(profileId, log, nowIso(), measureOf);
         useRestTimerStore.getState().stop();
         set({ draft });

@@ -21,6 +21,16 @@ function withNotesWriter(base: Repository): { repo: Repository; store: Map<strin
   return { repo: { ...base, notes } as unknown as Repository, store };
 }
 
+/**
+ * A repository whose notes have no setup writer pair (the Wave-1 contract),
+ * whatever the real implementation offers: own `undefined` properties shadow
+ * any `getSetup`/`setSetup` the real notes repo has (e.g. after G2's merge).
+ */
+function withoutNotesWriter(base: Repository): Repository {
+  const notes = Object.assign(Object.create(base.notes) as object, { getSetup: undefined, setSetup: undefined });
+  return { ...base, notes } as unknown as Repository;
+}
+
 describe('setup adapter', () => {
   beforeEach(async () => {
     n += 1;
@@ -40,21 +50,23 @@ describe('setup adapter', () => {
   });
 
   it('on the Wave-1 repository: reads note.setup, and save is unsupported (nothing written)', async () => {
-    expect(canSaveSetup(repo)).toBe(false);
-    expect(await loadSetup(repo, profileId, 'bench')).toBeUndefined();
-    await repo.notes.set(profileId, 'bench', 'elbows in');
-    const res = await saveSetup(repo, profileId, 'bench', { seat: '3' });
+    const wave1 = withoutNotesWriter(repo);
+    expect(canSaveSetup(wave1)).toBe(false);
+    expect(await loadSetup(wave1, profileId, 'bench')).toBeUndefined();
+    await wave1.notes.set(profileId, 'bench', 'elbows in');
+    const res = await saveSetup(wave1, profileId, 'bench', { seat: '3' });
     expect(res).toEqual({ saved: false, reason: 'unsupported' });
-    const note = await repo.notes.get(profileId, 'bench');
+    const note = await wave1.notes.get(profileId, 'bench');
     expect(note?.content).toBe('elbows in');
     expect(note?.setup).toBeUndefined();
   });
 
   it('reads a setup stored on the note row', async () => {
+    const wave1 = withoutNotesWriter(repo);
     const fake = {
-      ...repo,
-      notes: { ...repo.notes, get: async () => ({ id: 'n', profileId, exerciseId: 'bench', content: '', setup: { pin: ' 7 ' }, createdAt: '', updatedAt: '' }) },
-    } as Repository;
+      ...wave1,
+      notes: Object.assign(Object.create(wave1.notes) as object, { get: async () => ({ id: 'n', profileId, exerciseId: 'bench', content: '', setup: { pin: ' 7 ' }, createdAt: '', updatedAt: '' }) }),
+    } as unknown as Repository;
     expect(await loadSetup(fake, profileId, 'bench')).toEqual({ pin: '7' });
   });
 
@@ -80,7 +92,10 @@ describe('setup adapter', () => {
     const r = { ...repo, notes } as unknown as Repository;
     expect(canSaveSetup(r)).toBe(true);
     // A repo-level pair is not G2's shape: not a writer.
-    expect(canSaveSetup({ ...repo, setSetup: vi.fn(), getSetup: vi.fn() } as unknown as Repository)).toBe(false);
+    expect(canSaveSetup({ ...withoutNotesWriter(repo), setSetup: vi.fn(), getSetup: vi.fn() } as unknown as Repository)).toBe(false);
+    // Half of the pair is not a writer either.
+    const half = Object.assign(Object.create(repo.notes) as object, { getSetup: undefined, setSetup: vi.fn() });
+    expect(canSaveSetup({ ...repo, notes: half } as unknown as Repository)).toBe(false);
     expect(await saveSetup(r, profileId, 'bench', { cable: 'rope' })).toEqual({ saved: false, reason: 'error', error: err });
     expect(await loadSetup(r, profileId, 'bench')).toEqual({ cable: 'rope' });
   });

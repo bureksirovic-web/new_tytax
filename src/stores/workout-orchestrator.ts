@@ -33,7 +33,8 @@
  * - `repeatLog(profileId, log, { replace?, measureOf? })` → `RepeatLogResult`: starts a
  *   draft from a history log (`startFromLog`; `measureOf` = catalog measure by id,
  *   so a time exercise repeats as holds, see `draftFromLog`). Refused with `reason:
- *   'draft-exists'` while a draft exists unless `replace: true`, and with
+ *   'draft-exists'` while a draft exists unless `replace: true` (which discards it
+ *   first, then starts), and with
  *   `'foreign-log'` for a log of another profile, and `'deleted-log'` for a
  *   log in the trash (`deletedAt` set).
  */
@@ -253,8 +254,12 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
     repeatLog(profileId: string, log: WorkoutLog, opts: RepeatLogOptions = {}): RepeatLogResult {
       if (log.profileId !== profileId) return { ok: false, reason: 'foreign-log' };
       if (log.deletedAt) return { ok: false, reason: 'deleted-log' };
-      if (store.getState().draft && !opts.replace) return { ok: false, reason: 'draft-exists' };
-      return { ok: true, draft: store.getState().startFromLog(profileId, log, opts.measureOf) };
+      if (store.getState().draft) {
+        if (!opts.replace) return { ok: false, reason: 'draft-exists' };
+        store.getState().discard(); // replace = discard (rest timer, hold starts) then start
+      }
+      const draft = store.getState().startFromLog(profileId, log, opts.measureOf);
+      return draft ? { ok: true, draft } : { ok: false, reason: 'draft-exists' };
     },
     /**
      * Skips the rotation pointer past a rest session only: re-reads the program

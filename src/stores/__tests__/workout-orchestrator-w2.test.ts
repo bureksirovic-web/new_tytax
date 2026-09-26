@@ -5,6 +5,7 @@ import type { Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
 import { createWorkoutOrchestrator, EmptyWorkoutError } from '../workout-orchestrator';
 import { useWorkoutStore } from '../workout-store';
+import { HOLD_STORAGE_PREFIX } from '../hold-storage';
 import { ex, fakeCatalog } from './g3-helpers';
 
 const NOW = new Date('2026-09-20T12:00:00.000Z');
@@ -86,7 +87,13 @@ describe('workout orchestrator — Wave 2', () => {
     store().startQuick(profileId, 'Busy');
     expect(orch().repeatLog(profileId, log)).toEqual({ ok: false, reason: 'draft-exists' });
     expect(store().draft?.sessionName).toBe('Busy');
+    // The store itself refuses too (G4-25): no silent overwrite.
+    expect(store().startFromLog(profileId, log)).toBeNull();
+    expect(store().draft?.sessionName).toBe('Busy');
+    // replace discards the busy draft first: its hold starts go with it.
+    sessionStorage.setItem(`${HOLD_STORAGE_PREFIX}busy`, '1');
     const res = orch().repeatLog(profileId, log, { replace: true });
+    expect(sessionStorage.getItem(`${HOLD_STORAGE_PREFIX}busy`)).toBeNull();
     if (!res.ok) throw new Error('expected a draft');
     expect(res.draft.sessionName).toBe('Push');
     expect(res.draft.programId).toBeUndefined();

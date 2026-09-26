@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { SessionExercise, SetEntry, WorkoutLog } from '@/contracts/domain';
 import { useWorkoutStore, isWorkoutDraft } from '../workout-store';
 import { useRestTimerStore } from '../rest-timer-store';
+import { HOLD_STORAGE_PREFIX } from '../hold-storage';
 import { countsAsWork, countsAsWorkFor, countsForVolume, exerciseVolumeKg, summarizeDraft } from '../workout-selectors';
 
 const store = () => useWorkoutStore.getState();
@@ -156,7 +157,9 @@ describe('workout store — startFromLog and reorderExercises', () => {
   it('starts a quick draft that repeats the log, reset and prefilled', () => {
     useRestTimerStore.getState().start(90);
     expect(useRestTimerStore.getState().timer).not.toBeNull();
-    const d = store().startFromLog('p1', log);
+    const started = store().startFromLog('p1', log);
+    expect(started).not.toBeNull();
+    const d = started as NonNullable<typeof started>;
     expect(store().draft).toBe(d);
     expect(useRestTimerStore.getState().timer).toBeNull();
     expect(d.id).not.toBe('log1');
@@ -177,6 +180,29 @@ describe('workout store — startFromLog and reorderExercises', () => {
     // The log is untouched.
     expect(log.exercises[0].sets[1].done).toBe(true);
     expect(log.exercises[0].muscleImpactSnapshot).toEqual([{ muscle: 'Chest', score: 100 }]);
+  });
+
+  it('startFromLog returns null and changes nothing while a draft is in progress (G4-25)', () => {
+    const busy = store().startQuick('p1', 'Busy');
+    const setId = 'busy-set';
+    store().replaceExercises([se('b1', [set(setId, { kg: 20, reps: 5 })])]);
+    const before = store().draft;
+    useRestTimerStore.getState().start(90);
+    const timer = useRestTimerStore.getState().timer;
+    const holdKey = `${HOLD_STORAGE_PREFIX}${setId}`;
+    sessionStorage.setItem(holdKey, '1000');
+    expect(store().startFromLog('p1', log)).toBeNull();
+    expect(store().startFromLog('someone-else', log)).toBeNull();
+    // Same draft object, same rest timer, hold start kept.
+    expect(store().draft).toBe(before);
+    expect(store().draft?.id).toBe(busy.id);
+    expect(useRestTimerStore.getState().timer).toBe(timer);
+    expect(sessionStorage.getItem(holdKey)).toBe('1000');
+    // Discarding first (the orchestrator's replace path) lets it start.
+    store().discard();
+    const d = store().startFromLog('p1', log);
+    expect(d?.sessionName).toBe('Push A');
+    expect(store().draft).toBe(d);
   });
 
   it('reorderExercises applies an exact permutation and ignores anything else', () => {

@@ -41,15 +41,30 @@ describe('useWorkout — Wave 2', () => {
     localStorage.clear();
   });
 
-  it('without a profile every Wave 2 action is a no-op', async () => {
+  it.each([
+    ['without', false],
+    ['with', true],
+  ] as const)('without a profile every Wave 2 action is a no-op (repo %s the setup writer pair)', async (_label, hasWriter) => {
+    const setSetup = vi.fn(async () => undefined);
+    const getSetup = vi.fn(async () => ({ seat: '9' }));
+    // Explicit fakes: the result must not depend on what the real notes repo offers.
+    const notes = Object.assign(
+      Object.create(repo.notes) as object,
+      hasWriter ? { setSetup, getSetup } : { setSetup: undefined, getSetup: undefined },
+    );
+    holder.repo = { ...repo, notes };
     const { result } = renderHook(() => useWorkout());
     await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.profileId).toBeUndefined();
     expect(await result.current.orderByStation()).toBe(false);
     const log = { id: 'l', profileId: 'x', sessionName: 'S', exercises: [] } as unknown as Parameters<typeof result.current.repeatLog>[0];
     expect(result.current.repeatLog(log)).toBeNull();
     expect(await result.current.setup.load('smith')).toBeUndefined();
     expect(await result.current.setup.save('smith', { seat: '1' })).toEqual({ saved: false, reason: 'unsupported' });
-    expect(result.current.setup.canSave).toBe(false);
+    // canSave tells what the repository can store; without a profile nothing is read or written.
+    expect(result.current.setup.canSave).toBe(hasWriter);
+    expect(setSetup).not.toHaveBeenCalled();
+    expect(getSetup).not.toHaveBeenCalled();
   });
 
   it('orders by station, repeats a log and tells the measure', async () => {

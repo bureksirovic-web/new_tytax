@@ -65,7 +65,7 @@ export default function WorkoutPage() {
     <div data-testid="workout-home" className="min-h-screen bg-[var(--bg-primary)] p-4 pb-24">
       <header className="mb-8 pt-4">
         <p className="mb-1 text-xs uppercase tracking-widest text-[var(--text-muted)]">{locale.t('dashboard_system')}</p>
-        <h1 className="font-display text-4xl font-bold uppercase tracking-wider text-[var(--highlight)]">
+        <h1 data-testid="page-heading-workout" className="font-display text-4xl font-bold uppercase tracking-wider text-[var(--highlight)]">
           {locale.t('training_title')}
         </h1>
       </header>
