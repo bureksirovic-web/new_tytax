@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { use } from 'react';
-import { useExerciseAnalytics } from '@/hooks/use-analytics';
+import { useExerciseAnalyticsData } from '@/components/analytics/use-analytics-data';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocale } from '@/components/providers';
@@ -62,7 +62,7 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
   const { exerciseId } = use(params);
   const decoded = decodeURIComponent(exerciseId);
   const { t } = useLocale();
-  const { e1rmProgression, isLoading } = useExerciseAnalytics(decoded);
+  const { e1rmProgression, exerciseName, isLoading } = useExerciseAnalyticsData(decoded);
 
   if (isLoading) {
     return (
@@ -97,11 +97,8 @@ export default function ExerciseAnalyticsPage({ params }: Props) {
         </Link>
       </div>
 
-      <h1
-        className="text-xl font-bold uppercase tracking-wider"
-        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-      >
-        {decoded}
+      <h1 className="font-display text-xl font-bold uppercase tracking-wider text-[var(--text-primary)]">
+        {exerciseName}
       </h1>
 
       {best && (

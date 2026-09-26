@@ -1,5 +1,9 @@
-import type { WorkoutLog } from '@/types/workout';
+import type { WorkoutLog } from '@/contracts/domain';
+import type { ExerciseLookup } from '@/contracts/training';
+// Eager catalog, kept only as the default lookup for callers that pass none
+// (the analytics page today). Pass a lazy-catalog lookup instead.
 import { findExerciseById } from '@/data';
+import { dayCutoff, exerciseVolume, liveLogs } from './sets';
 
 export type MovementPattern = 'push' | 'pull' | 'quad' | 'hinge' | 'carry' | 'core' | 'other';
 
@@ -41,12 +45,27 @@ export function getParityLabel(delta: number): 'balanced' | 'overtrained' | 'und
   return 'undertrained';
 }
 
-export function computeVolumeParity(logs: WorkoutLog[], windowDays = 30): ParityResult[] {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - windowDays);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+export function patternOf(exerciseId: string, lookup: ExerciseLookup): MovementPattern {
+  const raw = lookup(exerciseId)?.pattern?.toLowerCase();
+  if (!raw) return 'other';
+  for (const [key, val] of Object.entries(PATTERN_MAP)) {
+    if (raw.includes(key)) return val;
+  }
+  return 'other';
+}
 
-  const recentLogs = logs.filter(log => log.date >= cutoffStr);
+/**
+ * Volume share per movement pattern over the last `windowDays` local days
+ * (done working sets of live logs) against the balanced targets.
+ */
+export function computeVolumeParity(
+  logs: readonly WorkoutLog[],
+  windowDays = 30,
+  opts: { now?: Date; lookup?: ExerciseLookup } = {},
+): ParityResult[] {
+  const cutoffStr = dayCutoff(opts.now ?? new Date(), windowDays);
+  const lookup = opts.lookup ?? findExerciseById;
+  const recentLogs = liveLogs(logs).filter((log) => log.date >= cutoffStr);
 
   const volumeByPattern: Record<MovementPattern, number> = {
     push: 0, pull: 0, quad: 0, hinge: 0, carry: 0, core: 0, other: 0
@@ -56,21 +75,8 @@ export function computeVolumeParity(logs: WorkoutLog[], windowDays = 30): Parity
 
   for (const log of recentLogs) {
     for (const ex of log.exercises) {
-      const exerciseDef = findExerciseById(ex.exerciseRef);
-      let pattern: MovementPattern = 'other';
-      if (exerciseDef && exerciseDef.pattern) {
-        const rawPattern = exerciseDef.pattern.toLowerCase();
-        // find exact match or partial match
-        for (const [key, val] of Object.entries(PATTERN_MAP)) {
-          if (rawPattern.includes(key)) {
-            pattern = val;
-            break;
-          }
-        }
-      }
-
-      const exVolume = ex.sets.reduce((sum, set) => sum + set.kg * set.reps, 0);
-      volumeByPattern[pattern] += exVolume;
+      const exVolume = exerciseVolume(ex);
+      volumeByPattern[patternOf(ex.exerciseId, lookup)] += exVolume;
       totalVolume += exVolume;
     }
   }

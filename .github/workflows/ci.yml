@@ -1,39 +1,86 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+  push:
+    branches: [main, v2]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  checks:
+    name: lint, types, unit tests, build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:coverage
+      - run: npm run build
 
-      - name: Install dependencies
-        run: npm ci
+  e2e:
+    name: e2e (chromium)
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Playwright (own server on port 3100, SHA-guarded)
+        run: npx playwright test --project=chromium
+        env:
+          PORT: '3100'
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
 
-      - name: Run linting
-        run: npm run lint
+  security:
+    name: secrets and dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks-action lists the PR's commits
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm audit --audit-level=high
 
-      - name: Run TypeScript type checking
-        run: npx tsc --noEmit
-
-      - name: Run unit tests with coverage
-        run: npm run test:coverage
-
-      - name: Build the app
-        run: npm run build
-
-      - name: Run E2E tests
-        run: npm run test:e2e
+  sync-e2e:
+    name: sync suite (local Supabase)
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # TODO(G5): start local Supabase and run the sync suite with zero skips
+      - run: npm run test:sync

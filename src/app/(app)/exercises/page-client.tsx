@@ -1,8 +1,7 @@
 'use client';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useExercises, ExerciseFilter } from '@/hooks/use-exercises';
-import { ALL_EXERCISES } from '@/data';
+import { useCatalog, useExercises, type ExerciseFilter } from '@/hooks/use-exercises';
 import { Badge } from '@/components/ui/badge';
 import { SearchBar } from '@/components/ui/search-bar';
 import { FilterChips } from '@/components/ui/filter-chips';
@@ -64,7 +63,9 @@ function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () =
 export default function ExercisesPage() {
   const router = useRouter();
   const { t } = useLocale();
-  const { exercises: filtered, filter, setFilter } = useExercises();
+  const { exercises: filtered, filter, setFilter, loading } = useExercises();
+  // Same memoised catalog object useExercises loaded; drives the muscle chips.
+  const { catalog } = useCatalog();
   const [queryInput, setQueryInput] = useState(filter.query);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,13 +80,12 @@ export default function ExercisesPage() {
   }, [setFilter]);
 
   const muscleOptions = useMemo(() => {
-    const baseSet = filter.modality !== 'all'
-      ? ALL_EXERCISES.filter((e) => e.modality === filter.modality)
-      : ALL_EXERCISES;
+    const all = catalog?.exercises ?? [];
+    const baseSet = filter.modality !== 'all' ? all.filter((e) => e.modality === filter.modality) : all;
     const seen = new Set<string>();
     baseSet.forEach((e) => e.impact.forEach((i) => seen.add(i.muscle)));
     return Array.from(seen).sort();
-  }, [filter.modality]);
+  }, [catalog, filter.modality]);
 
   const displayed = filtered.slice(0, visible);
 
@@ -146,11 +146,15 @@ export default function ExercisesPage() {
       )}
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          {filtered.length} {filtered.length !== 1 ? t('results') : t('results').slice(0, -1)}
-        </p>
+        {loading ? (
+          <p className="text-sm text-[var(--text-muted)]" aria-busy="true">{t('loading')}</p>
+        ) : (
+          <p className="mb-3 text-xs text-[var(--text-muted)]">
+            {filtered.length} {filtered.length !== 1 ? t('results') : t('results').slice(0, -1)}
+          </p>
+        )}
 
-        {filtered.length === 0 ? (
+        {loading ? null : filtered.length === 0 ? (
           <EmptyState
             icon="◈"
             title={t('no_exercises_found')}

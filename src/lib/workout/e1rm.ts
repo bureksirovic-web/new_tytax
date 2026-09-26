@@ -1,43 +1,35 @@
-import type { WarmupSet } from '@/types/analytics';
+import type { WarmupSet, WarmupStrategy } from '@/contracts/domain';
+import type { WarmupOptions } from '@/contracts/training';
+import { e1rm, planWarmups } from '@/lib/training';
 
 /**
- * Brzycki e1RM formula: weight / (1.0278 - 0.0278 * reps)
- * Reliable for 1-36 reps.
+ * Estimated 1RM. Delegates to the training engine (`training.e1rm`):
+ * Brzycki `kg × 36 / (37 − reps)` up to 36 reps, Epley from 37.
  */
 export function brzycki(weight: number, reps: number): number {
-  if (reps === 1) return weight;
-  if (reps > 36) reps = 36;
-  return weight / (1.0278 - 0.0278 * reps);
+  return e1rm(weight, reps);
 }
 
 /**
- * Round weight to nearest multiple of 2.5.
- */
-function roundTo2_5(value: number): number {
-  return Math.round(value / 2.5) * 2.5;
-}
-
-/**
- * Standard warmup progression for a given working weight.
- * Returns: 40%x8, 60%x5, 80%x3, 90%x1
+ * Warm-up ladder for the warm-up calculator, from the training engine
+ * (`planWarmups`, same rules as `training.generateWarmups`). `unit` only
+ * changes the label; weights are in the unit passed in.
  */
 export function getWarmupSets(
   workingWeight: number,
-  unit: 'kg' | 'lb' = 'kg'
+  unit: 'kg' | 'lb' = 'kg',
+  strategy: WarmupStrategy = 'standard',
+  opts?: WarmupOptions,
 ): WarmupSet[] {
-  const percents: Array<{ percent: number; reps: number; label: string }> = [
-    { percent: 0.4, reps: 8, label: 'Primer' },
-    { percent: 0.6, reps: 5, label: 'Activation' },
-    { percent: 0.8, reps: 3, label: 'Potentiation' },
-    { percent: 0.9, reps: 1, label: 'Ramp' },
-  ];
-
-  return percents.map(({ percent, reps, label }) => ({
-    percent: percent * 100,
-    reps,
-    weight: roundTo2_5(workingWeight * percent),
-    label: `${label} — ${Math.round(percent * 100)}% × ${reps} ${unit}`,
-  }));
+  return planWarmups(workingWeight, strategy, opts).map((w) => {
+    const percent = Math.round(w.pct * 1000) / 10;
+    return {
+      percent,
+      reps: w.reps,
+      weight: w.kg,
+      label: `${percent}% × ${w.reps} ${unit}`,
+    };
+  });
 }
 
 /**
