@@ -95,6 +95,33 @@ describe('LocaleProvider', () => {
     expect(screen.getByTestId('locale').textContent).toBe(DEFAULT_LOCALE);
   });
 
+  it('renders DEFAULT_LOCALE when the window.localStorage getter throws SecurityError', () => {
+    const win = globalThis.window;
+    let reads = 0;
+    // The getter itself throws (blocked site data), not getItem.
+    const blocked = new Proxy(win, {
+      get(target, prop) {
+        if (prop === 'localStorage') {
+          reads += 1;
+          throw new DOMException('The operation is insecure.', 'SecurityError');
+        }
+        const value: unknown = Reflect.get(target, prop);
+        return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+      },
+    });
+    vi.stubGlobal('window', blocked);
+
+    render(tree());
+
+    expect(reads).toBeGreaterThan(0);
+    expect(screen.getByTestId('locale').textContent).toBe(DEFAULT_LOCALE);
+    expect(screen.getByTestId('home').textContent).toBe(homeIn(DEFAULT_LOCALE));
+    // Switching still works in memory; the setItem path swallows the same SecurityError.
+    const next: Locale = DEFAULT_LOCALE === 'hr' ? 'en' : 'hr';
+    act(() => screen.getByRole('button').click());
+    expect(screen.getByTestId('locale').textContent).toBe(next);
+  });
+
   it('ignores an unknown stored value', () => {
     localStorage.setItem(LOCALE_STORAGE_KEY, 'de');
     render(tree());

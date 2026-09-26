@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { noopSyncAdapter, type SyncAdapter, type SyncState } from '@/contracts/sync';
-import * as sync from '@/lib/sync';
+// use-sync imports the leaf modules (not the barrel), so the spies target those.
+import * as syncAccount from '@/lib/sync/account';
+import * as syncInstall from '@/lib/sync/install';
 import { resetAccountStoreForTests, resetSyncAdapterForTests } from '@/lib/sync';
 import { useAccount, useSync, useSyncState } from '../use-sync';
 
@@ -68,7 +70,7 @@ describe('use-sync', () => {
 
   it('useSyncState follows the installed adapter; syncNow goes through it', async () => {
     const { adapter, set } = drivenAdapter({ status: 'idle', lastSyncedAt: null, pending: 2 });
-    vi.spyOn(sync, 'getInstalledSyncAdapter').mockReturnValue(adapter);
+    vi.spyOn(syncInstall, 'getInstalledSyncAdapter').mockReturnValue(adapter);
 
     const { result } = renderHook(() => ({ state: useSyncState(), all: useSync() }));
     expect(result.current.state.pending).toBe(2);
@@ -90,14 +92,14 @@ describe('use-sync', () => {
 
   it('useAccount reads the account store', () => {
     const signedIn = { status: 'signed_in', email: 'ana@example.com' } as const;
-    vi.spyOn(sync, 'getAccountStore').mockReturnValue({
+    vi.spyOn(syncAccount, 'getAccountStore').mockReturnValue({
       getState: () => signedIn,
       subscribe: () => () => {},
       signOut: async () => {},
     });
     const { result } = renderHook(() => useAccount());
     expect(result.current).toEqual({ status: 'signed_in', email: 'ana@example.com' });
-    expect(sync.getInstalledSyncAdapter()).toBe(noopSyncAdapter);
+    expect(syncInstall.getInstalledSyncAdapter()).toBe(noopSyncAdapter);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

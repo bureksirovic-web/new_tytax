@@ -28,12 +28,16 @@ v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the inten
 - PWA manifest and offline precache of the app shell and catalog chunks.
 - CHANGELOG and a rewritten README (true stack, env, sync, privacy, deploy and rollback).
 - Sync wired into the app: the providers install a deferred sync adapter into the repository before the first write (sync code and supabase-js load on demand, +0.8 kB gz on `/dashboard`), start auto-sync (online, visible, sign-in) and run a first sync.
+- e2e: `tytax.setActiveProfile / removeProfile / listProfiles` fixture methods (optional `E2EHooks` members, G5-08); `Page`, `Locator` and `FullConfig` types exported from `e2e/fixtures`.
+- CI: `e2e-offline` job runs `e2e/offline.spec.ts` against `next start` on a build with the e2e hooks; the dev-server e2e run excludes it (`scripts/ci-local.sh --only e2e-offline` locally).
+- Lint: `@playwright/test` is banned in every e2e file outside `e2e/fixtures/**` and `e2e/*-reporter.ts`, including dynamic `import()`, `require()` and `import x = require()`; `.mts`/`.cts` e2e files included, and a reporter may import only `@playwright/test/reporter`; browser code may not statically import supabase-js or the `@/lib/sync` barrel (also as `@/lib/sync/index` or a relative path).
 - Sync panel (`src/components/sync/sync-panel.tsx`): status, last sync, pending count, last error, Sync now, sign-in / sign-out; also on the new `/auth/account` page. `useSyncState()` / `useAccount()` hooks.
 - `npm run test:sync`: live suite against local Supabase (signup profile row, two-device round trip of every table, cross-user SELECT/INSERT/UPDATE/DELETE denial, tombstone, LWW conflict, retry cursor, idempotent re-push, no `local` ids on the wire). Fails with instructions when the env is missing.
 - `e2e/sync-roundtrip.spec.ts` (`@sync`): magic-link sign-in through the real UI on two browser contexts, a workout logged on A reaches B; signed out with sync on, the app works and sends nothing.
 - Supabase migration 004 (quotas): size caps on the columns 003 left open (gender, experience level, split and periodization type, session order, modalities), at most 200 rows per INSERT/UPDATE statement, and a per-account quota of 100,000 rows and 64 MiB over every client-writable table (`public.sync_usage`, limits in `public.sync_quota()`, error PT413 / HTTP 413). pgTAP `08_quotas`, `05_size_caps` and the upgrade test cover it.
 
 ### Fixed
+- The locale and theme providers no longer crash when the `window.localStorage` getter throws `SecurityError` (blocked site data); they fall back to the default locale and the dark theme, kept in memory.
 - Sync no longer compares server time with the device clock on pull: a device whose clock runs ahead now takes other devices' newer edits and no longer pushes its stale copy back; a local edit made while a page is applied is never overwritten (the pending-op check and the apply share one IndexedDB transaction and read the whole outbox). Workaround for `requests/G5-04.md`.
 - Undo delete, re-adding to the arsenal and rewriting a cleared note now reach the server and other devices (the push calls `undelete_row` when the server kept a tombstone).
 - The first-push snapshot (first sign-in, or after localStorage was lost while IndexedDB kept the data) pulls first and pushes only records the server does not have, so it never overwrites newer server rows.
@@ -43,6 +47,7 @@ v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the inten
 - pgTAP now pins the exact RLS policy expressions (a `WITH CHECK (true)` on UPDATE was not caught); e2e covers the open-redirect check on a successful sign-in, not only on a failed exchange; the live suite proves a non-uuid id is never sent.
 
 ### Changed
+- `/auth/account` first load 209.6 kB → 203.4 kB gzip and `/settings` 217.5 kB → 211.3 kB (sync hooks import the sync leaf modules, not the barrel); `/auth/login` stays at 199.7 kB with supabase-js only behind `import()`.
 - Croatian is the default language; every UI string goes through the hr/en dictionary with a key-parity test.
 - Workout sessions store `SessionExercise[]` with nested sets (Dexie v2→v3 migration, additive and idempotent).
 - The active program is `activeProgramId` on the profile instead of a boolean index.

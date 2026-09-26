@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import type { AccountState } from '@/lib/sync';
+import type { AccountState } from '@/lib/sync/account';
 import { useAuthT } from '@/lib/auth/use-auth-t';
 
 interface SyncAccountProps {

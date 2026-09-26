@@ -10,7 +10,11 @@
  */
 import { useCallback, useSyncExternalStore } from 'react';
 import { noopSyncAdapter, type SyncResult, type SyncState } from '@/contracts/sync';
-import { DISABLED_ACCOUNT, getAccountStore, getInstalledSyncAdapter, type AccountState } from '@/lib/sync';
+// The leaf modules, not the '@/lib/sync' barrel: the barrel pulls the real
+// adapter, mapper and remote store into the first load of every page that
+// shows the sync panel; they arrive with the deferred adapter's import() instead.
+import { DISABLED_ACCOUNT, getAccountStore, type AccountState } from '@/lib/sync/account';
+import { getInstalledSyncAdapter } from '@/lib/sync/install';
 
 const serverState = (): SyncState => noopSyncAdapter.getState();
 const serverAccount = (): AccountState => DISABLED_ACCOUNT;

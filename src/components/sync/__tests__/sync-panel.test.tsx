@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SyncAdapter, SyncState } from '@/contracts/sync';
 import { DEFAULT_LOCALE } from '@/components/providers/locale-core';
 import { AUTH_STRINGS } from '@/lib/auth/i18n';
-import * as sync from '@/lib/sync';
+// use-sync imports the leaf modules (not the barrel), so the spies target those.
+import * as syncAccount from '@/lib/sync/account';
+import * as syncInstall from '@/lib/sync/install';
 import type { AccountState, AccountStore } from '@/lib/sync';
 import { SyncStatus } from '../sync-status';
 import { SyncPanel } from '../sync-panel';
@@ -41,8 +43,8 @@ function install(state: SyncState, account: AccountState) {
     subscribe: (l) => s.subscribe(() => l(s.get())),
   };
   const store: AccountStore = { getState: a.get, subscribe: a.subscribe, signOut: vi.fn(async () => a.set({ status: 'signed_out', email: null })) };
-  vi.spyOn(sync, 'getInstalledSyncAdapter').mockReturnValue(adapter);
-  vi.spyOn(sync, 'getAccountStore').mockReturnValue(store);
+  vi.spyOn(syncInstall, 'getInstalledSyncAdapter').mockReturnValue(adapter);
+  vi.spyOn(syncAccount, 'getAccountStore').mockReturnValue(store);
   return { adapter, store, setState: s.set, setAccount: a.set };
 }
 

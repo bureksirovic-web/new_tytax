@@ -23,11 +23,32 @@ function applyTheme(theme: Theme) {
   }
 }
 
+/**
+ * The `window.localStorage` getter itself throws a SecurityError when site data
+ * is blocked (Safari private mode, some embedded webviews): the theme then
+ * falls back to 'dark' and is not remembered, instead of crashing the page.
+ */
+function readSavedTheme(): Theme {
+  try {
+    const saved = window.localStorage.getItem('theme');
+    return saved === 'dark' || saved === 'oled' ? saved : 'dark';
+  } catch {
+    return 'dark';
+  }
+}
+
+function saveTheme(theme: Theme) {
+  try {
+    window.localStorage.setItem('theme', theme);
+  } catch {
+    // Storage blocked or full: the choice lasts for this page only.
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window === 'undefined') return 'dark';
-    const saved = localStorage.getItem('theme') as Theme | null;
-    return (saved === 'dark' || saved === 'oled') ? saved : 'dark';
+    return readSavedTheme();
   });
 
   useEffect(() => {
@@ -36,7 +57,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem('theme', t);
+    saveTheme(t);
     applyTheme(t);
   };
 

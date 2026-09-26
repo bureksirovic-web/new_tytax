@@ -15,5 +15,5 @@ export type {
   SeedSetInput,
 } from '../../src/contracts/fixtures';
 export type { Profile, Program, WorkoutLog } from '../../src/contracts/domain';
-export type { Page } from '@playwright/test';
+export type { FullConfig, Locator, Page } from '@playwright/test';
 export { createTytax, waitForApp } from './seed';

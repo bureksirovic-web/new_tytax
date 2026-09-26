@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import type { FullConfig } from '@playwright/test';
+import type { FullConfig } from './fixtures';
 
 /**
  * SHA guard (PLAN §10.1 W0.2). Runs after the webServer is ready. Fails the

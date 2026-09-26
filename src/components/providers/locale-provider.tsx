@@ -28,7 +28,18 @@ const LocaleContext = createContext<LocaleContextValue>({
 });
 
 const noopSubscribe = () => () => {};
-const readClientLocale = (): Locale => readStoredLocale(window.localStorage);
+/**
+ * The `window.localStorage` getter itself throws a SecurityError when site data
+ * is blocked (Safari private mode, some embedded webviews), so read it inside
+ * the try: readStoredLocale only guards getItem.
+ */
+const readClientLocale = (): Locale => {
+  try {
+    return readStoredLocale(window.localStorage);
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+};
 const serverLocale = (): Locale => DEFAULT_LOCALE;
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {

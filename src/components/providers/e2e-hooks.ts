@@ -78,7 +78,10 @@ function emptyBackup(exportedAt: string): BackupV3 {
   };
 }
 
-export function createE2EHooks(repo: Repository, options: E2EHooksOptions): E2EHooks {
+/** The hooks this app installs: the contract with every optional profile method present (G2-01). */
+export type AppE2EHooks = E2EHooks & Required<Pick<E2EHooks, 'setActiveProfile' | 'removeProfile' | 'listProfiles'>>;
+
+export function createE2EHooks(repo: Repository, options: E2EHooksOptions): AppE2EHooks {
   const storage = options.storage ?? (() => window.localStorage);
   const now = options.now ?? (() => new Date());
   const newId = options.newId ?? (() => crypto.randomUUID());
@@ -120,6 +123,18 @@ export function createE2EHooks(repo: Repository, options: E2EHooksOptions): E2EH
         draft: readPersistedDraft(storage()),
       };
     },
+
+    setActiveProfile(profileId) {
+      return repo.profiles.setActive(profileId);
+    },
+
+    removeProfile(profileId) {
+      return repo.profiles.remove(profileId);
+    },
+
+    listProfiles() {
+      return repo.profiles.list();
+    },
   };
 }
 
@@ -130,7 +145,7 @@ export function createE2EHooks(repo: Repository, options: E2EHooksOptions): E2EH
  * docs/v2/requests/G5-07.md asks for `ready: boolean` + `bootError?` in the
  * `E2EHooks` contract; until then the window assignment below narrows the type.
  */
-export interface E2EBootHooks extends Omit<E2EHooks, 'ready'> {
+export interface E2EBootHooks extends Omit<AppE2EHooks, 'ready'> {
   ready: boolean;
   bootError?: string;
 }
@@ -143,7 +158,7 @@ export function installBootingE2EHooks(repo: Repository, options: E2EHooksOption
 }
 
 /** Installs the hooks on `window.__tytaxE2E` and returns them. */
-export function installE2EHooks(repo: Repository, options: E2EHooksOptions): E2EHooks {
+export function installE2EHooks(repo: Repository, options: E2EHooksOptions): AppE2EHooks {
   const hooks = createE2EHooks(repo, options);
   window.__tytaxE2E = hooks;
   return hooks;

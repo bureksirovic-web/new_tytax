@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Local mirror of .github/workflows/ci.yml (TYTAX v2).
-# Usage: scripts/ci-local.sh [--only quality|e2e|sync-e2e|security] [--skip-e2e]
-#   --skip-e2e  skips the e2e and sync-e2e jobs.
+# Usage: scripts/ci-local.sh [--only quality|e2e|e2e-offline|sync-e2e|security] [--skip-e2e]
+#   --skip-e2e  skips the e2e, e2e-offline and sync-e2e jobs.
+#   e2e-offline is skipped (with a printed notice) only while e2e/offline.spec.ts
+#   does not exist in this checkout (G4's file, present after integration).
 # Env: PORT (required for the e2e jobs: 3100 integration, 310<n> per goal),
 #      SUPABASE_CLI (default "npx -y supabase@2.118.0").
 # A local Supabase stack that is already running is reused and left running;
@@ -20,13 +22,13 @@ while [ $# -gt 0 ]; do
     --only) ONLY="${2:-}"; shift 2 ;;
     --only=*) ONLY="${1#--only=}"; shift ;;
     --skip-e2e) SKIP_E2E=1; shift ;;
-    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-case "$ONLY" in ""|quality|e2e|sync-e2e|security) ;; *) echo "--only must be quality|e2e|sync-e2e|security" >&2; exit 2 ;; esac
+case "$ONLY" in ""|quality|e2e|e2e-offline|sync-e2e|security) ;; *) echo "--only must be quality|e2e|e2e-offline|sync-e2e|security" >&2; exit 2 ;; esac
 # Never guess a port (same rule as playwright.config.ts): a default would collide with another run.
-if [ "$SKIP_E2E" -eq 0 ] && { [ -z "$ONLY" ] || [ "$ONLY" = e2e ] || [ "$ONLY" = sync-e2e ]; } && [ -z "${PORT:-}" ]; then
+if [ "$SKIP_E2E" -eq 0 ] && { [ -z "$ONLY" ] || [ "$ONLY" = e2e ] || [ "$ONLY" = e2e-offline ] || [ "$ONLY" = sync-e2e ]; } && [ -z "${PORT:-}" ]; then
   echo "Set PORT=310<n> (GOALS.md port table)" >&2; exit 2
 fi
 [ -n "${PORT:-}" ] && export PORT
@@ -90,10 +92,32 @@ if want e2e && [ "$SKIP_E2E" -eq 0 ]; then
     step "e2e: build"                 "npm run build"
   fi
   step "e2e: playwright install"      "npx playwright install chromium"
+  # offline.spec.ts needs a production server: the e2e-offline job runs it (G4-03).
   step "e2e: playwright chromium+mobile" \
-    "env -u NEXT_PUBLIC_SYNC_ENABLED npx playwright test --project=chromium --project=mobile --grep-invert @sync"
+    "env -u NEXT_PUBLIC_SYNC_ENABLED npx playwright test --project=chromium --project=mobile --grep-invert '@sync|(^| )offline\\.spec\\.ts( |\$)'"
 elif want e2e; then
   record "e2e" "SKIP (--skip-e2e)"
+fi
+
+# ---------------------------------------------------------------- e2e-offline
+# Rebuilds .next with the e2e hooks and serves it with `next start` (E2E_SERVER=prod).
+if want e2e-offline && [ "$SKIP_E2E" -eq 0 ]; then
+  JOB_FAILED=0
+  if [ ! -f e2e/offline.spec.ts ]; then
+    echo
+    echo "==> e2e-offline: SKIPPED: e2e/offline.spec.ts does not exist in this checkout."
+    echo "    It is G4's spec and arrives with integration; CI runs this job on the merged branch."
+    record "e2e-offline" "SKIP (e2e/offline.spec.ts absent)"
+  else
+    if [ -n "$ONLY" ]; then step "e2e-offline: npm ci" "npm ci"; fi
+    step "e2e-offline: build (E2E hooks)" "env -u NEXT_PUBLIC_SYNC_ENABLED NEXT_PUBLIC_E2E_HOOKS=1 npx next build"
+    step "e2e-offline: playwright install" "npx playwright install chromium"
+    step "e2e-offline: offline.spec.ts on next start (zero skips)" \
+      "env -u NEXT_PUBLIC_SYNC_ENABLED E2E_SERVER=prod PLAYWRIGHT_JSON_OUTPUT_FILE='$LOG_DIR/e2e-offline.json' npx playwright test e2e/offline.spec.ts --project=chromium --reporter=list,json,./e2e/no-skips-reporter.ts
+       node .github/scripts/check-no-skips.mjs playwright '$LOG_DIR/e2e-offline.json'"
+  fi
+elif want e2e-offline; then
+  record "e2e-offline" "SKIP (--skip-e2e)"
 fi
 
 # ---------------------------------------------------------------- sync-e2e

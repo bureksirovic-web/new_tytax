@@ -95,7 +95,22 @@ const MISNAMED_TEST_FILES = [
   "scripts/**/*.test.{tsx,mts,cts,js,jsx,mjs,cjs}",
 ];
 
-const PLAYWRIGHT_IMPORT_MESSAGE = "Import { test, expect } (and types) from './fixtures' in specs.";
+const PLAYWRIGHT_IMPORT_MESSAGE =
+  "Import { test, expect } (and types) from './fixtures' in e2e code: only e2e/fixtures/** and e2e/*-reporter.ts may import '@playwright/test'.";
+/**
+ * The same ban for the forms no-restricted-imports does not see: dynamic
+ * import('@playwright/test') (string or template literal), require(), and TS
+ * `import x = require()`. Applied to every e2e file, fixtures included; the
+ * fixtures import it statically. The regex has no "/" (esquery regexes cannot
+ * hold one), so "." stands for it: @playwright/test, playwright/test and subpaths.
+ */
+const PLAYWRIGHT_MODULE = "/^@?playwright.test\\b/";
+const PLAYWRIGHT_DYNAMIC_SELECTORS = [
+  `ImportExpression[source.value=${PLAYWRIGHT_MODULE}]`,
+  `ImportExpression > TemplateLiteral.source > TemplateElement[value.cooked=${PLAYWRIGHT_MODULE}]`,
+  `CallExpression[callee.name='require'] > Literal[value=${PLAYWRIGHT_MODULE}]`,
+  `TSExternalModuleReference > Literal[value=${PLAYWRIGHT_MODULE}]`,
+].map((selector) => ({ selector, message: PLAYWRIGHT_IMPORT_MESSAGE }));
 
 // ─── i18n (PLAN §10.1 W0.5, AC14) ────────────────────────────────────────────
 // Mode "jsx-only" + an attribute *include* list: flags JSX text and string
@@ -148,7 +163,7 @@ const eslintConfig = defineConfig([
   },
   // Every test file: no skipped/focused/todo tests.
   {
-    files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**/*.ts"],
+    files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**/*.{ts,mts,cts}"],
     rules: {
       "no-restricted-syntax": ["error", ...SKIP_SELECTORS],
     },
@@ -156,7 +171,7 @@ const eslintConfig = defineConfig([
   // e2e: no UI-state reads, no swallowed failures, no fixed sleeps, no spec
   // retries (plus the skip ban, repeated).
   {
-    files: ["e2e/**/*.ts"],
+    files: ["e2e/**/*.{ts,mts,cts}"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -164,14 +179,18 @@ const eslintConfig = defineConfig([
         ...GUARD_SELECTORS,
         WAIT_FOR_TIMEOUT,
         ...RETRY_SELECTORS,
+        ...PLAYWRIGHT_DYNAMIC_SELECTORS,
       ],
       // No React in e2e: Playwright fixtures call `use(value)`, which is not a hook.
       "react-hooks/rules-of-hooks": "off",
     },
   },
-  // e2e specs take test/expect from ./fixtures (counting expect, tytax fixture).
+  // e2e code takes test/expect from ./fixtures (counting expect, tytax fixture).
+  // Every e2e file, not only specs: a helper module re-exporting Playwright's
+  // test/expect would hand specs an expect the counter never sees.
   {
-    files: ["e2e/**/*.spec.ts"],
+    files: ["e2e/**/*.{ts,mts,cts}"],
+    ignores: ["e2e/fixtures/**", "e2e/*-reporter.{ts,mts,cts}"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -181,6 +200,75 @@ const eslintConfig = defineConfig([
             { name: "playwright/test", message: PLAYWRIGHT_IMPORT_MESSAGE },
           ],
           patterns: [{ group: ["@playwright/test/*", "playwright/test/*"], message: PLAYWRIGHT_IMPORT_MESSAGE }],
+        },
+      ],
+    },
+  },
+  // Reporters need only the reporter types: '@playwright/test/reporter' is
+  // allowed, test/expect from '@playwright/test' are not (a reporter must not
+  // become a back door that re-exports the uncounted expect).
+  {
+    files: ["e2e/*-reporter.{ts,mts,cts}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "@playwright/test", message: PLAYWRIGHT_IMPORT_MESSAGE },
+            { name: "playwright/test", message: PLAYWRIGHT_IMPORT_MESSAGE },
+          ],
+          patterns: [
+            {
+              regex: "^@?playwright/test/(?!reporter$)",
+              message: PLAYWRIGHT_IMPORT_MESSAGE,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // supabase-js stays out of every page's first load (F4): browser code reaches
+  // it only through a dynamic import('@/lib/supabase/client') at the moment it
+  // is needed (submit, sign-out, the account store's first subscribe). Type
+  // imports are erased and allowed. The server side (proxy, route handlers,
+  // src/lib/supabase/**) imports it statically. The '@/lib/sync' barrel pulls
+  // the whole sync engine, so UI code imports its leaf modules instead.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/lib/supabase/**",
+      "src/proxy.ts",
+      "src/app/**/route.ts",
+      "src/lib/sync/**",
+      "**/*.test.{ts,tsx}",
+      "**/__tests__/**",
+    ],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...["@supabase/supabase-js", "@supabase/ssr", "@/lib/supabase/client"].map((name) => ({
+              name,
+              allowTypeImports: true,
+              message: "Keep supabase-js out of the first load: const { createClient } = await import('@/lib/supabase/client') where it is used.",
+            })),
+            {
+              name: "@/lib/sync",
+              allowTypeImports: true,
+              message: "The sync barrel pulls the whole engine into the first load: import from '@/lib/sync/<module>' (install, account, ...) or import('@/lib/sync').",
+            },
+          ],
+          // The same barrel reached as '@/lib/sync/index' or by a relative path
+          // ('../../lib/sync', './lib/sync', '../sync/index.ts' from src/lib/<dir>).
+          // A bare './sync' is left alone: src/contracts and src/types have their own sync.ts.
+          patterns: [
+            {
+              regex: "^(@/lib/sync/index|\\./(src/)?lib/sync(/index)?|(\\.\\./)+((src/)?lib/)?sync(/index)?)(\\.ts)?$",
+              allowTypeImports: true,
+              message: "The sync barrel pulls the whole engine into the first load: import from '@/lib/sync/<module>' (install, account, ...) or import('@/lib/sync').",
+            },
+          ],
         },
       ],
     },

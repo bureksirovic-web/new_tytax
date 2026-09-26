@@ -148,10 +148,57 @@ describe('createE2EHooks', () => {
     await expect(hooks.seedProgram(profile.id, {})).rejects.toThrow('pass presetId or template');
   });
 
+  it('setActiveProfile and listProfiles go straight to the repository (G2-01)', async () => {
+    const hooks = hooksFor(repo);
+    const first = await hooks.seedProfile({ name: 'First' });
+    const second = await hooks.seedProfile({ name: 'Second', activate: false });
+    expect(await repo.profiles.getActiveId()).toBe(first.id);
+
+    await hooks.setActiveProfile(second.id);
+
+    expect(await repo.profiles.getActiveId()).toBe(second.id);
+    expect((await hooks.snapshot()).activeProfileId).toBe(second.id);
+    const listed = await hooks.listProfiles();
+    expect(listed.map((p) => p.id).sort()).toEqual([first.id, second.id].sort());
+    expect(listed).toEqual(await repo.profiles.list());
+  });
+
+  it('removeProfile wipes only that profile and its data (G2-01)', async () => {
+    const hooks = hooksFor(repo);
+    const keep = await hooks.seedProfile({ name: 'Keep' });
+    const gone = await hooks.seedProfile({ name: 'Gone' });
+    await hooks.seedHistory(keep.id, [{ daysAgo: 1, exercises: [BENCH] }]);
+    await hooks.seedHistory(gone.id, [
+      { daysAgo: 1, exercises: [BENCH] },
+      { daysAgo: 2, exercises: [BENCH] },
+    ]);
+    expect(await repo.profiles.getActiveId()).toBe(gone.id);
+
+    await hooks.removeProfile(gone.id);
+
+    expect((await hooks.listProfiles()).map((p) => p.id)).toEqual([keep.id]);
+    // 0: both of Gone's logs were wiped, soft-deleted or not.
+    expect(await repo.logs.count(gone.id, { includeDeleted: true })).toBe(0);
+    // 1: Keep's one seeded log is untouched.
+    expect(await repo.logs.count(keep.id, { includeDeleted: true })).toBe(1);
+    // The removed profile was active, so the remaining one took over (ProfilesRepo.remove contract).
+    expect(await repo.profiles.getActiveId()).toBe(keep.id);
+  });
+
+  it('the profile hooks reject what the repository rejects', async () => {
+    const hooks = hooksFor(repo);
+    const spy = vi.spyOn(repo.profiles, 'setActive').mockRejectedValueOnce(new Error('no such profile'));
+    await expect(hooks.setActiveProfile('missing')).rejects.toThrow('no such profile');
+    expect(spy).toHaveBeenCalledWith('missing');
+  });
+
   it('installE2EHooks puts the hooks on window', () => {
     const hooks = installE2EHooks(repo, { defaultProfileName: 'Profil 1' });
     expect(window.__tytaxE2E).toBe(hooks);
     expect(window.__tytaxE2E?.ready).toBe(true);
+    expect(typeof window.__tytaxE2E?.setActiveProfile).toBe('function');
+    expect(typeof window.__tytaxE2E?.removeProfile).toBe('function');
+    expect(typeof window.__tytaxE2E?.listProfiles).toBe('function');
   });
 });
 
