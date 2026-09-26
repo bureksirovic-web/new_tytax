@@ -1,51 +1,52 @@
-import { db } from '@/lib/db/dexie';
+import { getDb } from '@/lib/db/dexie';
 import { generateId } from '@/lib/utils';
-import type { SyncOperationType } from '@/types/sync';
+import type { SyncOperationType, SyncTable } from '@/types/sync';
 
-export type SyncableTable =
-  | 'workout_logs'
-  | 'programs'
-  | 'profiles'
-  | 'pr_records'
-  | 'bodyweight_entries';
+export type SyncableTable = SyncTable;
+
+/** Legacy callers still pass 'create' / 'update'; both map to 'upsert'. */
+export type EnqueueOperation = SyncOperationType | 'create' | 'update';
+
+function toOp(operationType: EnqueueOperation): SyncOperationType {
+  return operationType === 'delete' ? 'delete' : 'upsert';
+}
 
 /**
  * Enqueue a sync operation for later processing by the SyncEngine.
  *
+ * The v3 outbox row names the record only; the payload is read from the
+ * local table at push time. `payload.profileId` is recorded when present.
+ *
  * @param tableName - The Supabase table to sync to
- * @param operationType - 'create', 'update', or 'delete'
+ * @param operationType - 'upsert' (or legacy 'create'/'update') or 'delete'
  * @param recordId - The ID of the record being synced
- * @param payload - The full record payload to upsert, or partial data for delete
+ * @param payload - The record (only its profileId is kept)
  */
 export async function enqueue(
   tableName: SyncableTable,
-  operationType: SyncOperationType,
+  operationType: EnqueueOperation,
   recordId: string,
   payload: Record<string, unknown>
 ): Promise<void> {
-  const existing = await db.syncQueue.where({ recordId, tableName }).first();
+  const db = getDb();
+  const op = toOp(operationType);
+  const profileId = typeof payload.profileId === 'string' ? payload.profileId : '';
+  const existing = await db.syncQueue.where({ recordId, table: tableName }).first();
 
   if (existing) {
-    if (operationType === 'delete') {
-      await db.syncQueue.update(existing.id, {
-        operationType: 'delete',
-        payload,
-        createdAt: new Date().toISOString(),
-      });
-    } else {
-      await db.syncQueue.update(existing.id, {
-        operationType: existing.operationType === 'delete' ? 'delete' : operationType,
-        payload,
-        createdAt: new Date().toISOString(),
-      });
-    }
+    await db.syncQueue.update(existing.id, {
+      // delete supersedes create/update, and stays a delete
+      op: op === 'delete' || existing.op === 'delete' ? 'delete' : 'upsert',
+      profileId: profileId || existing.profileId,
+      createdAt: new Date().toISOString(),
+    });
   } else {
     await db.syncQueue.add({
       id: generateId(),
-      tableName,
-      operationType,
+      table: tableName,
+      op,
       recordId,
-      payload,
+      profileId,
       createdAt: new Date().toISOString(),
       retryCount: 0,
     });

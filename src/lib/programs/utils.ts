@@ -1,83 +1,25 @@
-import type { Program, ProgramSession } from '@/types/program';
-import { db } from '@/lib/db/dexie';
-import { generateId, isoDate } from '@/lib/utils';
-
 /**
- * Activate a program: set every program for the profile to isActive=false,
- * then set the target to isActive=true and reset currentSessionIndex if unset.
+ * Pure program-rotation helpers. Persistence (install, activate, advance,
+ * delete) lives on the repository: `getRepository().programs`.
  */
-export async function activateProgram(programId: string): Promise<void> {
-  const target = await db.programs.get(programId);
-  if (!target || target.deletedAt) return;
+import type { Program, ProgramSession } from '@/contracts/domain';
 
-  // Deactivate all programs for this profile
-  const all = await db.programs.where('profileId').equals(target.profileId).and((p) => !p.deletedAt).toArray();
-  await Promise.all(
-    all
-      .filter((p) => p.isActive)
-      .map((p) => db.programs.update(p.id, { isActive: false, updatedAt: isoDate() })),
-  );
-
-  await db.programs.update(programId, {
-    isActive: true,
-    currentSessionIndex: target.currentSessionIndex ?? 0,
-    updatedAt: isoDate(),
-  });
-}
-
-/**
- * Advance to the next session in the rotation (wraps around).
- */
-export async function advanceSession(programId: string): Promise<void> {
-  const program = await db.programs.get(programId);
-  if (!program || program.deletedAt || !program.sessions || program.sessions.length === 0) return;
-  const next = (program.currentSessionIndex + 1) % program.sessions.length;
-  await db.programs.update(programId, { currentSessionIndex: next, updatedAt: isoDate() });
-}
-
-/**
- * Return the current ProgramSession for the given program, or null if sessions is empty.
- */
+/** The session the rotation pointer names, or null when the program has none (or the pointer is out of range). */
 export function getCurrentSession(program: Program): ProgramSession | null {
-  return program.sessions[program.currentSessionIndex] ?? null;
+  const i = program.currentSessionIndex;
+  if (!Number.isInteger(i) || i < 0) return null;
+  return program.sessions[i] ?? null;
 }
 
-/**
- * Install a preset as a new user-owned program.
- * Clones the template, assigns a fresh id + profileId, marks inactive, returns the new id.
- */
-export async function installPreset(
-  preset: Program,
-  profileId: string,
-): Promise<string> {
-  const id = generateId();
-  const now = isoDate();
-  const newProgram: Program = {
-    ...preset,
-    id,
-    profileId,
-    isActive: false,
-    currentSessionIndex: 0,
-    createdAt: now,
-    updatedAt: now,
-    sessions: preset.sessions.map((s) => ({
-      ...s,
-      id: generateId(),
-      programId: id,
-    })),
-  };
-  await db.programs.add(newProgram);
-  return id;
+/** Index the pointer moves to after the current session: (i + 1) % sessions.length; 0 when there are no sessions. */
+export function nextSessionIndex(program: Program): number {
+  const n = program.sessions.length;
+  if (n === 0) return 0;
+  const i = Number.isInteger(program.currentSessionIndex) && program.currentSessionIndex >= 0 ? program.currentSessionIndex : -1;
+  return (i + 1) % n;
 }
 
-/**
- * Delete a program by id (soft-delete via deletedAt, matching WorkoutLog pattern).
- * Uses hard delete since Program type has optional deletedAt and the index supports it.
- */
-export async function deleteProgram(programId: string): Promise<void> {
-  await db.programs.update(programId, {
-    deletedAt: new Date().toISOString(),
-    isActive: false,
-    updatedAt: isoDate(),
-  });
+/** A rest day in the rotation. */
+export function isRestSession(session: ProgramSession): boolean {
+  return session.isRest === true;
 }

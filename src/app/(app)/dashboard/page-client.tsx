@@ -1,73 +1,92 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
-import { useWorkoutStore } from '@/stores/workout-store';
+import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
+import { useWorkoutHydrated, useWorkoutStore } from '@/stores/workout-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDuration } from '@/lib/utils';
+import { getCurrentSession } from '@/lib/programs/utils';
 import { useLocale } from '@/components/providers';
-import type { WorkoutLog } from '@/types/workout';
-import type { Program } from '@/types/program';
+
+/** Local calendar day (`'YYYY-MM-DD'`) `days` days before today. */
+function localDayDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const { t } = useLocale();
-  const startWorkout = useWorkoutStore((s) => s.startWorkout);
+  const hydrated = useWorkoutHydrated();
+  const draft = useWorkoutStore((s) => s.draft);
+  const startQuick = useWorkoutStore((s) => s.startQuick);
+  const { profileId, loading: profileLoading } = useActiveProfile();
 
-  const lastLog = useLiveQuery<WorkoutLog | undefined>(
-    () => db.workoutLogs.orderBy('date').last(),
-    []
+  const { data: lastLogs } = useRepoQuery(
+    async (repo) => (profileId ? repo.logs.list(profileId, { limit: 1 }) : []),
+    [profileId],
+  );
+  const { data: weekLogs } = useRepoQuery(
+    async (repo) => (profileId ? repo.logs.list(profileId, { from: localDayDaysAgo(7) }) : []),
+    [profileId],
+  );
+  const { data: activeProgram } = useRepoQuery(
+    async (repo) => (profileId ? repo.programs.getActive(profileId) : undefined),
+    [profileId],
   );
 
-  const weekLogs = useLiveQuery<WorkoutLog[]>(async () => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-    return db.workoutLogs.where('date').aboveOrEqual(cutoffStr).toArray();
-  }, []);
-
-  const activeProgram = useLiveQuery<Program | undefined>(
-    () => db.programs.where('isActive').equals(1).and((p) => !p.deletedAt).first(),
-    []
-  );
-
+  const lastLog = lastLogs?.[0];
+  // Nothing to say about history until the profile and its logs have loaded.
+  const historyLoaded = !profileLoading && lastLogs !== undefined;
   const weekVolume = weekLogs?.reduce((sum, l) => sum + (l.totalVolumeKg ?? 0), 0) ?? 0;
   const weekCount = weekLogs?.length ?? 0;
+  const nextSession = activeProgram ? getCurrentSession(activeProgram) : null;
 
-  const handleQuickStart = async () => {
-    await startWorkout({});
+  const handleQuickStart = () => {
+    // Never replace an in-progress workout: resume it instead.
+    if (draft) {
+      router.push('/workout/active');
+      return;
+    }
+    if (!profileId) return;
+    startQuick(profileId, t('nav_workout'));
     router.push('/workout/active');
   };
 
   return (
-    <main className="min-h-screen p-4 pb-24" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <main className="min-h-screen bg-[var(--bg-primary)] p-4 pb-24">
       <div className="mb-6 pt-4">
-        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_system')}</p>
-        <h1
-          className="text-3xl font-bold tracking-wider uppercase"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
-        >
+        <p className="mb-1 text-xs uppercase tracking-widest text-[var(--text-muted)]">{t('dashboard_system')}</p>
+        <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-[var(--highlight)]">
           {t('dashboard_title')}
         </h1>
       </div>
 
-      <Button fullWidth size="lg" onClick={handleQuickStart} className="uppercase tracking-widest font-bold mb-6 min-h-[64px] text-lg">
-        {t('workout_start')}
+      <Button
+        fullWidth
+        size="lg"
+        disabled={!hydrated || (!draft && !profileId)}
+        onClick={handleQuickStart}
+        className="mb-6 min-h-[64px] text-lg font-bold uppercase tracking-widest"
+      >
+        {draft ? t('workout_session_active') : t('workout_start')}
       </Button>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-3">
         <Card>
-          <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_this_week')}</p>
-          <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-mono)', color: 'var(--highlight)' }}>
+          <p className="mb-1 text-xs uppercase tracking-widest text-[var(--text-muted)]">{t('dashboard_this_week')}</p>
+          <p className="font-mono text-2xl font-bold text-[var(--highlight)]">
             {weekCount}
-            <span className="text-sm font-normal ml-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_sessions')}</span>
+            <span className="ml-1 text-sm font-normal text-[var(--text-muted)]">{t('dashboard_sessions')}</span>
           </p>
         </Card>
         <Card>
-          <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_volume')}</p>
-          <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-mono)', color: 'var(--highlight)' }}>
+          <p className="mb-1 text-xs uppercase tracking-widest text-[var(--text-muted)]">{t('dashboard_volume')}</p>
+          <p className="font-mono text-2xl font-bold text-[var(--highlight)]">
             {weekVolume > 0 ? `${Math.round(weekVolume / 1000).toLocaleString()}t` : '—'}
           </p>
         </Card>
@@ -77,31 +96,29 @@ export default function DashboardPage() {
         <Card className="mb-4">
           <CardHeader>
             <CardTitle>{t('dashboard_last_workout')}</CardTitle>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{lastLog.date}</span>
+            <span className="text-xs text-[var(--text-muted)]">{lastLog.date}</span>
           </CardHeader>
-          <h3 className="font-bold uppercase tracking-wide mb-2" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+          <h3 className="mb-2 font-display font-bold uppercase tracking-wide text-[var(--text-primary)]">
             {lastLog.sessionName}
           </h3>
-          <div className="flex gap-4 text-sm">
-            <span style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex gap-4 text-sm text-[var(--text-secondary)]">
+            <span>
               {lastLog.exercises.length} {t('dashboard_exercises')}
             </span>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {formatDuration(lastLog.durationSeconds)}
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {Math.round(lastLog.totalVolumeKg).toLocaleString()} kg
-            </span>
+            <span>{formatDuration(lastLog.durationSeconds)}</span>
+            <span>{Math.round(lastLog.totalVolumeKg).toLocaleString()} kg</span>
           </div>
           {lastLog.prCount > 0 && (
-            <Badge variant="warning" className="mt-2">{lastLog.prCount} PR{lastLog.prCount > 1 ? 's' : ''}</Badge>
+            <Badge variant="warning" className="mt-2">
+              {lastLog.prCount} {t('workout_pr')}
+            </Badge>
           )}
         </Card>
-      ) : (
+      ) : historyLoaded ? (
         <Card className="mb-4">
-          <p className="text-sm py-2" style={{ color: 'var(--text-muted)' }}>{t('dashboard_no_workouts')}</p>
+          <p className="py-2 text-sm text-[var(--text-muted)]">{t('dashboard_no_workouts')}</p>
         </Card>
-      )}
+      ) : null}
 
       {activeProgram && (
         <Card>
@@ -109,18 +126,14 @@ export default function DashboardPage() {
             <CardTitle>{t('dashboard_active_program')}</CardTitle>
             <Badge variant="success">{t('dashboard_on')}</Badge>
           </CardHeader>
-          <h3 className="font-bold uppercase tracking-wide" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+          <h3 className="font-display font-bold uppercase tracking-wide text-[var(--text-primary)]">
             {activeProgram.name}
           </h3>
-          {(() => {
-            const idx = activeProgram.currentSessionIndex ?? 0;
-            const session = activeProgram.sessions[idx % activeProgram.sessions.length];
-            return session ? (
-              <p className="text-sm mt-1" style={{ color: 'var(--accent)' }}>
-                {t('dashboard_next')}: {session.name} — {session.exercises.length} {t('dashboard_exercises')}
-              </p>
-            ) : null;
-          })()}
+          {nextSession && (
+            <p className="mt-1 text-sm text-[var(--accent)]">
+              {t('dashboard_next')}: {nextSession.name} — {nextSession.exercises.length} {t('dashboard_exercises')}
+            </p>
+          )}
           <Button
             variant="secondary"
             size="sm"

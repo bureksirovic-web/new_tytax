@@ -1,4 +1,4 @@
-import { db } from '@/lib/db/dexie';
+import { getDb } from '@/lib/db/dexie';
 import type { SyncOperation } from '@/types/sync';
 
 const MAX_RETRIES = 5;
@@ -24,6 +24,7 @@ export class SyncEngine {
       // Fetch pending ops: those without a lastError set and retryCount < threshold
       // Since SyncOperation has no status field, we track "done" by presence in queue —
       // items that have been processed successfully should be deleted from the queue.
+      const db = getDb();
       const all = await db.syncQueue.toArray();
 
       // Treat items with retryCount > 0 and lastError as previously-failed;
@@ -62,18 +63,9 @@ export class SyncEngine {
         }
       }
 
-      // Update sync metadata for the current device
+      // Record the last sync time for this device (v3: meta table replaces syncMetadata)
       const deviceId = getDeviceId();
-      const existingMeta = await db.syncMetadata
-        .where('deviceId')
-        .equals(deviceId)
-        .first();
-
-      if (existingMeta) {
-        await db.syncMetadata.update(existingMeta.id, {
-          lastSyncedAt: new Date().toISOString(),
-        });
-      }
+      await db.meta.put({ key: `lastSyncedAt:${deviceId}`, value: new Date().toISOString() });
 
       return {
         status: 'ok',
@@ -91,11 +83,17 @@ export class SyncEngine {
     supabaseClient: ReturnType<typeof import('@/lib/supabase/client').createClient>,
     op: SyncOperation
   ): Promise<boolean> {
-    const { tableName, operationType, payload } = op;
+    const { table: tableName, op: operationType } = op;
+    const db = getDb();
 
     switch (operationType) {
-      case 'create':
-      case 'update': {
+      case 'upsert': {
+        // v3 outbox rows carry no payload: push the record's current local state.
+        const localName = this.getLocalTableName(tableName);
+        const local: unknown = localName ? await db.table(localName).get(op.recordId) : undefined;
+        if (!isRecord(local)) return false;
+        const payload = local;
+
         const { data: serverRecord, error: fetchError } = await supabaseClient
           .from(tableName)
           .select('*')
@@ -133,7 +131,7 @@ export class SyncEngine {
       }
       default: {
         const _exhaustive: never = operationType;
-        throw new Error(`Unknown operationType: ${_exhaustive}`);
+        throw new Error(`Unknown operation: ${String(_exhaustive)}`);
       }
     }
   }
@@ -167,9 +165,16 @@ export class SyncEngine {
       profiles: 'profiles',
       pr_records: 'prRecords',
       bodyweight_entries: 'bodyweightEntries',
+      exercise_notes: 'exerciseNotes',
+      arsenal: 'arsenal',
+      equipment: 'equipment',
     };
     return mapping[serverTableName] ?? null;
   }
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
 }
 
 /**

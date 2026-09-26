@@ -1,129 +1,93 @@
 'use client';
 import Link from 'next/link';
-import { useHistory } from '@/hooks/use-history';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import { formatDuration, formatWeight } from '@/lib/utils';
+import type { WorkoutLog } from '@/contracts/domain';
+import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
 import { useLocale } from '@/components/providers';
-import type { WorkoutLog } from '@/types/workout';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatWeight } from '@/lib/utils';
 
-type ModalityBadge = 'tytax' | 'bodyweight' | 'kettlebell' | 'custom' | 'default';
-
-function modalityVariant(mod: string): ModalityBadge {
-  if (mod === 'tytax') return 'tytax';
-  if (mod === 'bodyweight') return 'bodyweight';
-  if (mod === 'kettlebell') return 'kettlebell';
-  return 'default';
+function exerciseNames(log: WorkoutLog): string {
+  return [...new Set(log.exercises.map((e) => e.exerciseName))].join(', ');
 }
 
-function WorkoutCard({ log }: { log: WorkoutLog }) {
+function HistoryItem({ log }: { log: WorkoutLog }) {
   const { t } = useLocale();
-  const exerciseCount = log.exercises.length;
-  const uniqueModalities = [...new Set(log.modalitiesUsed ?? [])];
-
   return (
-    <Link href={`/history/${log.id}`}>
-      <Card
-        hoverable
-        className="mb-3"
+    <li>
+      <Link
+        href={`/history/${log.id}`}
+        data-testid="history-item"
+        data-log-id={log.id}
+        className="block min-h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)]"
       >
-        <div className="flex items-start justify-between">
-          <div>
-            <div
-              className="font-semibold text-sm uppercase tracking-wide"
-              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-            >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">
               {log.sessionName}
-            </div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {log.date} &mdash; {formatDuration(log.durationSeconds)}
-            </div>
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              <time dateTime={log.date}>{log.date}</time>
+            </p>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
-              {formatWeight(log.totalVolumeKg)}
-            </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {exerciseCount} {t('exercise_plural')} &bull; {log.totalSets} {t('sets').toLowerCase()}
-            </div>
+          <div className="shrink-0 text-right">
+            <p className="text-sm font-bold text-[var(--accent)]">{formatWeight(Math.round(log.totalVolumeKg))}</p>
+            <p className="text-xs text-[var(--text-muted)]">
+              <span data-testid="history-item-sets">{log.totalSets}</span> {t('sets').toLowerCase()}
+            </p>
           </div>
         </div>
-        <div className="flex gap-1 mt-2 flex-wrap">
-          {uniqueModalities.map((mod) => (
-            <Badge key={mod} variant={modalityVariant(mod)}>
-              {mod}
-            </Badge>
-          ))}
-          {log.prCount > 0 && (
-            <Badge variant="warning">{log.prCount} PR{log.prCount > 1 ? 's' : ''}</Badge>
-          )}
-        </div>
-      </Card>
-    </Link>
+        {log.exercises.length > 0 && (
+          <p className="mt-2 truncate text-xs text-[var(--text-secondary)]">{exerciseNames(log)}</p>
+        )}
+      </Link>
+    </li>
   );
 }
 
 export default function HistoryPage() {
   const { t } = useLocale();
-  const { logs, total, page, hasMore, nextPage, prevPage, isLoading } = useHistory(20);
+  const { profileId, loading: profileLoading } = useActiveProfile();
+  const { data: logs, loading, error } = useRepoQuery(
+    (repo) => (profileId ? repo.logs.list(profileId) : Promise.resolve([])),
+    [profileId],
+  );
+  const list = logs ?? [];
+  const busy = profileLoading || (loading && !logs);
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between pt-2 mb-4">
-        <h1
-          className="text-2xl font-bold uppercase tracking-wider"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-        >
+    <div data-testid="history-list" className="mx-auto max-w-2xl p-4 pb-24">
+      <header className="mb-4 flex items-center justify-between pt-2">
+        <h1 className="font-display text-2xl font-bold uppercase tracking-wider text-[var(--text-primary)]">
           {t('history')}
         </h1>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {total} {total !== 1 ? t('history_sessions') : t('history_session')}
-        </span>
-      </div>
+        {!busy && (
+          <span className="text-sm text-[var(--text-muted)]">
+            {list.length} {list.length === 1 ? t('history_session') : t('history_sessions')}
+          </span>
+        )}
+      </header>
 
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
+      {error ? (
+        <p role="alert" className="py-8 text-center text-sm text-[var(--text-muted)]">
+          {t('error')}
+        </p>
+      ) : busy ? (
+        <div className="space-y-3" aria-busy="true">
+          {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
-      ) : logs.length === 0 ? (
-        <EmptyState
-          icon="dumbbell"
-          title={t('no_workouts_yet')}
-          description={t('no_workouts_desc')}
-        />
+      ) : list.length === 0 ? (
+        <div data-testid="history-empty">
+          <EmptyState icon="◈" title={t('no_workouts_yet')} description={t('no_workouts_desc')} />
+        </div>
       ) : (
-        <>
-          {logs.map((log) => (
-            <WorkoutCard key={log.id} log={log} />
+        <ul className="space-y-3">
+          {list.map((log) => (
+            <HistoryItem key={log.id} log={log} />
           ))}
-
-          <div className="flex items-center justify-between mt-4 pb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={prevPage}
-              disabled={page === 0}
-            >
-              &larr; {t('prev')}
-            </Button>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {t('page')} {page + 1}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={nextPage}
-              disabled={!hasMore}
-            >
-              {t('next_page')} &rarr;
-            </Button>
-          </div>
-        </>
+        </ul>
       )}
     </div>
   );

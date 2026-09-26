@@ -1,18 +1,2 @@
-export type AttachmentType =
-  | 'rope'
-  | 'v-bar'
-  | 'straight-bar'
-  | 'd-handle'
-  | 'ankle-strap'
-  | 'belt'
-  | 'lat-bar'
-  | 'ez-bar'
-  | 'row-handle';
-
-export interface Attachment {
-  id: AttachmentType;
-  name: string;
-  description: string;
-}
-
-export { CABLE_ATTACHMENTS_DATA as CABLE_ATTACHMENTS } from '@/data/tytax/attachments';
+// Re-export of the frozen contract (src/contracts/domain.ts). Do not add types here.
+export type { AttachmentDef, Station, EquipmentInventory } from '@/contracts/domain';

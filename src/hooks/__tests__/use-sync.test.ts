@@ -10,19 +10,11 @@ vi.mock('@/lib/db/dexie', () => {
     syncQueue: {
       count: vi.fn().mockResolvedValue(3),
     },
-    syncMetadata: {
-      where: vi.fn().mockReturnValue({
-        equals: vi.fn().mockReturnValue({
-          first: vi.fn().mockResolvedValue({
-            id: 'meta-1',
-            deviceId: 'test-device',
-            lastSyncedAt: '2026-03-01T10:00:00.000Z',
-          }),
-        }),
-      }),
+    meta: {
+      get: vi.fn().mockResolvedValue({ key: 'lastSyncedAt:test-device', value: '2026-03-01T10:00:00.000Z' }),
     },
   };
-  return { db: mockDb };
+  return { getDb: () => mockDb };
 });
 
 vi.mock('@/lib/sync/engine', () => ({
