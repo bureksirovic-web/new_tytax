@@ -184,6 +184,12 @@ export interface E2EHooks {
   seedProgram(profileId: string, input: SeedProgramInput): Promise<Program>;
   listLogs(profileId: string): Promise<WorkoutLog[]>;
   snapshot(): Promise<E2EStateSnapshot>;
+  /** repo.profiles.setActive(id). Optional: added by G2-01 (docs/v2/requests/G5-08.md). */
+  setActiveProfile?(profileId: string): Promise<void>;
+  /** repo.profiles.remove(id): wipes only that profile's data. Optional (G5-08). */
+  removeProfile?(profileId: string): Promise<void>;
+  /** repo.profiles.list(). Optional (G5-08). */
+  listProfiles?(): Promise<Profile[]>;
 }
 
 declare global {

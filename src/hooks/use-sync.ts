@@ -1,45 +1,66 @@
 'use client';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { useCallback, useState } from 'react';
-import { getDb } from '@/lib/db/dexie';
-import { syncEngine, type SyncResult } from '@/lib/sync/engine';
-import { createClient } from '@/lib/supabase/client';
+/**
+ * React bridge to sync: the adapter the providers installed into the
+ * repository (src/components/providers/sync-bootstrap.tsx) and the signed-in
+ * account. Flag off: state `{ status: 'disabled' }`, account `disabled`, and
+ * nothing here touches the network or loads supabase-js.
+ *
+ * The server snapshot is always the disabled state, so the first client
+ * render matches the server HTML; the real state follows right after hydration.
+ */
+import { useCallback, useSyncExternalStore } from 'react';
+import { noopSyncAdapter, type SyncResult, type SyncState } from '@/contracts/sync';
+// The leaf modules, not the '@/lib/sync' barrel: the barrel pulls the real
+// adapter, mapper and remote store into the first load of every page that
+// shows the sync panel; they arrive with the deferred adapter's import() instead.
+import { DISABLED_ACCOUNT, getAccountStore, type AccountState } from '@/lib/sync/account';
+import { getInstalledSyncAdapter } from '@/lib/sync/install';
 
-export function useSync() {
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastResult, setLastResult] = useState<SyncResult | null>(null);
+const serverState = (): SyncState => noopSyncAdapter.getState();
+const serverAccount = (): AccountState => DISABLED_ACCOUNT;
 
-  // Count items still in the queue (all items are pending by definition —
-  // successfully synced items are deleted from the queue by the engine)
-  const pendingCount = useLiveQuery(() => getDb().syncQueue.count(), []);
+/** Current sync state of the installed adapter. */
+export function useSyncState(): SyncState {
+  const adapter = getInstalledSyncAdapter();
+  return useSyncExternalStore(adapter.subscribe, adapter.getState, serverState);
+}
 
-  // Get the most recent sync metadata entry for this device
-  const lastSyncMeta = useLiveQuery(async () => {
-    const deviceId =
-      typeof window !== 'undefined'
-        ? (localStorage.getItem('tytax_device_id') ?? undefined)
-        : undefined;
-    if (!deviceId) return undefined;
-    const row = await getDb().meta.get(`lastSyncedAt:${deviceId}`);
-    return typeof row?.value === 'string' ? { lastSyncedAt: row.value } : undefined;
-  }, []);
+/** Signed-in account (`disabled` when sync is off). */
+export function useAccount(): AccountState {
+  const store = getAccountStore();
+  return useSyncExternalStore(store.subscribe, store.getState, serverAccount);
+}
 
-  const sync = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      const supabase = createClient();
-      const result = await syncEngine.sync(supabase);
-      setLastResult(result);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, []);
+export interface UseSyncResult {
+  enabled: boolean;
+  state: SyncState;
+  account: AccountState;
+  syncNow(): Promise<SyncResult>;
+  signOut(): Promise<void>;
+  /** Legacy aliases (pre-v2 sync-status). */
+  isSyncing: boolean;
+  pendingCount: number;
+  lastSync: string | null;
+  sync(): Promise<SyncResult>;
+}
 
+export function useSync(): UseSyncResult {
+  const adapter = getInstalledSyncAdapter();
+  const state = useSyncState();
+  const account = useAccount();
+  const syncNow = useCallback((): Promise<SyncResult> => adapter.syncNow(), [adapter]);
+  const signOut = useCallback((): Promise<void> => getAccountStore().signOut(), []);
   return {
-    isSyncing,
-    pendingCount: pendingCount ?? 0,
-    lastSync: lastSyncMeta?.lastSyncedAt ?? null,
-    lastResult,
-    sync,
+    // From the snapshot, not the adapter: during hydration the snapshot is the
+    // server's (disabled), so the first client render matches the server HTML.
+    enabled: state.status !== 'disabled',
+    state,
+    account,
+    syncNow,
+    signOut,
+    isSyncing: state.status === 'syncing',
+    pendingCount: state.pending,
+    lastSync: state.lastSyncedAt,
+    sync: syncNow,
   };
 }

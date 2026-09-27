@@ -1,8 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { requireSupabaseEnv } from './env';
 
+/** Browser Supabase client. Throws AuthNotConfiguredError when env is missing. */
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const { url, anonKey } = requireSupabaseEnv();
+  return createBrowserClient(url, anonKey);
 }
