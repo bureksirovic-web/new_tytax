@@ -53,7 +53,9 @@ describe('Settings with NEXT_PUBLIC_SYNC_ENABLED unset and a stale Supabase sess
       </Providers>,
     );
     await waitFor(() => expect(window.__tytaxE2E?.ready).toBe(true));
-    expect(await screen.findByTestId('settings-account')).toBeInTheDocument();
+    // G4-W2-07: G4 replaced the old AccountSection (settings-account) with the
+    // SyncSlot mount point; with the flag off it renders only the "sync disabled" text.
+    expect(await screen.findByTestId('settings-sync-slot')).toBeInTheDocument();
     // Give a lazily started session lookup time to reach the network.
     await new Promise((r) => setTimeout(r, 200));
 
