@@ -162,3 +162,17 @@ describe('applySetupPayload: same name, different preset', () => {
     expect(await repo.profiles.list()).toHaveLength(2);
   });
 });
+
+describe('applySetupPayload: duplicate same-name profiles already on the device', () => {
+  it('skips when ANY same-name profile already has the preset active (not only the first match)', async () => {
+    // Device state made by hand: two "Ana" profiles, only the second has the balanced preset active.
+    const first = await repo.profiles.create({ name: 'Ana' });
+    await repo.programs.create(first.id, (await import('@/lib/programs/presets')).getPresetById('bw-fundamentals')!, { activate: true });
+    const second = await repo.profiles.create({ name: 'ana' });
+    await repo.programs.create(second.id, (await import('@/lib/programs/presets')).getPresetById('tytax-balanced-6day')!, { activate: true });
+
+    const results = await applySetupPayload(repo, { v: 1, profiles: [payload.profiles[0]] }, opts);
+    expect(results.map((r) => [r.status, r.profileId])).toEqual([['skipped', second.id]]);
+    expect(await repo.profiles.list()).toHaveLength(2);
+  });
+});

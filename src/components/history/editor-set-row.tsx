@@ -33,10 +33,16 @@ const TYPE_LABEL_KEY = {
   failure: 'youth_set_type_failure',
 } as const satisfies Record<SetType, string>;
 
-/** Options offered by the set-type picker: drop/failure hidden in youth mode, unless the set already carries one (never silently retype a stored set). */
-function typeOptions(current: SetType, hideDropFailure: boolean | undefined): SetType[] {
+/**
+ * Options offered by the set-type picker. Youth mode never offers drop/failure
+ * as a choice. A stored legacy drop/failure set still shows its own type (so
+ * nothing is silently retyped on open) but as the only extra option, so it can
+ * be kept or changed to working/warm-up, never switched to the other one.
+ */
+export function typeOptions(current: SetType, hideDropFailure: boolean | undefined): SetType[] {
   const base: SetType[] = ['working', 'warmup'];
-  if (!hideDropFailure || current === 'drop' || current === 'failure') return [...base, 'drop', 'failure'];
+  if (!hideDropFailure) return [...base, 'drop', 'failure'];
+  if (current === 'drop' || current === 'failure') return [...base, current];
   return base;
 }
 

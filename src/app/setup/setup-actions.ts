@@ -55,11 +55,13 @@ function definedOnly<T extends Record<string, unknown>>(obj: T): Partial<T> {
 
 /** An existing profile matching `input`'s name whose active program already installed the same preset. */
 async function findSkippable(repo: SetupRepo, input: SetupProfileInput): Promise<Profile | undefined> {
+  // Scan every same-name profile (a device may already hold duplicates made by hand).
   const all = await repo.profiles.list();
-  const match = all.find((p) => sameName(p.name, input.name));
-  if (!match) return undefined;
-  const active = await repo.programs.getActive(match.id);
-  return active?.presetId === input.presetId ? match : undefined;
+  for (const match of all.filter((p) => sameName(p.name, input.name))) {
+    const active = await repo.programs.getActive(match.id);
+    if (active?.presetId === input.presetId) return match;
+  }
+  return undefined;
 }
 
 async function installPreset(repo: SetupRepo, profileId: string, presetId: string): Promise<string> {
