@@ -45,6 +45,19 @@ async function findAdoptable(repo: SetupRepo, defaultProfileName: string): Promi
   return logCount === 0 ? only : undefined;
 }
 
+/**
+ * A same-name profile left half-applied by an earlier run (created, but the
+ * preset install failed): no active program and no workouts. A retry finishes
+ * it instead of creating a duplicate.
+ */
+async function findResumable(repo: SetupRepo, input: SetupProfileInput): Promise<Profile | undefined> {
+  const all = await repo.profiles.list();
+  for (const p of all.filter((x) => sameName(x.name, input.name) && x.activeProgramId === null)) {
+    if ((await repo.logs.count(p.id)) === 0) return p;
+  }
+  return undefined;
+}
+
 function definedOnly<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const out: Partial<T> = {};
   for (const key of Object.keys(obj) as Array<keyof T>) {
@@ -98,7 +111,13 @@ export async function applySetupPayload(repo: SetupRepo, payload: SetupPayload, 
     let status: SetupProfileStatus;
     const patch = definedOnly({ birthYear: input.birthYear, experienceLevel: input.experienceLevel });
 
-    if (adoptable) {
+    const resumable = await findResumable(repo, input);
+    if (resumable) {
+      await repo.profiles.update(resumable.id, patch);
+      if (input.language) await repo.profiles.updateSettings(resumable.id, { language: input.language });
+      profileId = resumable.id;
+      status = 'adopted';
+    } else if (adoptable) {
       const target = adoptable;
       adoptable = undefined;
       await repo.profiles.update(target.id, { name: input.name, ...patch });

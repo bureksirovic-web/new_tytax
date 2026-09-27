@@ -33,17 +33,18 @@ const TYPE_LABEL_KEY = {
   failure: 'youth_set_type_failure',
 } as const satisfies Record<SetType, string>;
 
+/** Selectable set types. Youth mode never offers drop/failure as a choice. */
+export function typeOptions(hideDropFailure: boolean | undefined): SetType[] {
+  return hideDropFailure ? ['working', 'warmup'] : ['working', 'warmup', 'drop', 'failure'];
+}
+
 /**
- * Options offered by the set-type picker. Youth mode never offers drop/failure
- * as a choice. A stored legacy drop/failure set still shows its own type (so
- * nothing is silently retyped on open) but as the only extra option, so it can
- * be kept or changed to working/warm-up, never switched to the other one.
+ * A stored legacy drop/failure set on a youth profile: shown as its current
+ * value (a disabled option, so nothing is silently retyped on open) but it
+ * cannot be selected again once changed.
  */
-export function typeOptions(current: SetType, hideDropFailure: boolean | undefined): SetType[] {
-  const base: SetType[] = ['working', 'warmup'];
-  if (!hideDropFailure) return [...base, 'drop', 'failure'];
-  if (current === 'drop' || current === 'failure') return [...base, current];
-  return base;
+export function lockedLegacyType(current: SetType, hideDropFailure: boolean | undefined): SetType | null {
+  return hideDropFailure && (current === 'drop' || current === 'failure') ? current : null;
 }
 
 export function EditorSetRow({ set, index, exerciseName, units, error, onChange, onRemove, hideDropFailure }: Props) {
@@ -89,11 +90,16 @@ export function EditorSetRow({ set, index, exerciseName, units, error, onChange,
           onChange={(e) => onChange({ type: e.target.value as SetType })}
           className={`${field} border-line`}
         >
-          {typeOptions(set.type, hideDropFailure).map((type) => (
+          {typeOptions(hideDropFailure).map((type) => (
             <option key={type} value={type}>
               {t(TYPE_LABEL_KEY[type])}
             </option>
           ))}
+          {lockedLegacyType(set.type, hideDropFailure) && (
+            <option value={set.type} disabled>
+              {t(TYPE_LABEL_KEY[set.type])}
+            </option>
+          )}
         </select>
       </div>
       <label htmlFor={`${idp}-done`} className="flex min-h-11 items-center gap-2 self-end text-sm text-fg-2">

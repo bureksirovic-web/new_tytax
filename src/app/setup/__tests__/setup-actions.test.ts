@@ -176,3 +176,33 @@ describe('applySetupPayload: duplicate same-name profiles already on the device'
     expect(await repo.profiles.list()).toHaveLength(2);
   });
 });
+
+describe('applySetupPayload: retry after a failed preset install', () => {
+  it('finishes a half-applied same-name profile instead of creating a duplicate', async () => {
+    // Simulates a first run that created "Leo" and then failed before installing the preset.
+    const half = await repo.profiles.create({ name: 'Leo' });
+    const results = await applySetupPayload(repo, { v: 1, profiles: [payload.profiles[1]] }, opts);
+
+    expect(results.map((r) => [r.status, r.profileId])).toEqual([['adopted', half.id]]);
+    expect(await repo.profiles.list()).toHaveLength(1);
+    expect((await repo.programs.getActive(half.id))?.presetId).toBe('bw-fundamentals');
+    expect((await repo.profiles.get(half.id))?.birthYear).toBe(2015);
+  });
+
+  it('a same-name profile with workouts is never taken over (a new profile is created)', async () => {
+    const used = await repo.profiles.create({ name: 'Leo' });
+    await repo.importBackup({
+      format: 'tytax-backup', version: 3, exportedAt: new Date().toISOString(), profiles: [],
+      workoutLogs: [{
+        id: 'log-leo', profileId: used.id, sessionName: 'Old', date: '2026-01-01',
+        startedAt: '2026-01-01T10:00:00.000Z', finishedAt: '2026-01-01T11:00:00.000Z', durationSeconds: 3600,
+        exercises: [], totalVolumeKg: 0, totalSets: 0, prCount: 0, modalitiesUsed: [],
+        createdAt: '2026-01-01T11:00:00.000Z', updatedAt: '2026-01-01T11:00:00.000Z',
+      }],
+      programs: [], prRecords: [], bodyweightEntries: [], exerciseNotes: [], arsenal: [], equipment: [],
+    } as unknown as Parameters<Repository['importBackup']>[0]);
+    const results = await applySetupPayload(repo, { v: 1, profiles: [payload.profiles[1]] }, opts);
+    expect(results[0].status).toBe('created');
+    expect(results[0].profileId).not.toBe(used.id);
+  });
+});

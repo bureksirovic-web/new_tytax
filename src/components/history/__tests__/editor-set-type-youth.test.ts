@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { typeOptions } from '../editor-set-row';
+import { lockedLegacyType, typeOptions } from '../editor-set-row';
 
 describe('history editor set types in youth mode', () => {
-  it('never offers drop or failure for a working/warm-up set', () => {
-    expect(typeOptions('working', true)).toEqual(['working', 'warmup']);
-    expect(typeOptions('warmup', true)).toEqual(['working', 'warmup']);
+  it('never offers drop or failure as a selectable choice', () => {
+    expect(typeOptions(true)).toEqual(['working', 'warmup']);
   });
-  it('keeps a legacy drop/failure set showing only its own type, never the other forbidden one', () => {
-    expect(typeOptions('drop', true)).toEqual(['working', 'warmup', 'drop']);
-    expect(typeOptions('failure', true)).toEqual(['working', 'warmup', 'failure']);
+  it('shows a legacy drop/failure set as a disabled current value only', () => {
+    expect(lockedLegacyType('drop', true)).toBe('drop');
+    expect(lockedLegacyType('failure', true)).toBe('failure');
+    expect(lockedLegacyType('working', true)).toBeNull();
+    expect(lockedLegacyType('drop', false)).toBeNull();
   });
   it('adults get every type', () => {
-    expect(typeOptions('working', false)).toEqual(['working', 'warmup', 'drop', 'failure']);
+    expect(typeOptions(false)).toEqual(['working', 'warmup', 'drop', 'failure']);
   });
 });
