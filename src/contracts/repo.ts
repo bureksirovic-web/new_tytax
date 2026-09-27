@@ -19,6 +19,7 @@ import type {
   BodyweightEntry,
   EquipmentInventory,
   ExerciseNote,
+  MachineSetup,
   PRRecord,
   PRType,
   Profile,
@@ -142,9 +143,26 @@ export interface BodyweightRepo {
 
 export interface NotesRepo {
   get(profileId: string, exerciseId: string): Promise<ExerciseNote | undefined>;
-  /** Upsert; an empty string soft-deletes the note. */
+  /**
+   * Upsert; an empty string soft-deletes the note unless it still has a
+   * machine setup (then the row stays live with content '').
+   */
   set(profileId: string, exerciseId: string, content: string): Promise<ExerciseNote | undefined>;
   list(profileId: string, opts?: ListOptions): Promise<ExerciseNote[]>;
+  /**
+   * The live note's machine setup, or undefined. Optional (additive,
+   * docs/v2/requests/G2-W2-01.md); the app repository implements it
+   * (`getNotesExt` in @/lib/db narrows a Repository to it).
+   */
+  getSetup?(profileId: string, exerciseId: string): Promise<MachineSetup | undefined>;
+  /**
+   * Replaces the whole setup (no field merge); `null` or `{}` clears it, and a
+   * note with empty content and no setup is soft-deleted. Values: trimmed
+   * strings of 1..40 chars for seat/pin/backrest/benchAngle/cable/other,
+   * anything else is RepoError VALIDATION. Queues sync like `set`.
+   * Optional (G2-W2-01).
+   */
+  setSetup?(profileId: string, exerciseId: string, setup: MachineSetup | null): Promise<ExerciseNote | undefined>;
 }
 
 export interface ArsenalRepo {
@@ -227,4 +245,13 @@ export interface Repository {
 
   /** Test/e2e only: wipe every table. */
   resetAll(): Promise<void>;
+
+  /**
+   * Device wipe, the production path ("delete all data on this device"): one
+   * transaction clears every local table, the outbox and the active profile
+   * included, and queues nothing for sync (a synced server copy is untouched).
+   * It never touches localStorage; the UI clears its own keys and reloads.
+   * Optional (additive, docs/v2/requests/G2-W2-02.md; `getWipeAll` in @/lib/db).
+   */
+  wipeAll?(): Promise<void>;
 }
