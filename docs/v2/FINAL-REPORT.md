@@ -17,7 +17,7 @@
   | `v2-g5` | `7490d3a` | `2fef833` |
 
   After the merges: requests (§8), coverage and lint thresholds (§9), final gate (§10), bundle budget (§11), refuter fixes (§12), critic gate and Terra fixes (§13). `git log --oneline main..v2 | wc -l` = 197.
-- **Nothing is merged to `main`.** `main` is `bdaea46` on origin, unchanged. **`v2` is not pushed** (`git ls-remote --heads origin v2` prints nothing), so no PR exists yet.
+- **Nothing is merged to `main`.** `main` is `bdaea46` on origin, unchanged. `v2` was pushed after the proving runs and PR #45 (`v2 → main`) is open, not merged; its CI is green (see AC16 and §8).
 - **Nothing is deployed.** No tag was made. Render and cloud Supabase were not touched. Only the local Supabase stack (`project_id tytax-v2`, ports 5442x) was used.
 
 Environment for every e2e and sync command below: `eval "$(npx -y supabase@2.118.0 status -o env | sed 's/^/export /')"`, then `NEXT_PUBLIC_SUPABASE_URL=$API_URL NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY NEXT_PUBLIC_SYNC_ENABLED=true PORT=3110 NEXT_PUBLIC_APP_URL=http://localhost:3110`. Port 3100 (the planned integration port) is held by an unrelated local service, so 3110 was used.
