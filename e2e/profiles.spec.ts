@@ -1,11 +1,12 @@
-import type { Page } from 'playwright-core';
-import { test, expect, type Profile, type SeedLogInput, type TytaxFixture } from './fixtures';
+import { test, expect, type Page, type Profile, type SeedLogInput, type TytaxFixture } from './fixtures';
 
 /**
  * AC9 (persistence): two family profiles are isolated, and deleting one wipes
- * only its data. Profile switch/remove go through `window.__tytaxRepo` (the
- * app repository, exposed outside production by src/lib/db/index.ts) until
- * `E2EHooks` gains them (docs/v2/requests/G2-01.md).
+ * only its data. Profile switch/remove/list go through the `tytax` fixture
+ * (`E2EHooks.setActiveProfile/removeProfile/listProfiles`, requests G2-01 and
+ * G5-08). The other owned tables are seeded and read through
+ * `window.__tytaxRepo` (the app repository, exposed outside production by
+ * src/lib/db/index.ts), which E2EHooks does not cover.
  */
 
 const BENCH_ID = 'tytax_smith-machine_smith-flat-bench-press';
@@ -24,31 +25,8 @@ function logs(names: readonly string[], exerciseId: string): SeedLogInput[] {
 
 const MISSING_REPO = 'window.__tytaxRepo is missing: serve a dev build or one built with NEXT_PUBLIC_E2E_HOOKS=1';
 
-async function setActive(page: Page, id: string): Promise<void> {
-  await page.evaluate(
-    async ({ id: pid, missing }) => {
-      if (window.__tytaxRepo === undefined) throw new Error(missing);
-      await window.__tytaxRepo.profiles.setActive(pid);
-    },
-    { id, missing: MISSING_REPO },
-  );
-}
-
-async function removeProfile(page: Page, id: string): Promise<void> {
-  await page.evaluate(
-    async ({ id: pid, missing }) => {
-      if (window.__tytaxRepo === undefined) throw new Error(missing);
-      await window.__tytaxRepo.profiles.remove(pid);
-    },
-    { id, missing: MISSING_REPO },
-  );
-}
-
-async function profileIds(page: Page): Promise<string[]> {
-  return page.evaluate(async (missing) => {
-    if (window.__tytaxRepo === undefined) throw new Error(missing);
-    return (await window.__tytaxRepo.profiles.list()).map((p) => p.id);
-  }, MISSING_REPO);
+async function profileIds(tytax: TytaxFixture): Promise<string[]> {
+  return (await tytax.listProfiles()).map((p) => p.id);
 }
 
 /** One row in each other owned table (bodyweight, program, note, arsenal, equipment) for `id`. */
@@ -110,7 +88,7 @@ async function backupOf(page: Page, id: string): Promise<unknown> {
 }
 
 /** Fresh app with exactly two profiles, A (active) and B, each with its own history. */
-async function seedTwoProfiles(page: Page, tytax: TytaxFixture): Promise<{ a: Profile; b: Profile }> {
+async function seedTwoProfiles(tytax: TytaxFixture): Promise<{ a: Profile; b: Profile }> {
   await tytax.gotoApp('/history');
   await tytax.reset();
   const { activeProfileId: firstRun } = await tytax.snapshot();
@@ -118,7 +96,7 @@ async function seedTwoProfiles(page: Page, tytax: TytaxFixture): Promise<{ a: Pr
   const a = await tytax.seedProfile({ name: 'Alpha', activate: true });
   const b = await tytax.seedProfile({ name: 'Bravo', activate: false });
   // Drop the first-run profile so A and B are the only ones on the device.
-  if (firstRun !== null) await removeProfile(page, firstRun);
+  if (firstRun !== null) await tytax.removeProfile(firstRun);
   await tytax.seedHistory(a.id, logs(A_SESSIONS, BENCH_ID));
   await tytax.seedHistory(b.id, logs(B_SESSIONS, SQUAT_ID));
   return { a, b };
@@ -134,21 +112,21 @@ async function expectHistoryShows(page: Page, shown: readonly string[], hidden: 
 }
 
 test('two profiles see only their own history; switching swaps it', async ({ page, tytax }) => {
-  const { a, b } = await seedTwoProfiles(page, tytax);
-  expect(await profileIds(page)).toEqual([a.id, b.id]);
+  const { a, b } = await seedTwoProfiles(tytax);
+  expect(await profileIds(tytax)).toEqual([a.id, b.id]);
 
   await tytax.gotoApp('/history');
   await expectHistoryShows(page, A_SESSIONS, B_SESSIONS);
   expect((await tytax.snapshot()).activeProfileId).toBe(a.id);
 
-  await setActive(page, b.id);
+  await tytax.setActiveProfile(b.id);
   await page.reload();
   await expectHistoryShows(page, B_SESSIONS, A_SESSIONS);
   expect((await tytax.snapshot()).activeProfileId).toBe(b.id);
 });
 
 test('deleting a profile wipes only its data and hands over to the other', async ({ page, tytax }) => {
-  const { a, b } = await seedTwoProfiles(page, tytax);
+  const { a, b } = await seedTwoProfiles(tytax);
   // 2 and 3: the logs seeded for A and B.
   expect(await tytax.listLogs(a.id)).toHaveLength(A_SESSIONS.length);
   const bBefore = await tytax.listLogs(b.id);
@@ -161,7 +139,7 @@ test('deleting a profile wipes only its data and hands over to the other', async
   expect(await ownedCounts(page, b.id)).toEqual({ logs: B_SESSIONS.length, ...perTable });
   const bBackup = await backupOf(page, b.id);
 
-  await removeProfile(page, a.id);
+  await tytax.removeProfile(a.id);
   await page.reload();
   await page.waitForFunction(() => window.__tytaxE2E?.ready === true);
 
@@ -176,7 +154,7 @@ test('deleting a profile wipes only its data and hands over to the other', async
   expect(await ownedCounts(page, a.id)).toEqual({ logs: 0, bodyweight: 0, programs: 0, notes: 0, arsenal: 0, kettlebells: 0 });
   // B's rows in every table are byte-for-byte what they were.
   expect(await backupOf(page, b.id)).toEqual(bBackup);
-  expect(await profileIds(page)).toEqual([b.id]);
+  expect(await profileIds(tytax)).toEqual([b.id]);
   // A was active; B is the only profile left, so it becomes active.
   expect((await tytax.snapshot()).activeProfileId).toBe(b.id);
 
