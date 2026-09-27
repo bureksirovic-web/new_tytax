@@ -23,7 +23,32 @@ export type RestoreBackupOptions = BackupV3ParseOptions & {
 };
 
 export async function exportBackupJson(repo: Repository, profileId?: string, opts: { pretty?: boolean } = {}): Promise<string> {
-  return serializeBackupV3(await repo.exportBackup(profileId), opts);
+  const backup = await repo.exportBackup(profileId);
+  return serializeBackupV3({ ...backup, profiles: backup.profiles.map(withoutAccount) }, opts);
+}
+
+/**
+ * The sync account is a property of the device's sign-in, not of the data
+ * (request G5-05): a backup file never carries `accountId`, and a restore
+ * never changes who owns a profile. An incoming profile takes the local
+ * row's `accountId` when the profile exists here, and none otherwise (the
+ * sync adapter claims it for the signed-in account). Without this, a backup of
+ * account A restored while C is signed in kept A's id and never synced.
+ */
+function withoutAccount<T extends { accountId?: string }>(profile: T): T {
+  const rest = { ...profile };
+  delete rest.accountId;
+  return rest;
+}
+
+/** In place: parsed row objects keep their identity (future-stamps.ts tracks clamped rows in a WeakSet). */
+async function adoptLocalAccounts(repo: Repository, backup: BackupV3): Promise<void> {
+  const owners = new Map((await repo.profiles.list({ includeDeleted: true })).map((l) => [l.id, l.accountId]));
+  for (const p of backup.profiles) {
+    const accountId = owners.get(p.id);
+    if (accountId === undefined) delete p.accountId;
+    else p.accountId = accountId;
+  }
 }
 
 function rowCount(b: BackupV3): number {
@@ -51,6 +76,7 @@ export async function restoreBackupJson(repo: Repository, text: string, opts: Re
   const { confirmOverwrite, ...parseOpts } = opts;
   const parsed = parseBackupV3(text, parseOpts);
   const { warnings } = parsed;
+  await adoptLocalAccounts(repo, parsed.backup);
   const backup = await withoutPinnedRows(repo, parsed.backup);
   const existingProfileIds = await existingIds(repo, parsed.backup);
   if (confirmOverwrite !== true) {
@@ -80,6 +106,7 @@ async function existingIds(repo: Repository, backup: BackupV3): Promise<string[]
 export async function inspectBackupJson(repo: Repository, text: string, opts: BackupV3ParseOptions = {}): Promise<BackupInspection> {
   const parsed = parseBackupV3(text, opts);
   const { warnings } = parsed;
+  await adoptLocalAccounts(repo, parsed.backup);
   const backup = await withoutPinnedRows(repo, parsed.backup);
   const ids = await existingIds(repo, parsed.backup);
   const existing = new Set(ids);
