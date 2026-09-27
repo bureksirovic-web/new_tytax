@@ -198,15 +198,20 @@ describe('push', () => {
     const profile = await offline.profiles.create({ name: 'Ana', accountId: ACCOUNT_A });
     await offline.finishWorkout(draftFor(profile.id, T0, [[50, 5]]));
     await offline.bodyweight.add(profile.id, { date: '2026-03-02', valueKg: 70 });
-    expect(await d.repo.outbox.count()).toBe(0);
+    // The profile is claimed, so its writes queue ops even with sync off (refuter R1, 2026-09-27).
+    expect(await d.repo.outbox.count()).toBeGreaterThan(0);
 
     await d.adapter.syncNow();
     expect(remote.rows('family_members')).toHaveLength(1);
     expect(remote.rows('workout_logs')).toHaveLength(1);
     expect(remote.rows('bodyweight_entries')).toHaveLength(1);
+    expect(await d.repo.outbox.count()).toBe(0);
 
+    // Written with sync off after the first sync: it has an op and pushes
+    // (before the fix it had none and never reached the server).
     await offline.bodyweight.add(profile.id, { date: '2026-03-03', valueKg: 71 });
     await d.adapter.syncNow();
-    expect(remote.rows('bodyweight_entries')).toHaveLength(1);
+    expect(remote.rows('bodyweight_entries')).toHaveLength(2);
+    expect(await d.repo.outbox.count()).toBe(0);
   });
 });

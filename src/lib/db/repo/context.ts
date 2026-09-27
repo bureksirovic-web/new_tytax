@@ -21,7 +21,7 @@ export interface WriteScope {
   /**
    * Queues many ops with one IndexedDB request. Use it instead of awaiting
    * `queue` in a loop with no other IndexedDB work between iterations:
-   * with sync off `queue` makes no request, and Dexie drops the transaction
+   * with sync off `queue` may make no request, and Dexie drops the transaction
    * zone after 100 consecutive non-IndexedDB awaits (ZONE_ECHO_LIMIT), so
    * IndexedDB auto-commits mid-write (PrematureCommitError, no rollback).
    */
@@ -130,17 +130,38 @@ export function createContext(opts: ContextOptions): RepoContext {
       return runRw(async (outer) => {
         const db = opts.db();
         const toRow = (q: QueuedOp, createdAt: string): SyncOperation => ({ id: nextOpId(opts.newId()), ...q, createdAt, retryCount: 0 });
+        // With sync off, ops are still queued for a profile an account has
+        // claimed (the device synced before): otherwise an edit made while the
+        // flag is off has no op, and the first pull after sync is back makes the
+        // server copy win over it. Profiles never synced queue nothing.
+        // A known answer adds no await (see `queueMany` on ZONE_ECHO_LIMIT).
+        const claimed = new Map<string, boolean>();
+        const learn = async (profileIds: readonly string[]): Promise<void> => {
+          const unknown = [...new Set(profileIds)].filter((id) => !claimed.has(id));
+          if (unknown.length === 0) return;
+          const rows = await db.profiles.bulkGet(unknown);
+          unknown.forEach((id, i) => claimed.set(id, typeof rows[i]?.accountId === 'string'));
+        };
         const scope: WriteScope = {
           async queue(table, op, recordId, profileId) {
-            if (!opts.sync().enabled) return;
+            if (!opts.sync().enabled) {
+              if (!claimed.has(profileId)) await learn([profileId]);
+              if (claimed.get(profileId) !== true) return;
+            }
             await db.syncQueue.add(toRow({ table, op, recordId, profileId }, opts.now().toISOString()));
             outer.pending = true;
           },
           async queueMany(ops) {
-            if (ops.length === 0 || !opts.sync().enabled) return;
+            if (ops.length === 0) return;
+            let kept = ops;
+            if (!opts.sync().enabled) {
+              await learn(ops.map((q) => q.profileId));
+              kept = ops.filter((q) => claimed.get(q.profileId) === true);
+              if (kept.length === 0) return;
+            }
             const createdAt = opts.now().toISOString();
             // Ids are generated in array order, so bulkAdd keeps it too.
-            await db.syncQueue.bulkAdd(ops.map((q) => toRow(q, createdAt)));
+            await db.syncQueue.bulkAdd(kept.map((q) => toRow(q, createdAt)));
             outer.pending = true;
           },
         };
