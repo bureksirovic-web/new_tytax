@@ -87,6 +87,8 @@ export async function applySetupPayload(repo: SetupRepo, payload: SetupPayload, 
     if (skip) {
       const active = await repo.programs.getActive(skip.id);
       results.push({ input, status: 'skipped', profileId: skip.id, programName: active?.name ?? input.presetId });
+      // Payload order decides the active profile, skipped or not.
+      firstId ??= skip.id;
       continue;
     }
 

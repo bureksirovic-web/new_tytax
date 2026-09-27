@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Builds a family-profiles setup link from a JSON payload piped on stdin, so
- * it never lands in shell history or `ps` output (never pass it as an argv
- * argument). The owner's actual link is generated this way and shared in a
+ * Builds a family-profiles setup link from a JSON payload read on stdin, so it
+ * never appears in argv / `ps` output. Stdin alone does not keep it out of
+ * shell history: redirect from a file (below), never `echo '{...}' |`. The owner's actual link is generated this way and shared in a
  * private chat, never committed (PLAN-family-profiles.md, Piece 1).
  *
  *   node scripts/setup-link.mjs < family.json
@@ -92,7 +92,7 @@ function readStdin() {
 
 function main() {
   const raw = readStdin().trim();
-  check(raw.length > 0, "no JSON on stdin: echo '{...}' | node scripts/setup-link.mjs");
+  check(raw.length > 0, 'no JSON on stdin: node scripts/setup-link.mjs < family.json');
   let payload;
   try {
     payload = JSON.parse(raw);

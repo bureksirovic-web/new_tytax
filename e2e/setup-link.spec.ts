@@ -54,6 +54,16 @@ test('fresh device: preview, create, and the profile switcher shows exactly the 
   const leo = profiles.find((p) => p.name === 'Leo')!;
   expect(await activePresetId(page, ana.id)).toBe('tytax-balanced-6day');
   expect(await activePresetId(page, leo.id)).toBe('bw-fundamentals');
+
+  // AC3: each created profile's dashboard shows its own program's next session.
+  await tytax.gotoApp('/dashboard');
+  await expect(page.getByTestId('dash-session-name')).toContainText('Upper A'); // Ana is active (first in payload)
+  await tytax.setActiveProfile(leo.id);
+  await tytax.gotoApp('/dashboard');
+  await expect(page.getByTestId('dash-session-name')).toContainText('Full Body A');
+  await tytax.setActiveProfile(ana.id);
+  await tytax.gotoApp('/dashboard');
+  await expect(page.getByTestId('dash-session-name')).toContainText('Upper A');
 });
 
 test('reopening the same link reports every profile skipped and creates nothing new', async ({ page, tytax }) => {

@@ -49,6 +49,16 @@ describe('applySetupPayload: fresh device', () => {
     expect(secondRun.map((r) => r.status)).toEqual(['skipped', 'skipped']);
     expect(await repo.profiles.list()).toHaveLength(2);
   });
+
+  it('mixed rerun: the first payload profile stays active even when it is skipped and a later one is created', async () => {
+    await applySetupPayload(repo, { v: 1, profiles: [payload.profiles[0]] }, opts);
+    const ana = (await repo.profiles.list()).find((p) => p.name === 'Ana')!;
+    const rerun = await applySetupPayload(repo, payload, opts);
+
+    expect(rerun.map((r) => r.status)).toEqual(['skipped', 'created']);
+    expect(await repo.profiles.list()).toHaveLength(2);
+    expect(await repo.profiles.getActiveId()).toBe(ana.id);
+  });
 });
 
 describe('applySetupPayload: ADOPT rule (amendments after 1b, blocker 1)', () => {

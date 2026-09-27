@@ -15,12 +15,13 @@ export const MAX_SETUP_PROFILES = 6;
 /** `^[\p{L}\p{N} '\-]{1,40}$` after NFC normalisation (amendments after 1b). */
 const NAME_PATTERN = /^[\p{L}\p{N} '-]{1,40}$/u;
 
+// Normalise first, then validate length and charset on the NFC form (a
+// decomposed 40-character name must not be rejected for its code-unit length).
 const nameSchema = z
   .string()
-  .min(1)
-  .max(40)
+  .max(400)
   .transform((s) => s.normalize('NFC'))
-  .refine((s) => NAME_PATTERN.test(s), { message: 'invalid_name' });
+  .pipe(z.string().min(1).max(40).refine((s) => NAME_PATTERN.test(s), { message: 'invalid_name' }));
 
 /** Integer 1920..current year (evaluated per parse, not baked in at module load). */
 const birthYearSchema = z

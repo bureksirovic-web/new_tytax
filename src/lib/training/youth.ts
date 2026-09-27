@@ -32,27 +32,38 @@ export function isYouth(profile: Pick<Profile, 'birthYear'> | undefined, now: Da
   return ageFromBirthYear(profile.birthYear, now) < YOUTH_AGE_LIMIT;
 }
 
-function localDay(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+/** Whole local calendar days from `a` to `b` (DST-safe: compares local midnights). */
+function calendarDaysBetween(a: Date, b: Date): number {
+  const ma = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const mb = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+  return Math.round((mb - ma) / 86_400_000);
 }
 
 /**
- * Youth rest-day rule: a rest day can be completed, never rushed. For a youth
- * profile the "rest day done" action is locked while the active program was
- * last advanced (a finished workout or a completed rest day, both stamp
- * `program.updatedAt`) on the same local calendar day as `now`. Adults are
- * never locked. Without this lock a youth rotation (A, Rest, B, ...) could be
- * advanced through its rest days in one sitting; without the action at all it
- * could never pass a rest day.
+ * Youth rest-day rule: a rest day is marked done only once it has actually
+ * passed, never rushed and never skipped. `program.updatedAt` is stamped by the
+ * last advance (a finished workout or a completed rest day).
+ * - Rest slot right after a training slot: needs 2 calendar days since that
+ *   workout (Mon workout -> Tue is the rest day -> done from Wed, then train Wed).
+ * - Rest slot right after another rest slot: needs 1 more calendar day
+ *   (Fri workout, Sat + Sun rest -> first done Sun, second done Mon).
+ * Adults, profiles without a birth year, and unknown timestamps are never locked.
+ * The action itself stays available (otherwise a youth rotation could never
+ * pass a rest day); the orchestrator refuses it while locked.
  */
 export function restDayLocked(
   profile: Pick<Profile, 'birthYear'> | undefined,
-  program: Pick<Program, 'updatedAt'> | null | undefined,
+  program: Pick<Program, 'updatedAt' | 'sessions' | 'currentSessionIndex'> | null | undefined,
   now: Date = new Date(),
 ): boolean {
-  if (!isYouth(profile, now) || !program?.updatedAt) return false;
+  if (!isYouth(profile, now) || !program?.updatedAt || program.sessions.length === 0) return false;
   const last = new Date(program.updatedAt);
-  return !Number.isNaN(last.getTime()) && localDay(last) === localDay(now);
+  if (Number.isNaN(last.getTime())) return false;
+  const n = program.sessions.length;
+  const index = ((program.currentSessionIndex % n) + n) % n;
+  const previous = program.sessions[(index - 1 + n) % n];
+  const previousWasRest = previous.isRest === true || previous.exercises.length === 0;
+  return calendarDaysBetween(last, now) < (previousWasRest ? 1 : 2);
 }
 
 /** `PrefillOptions` a youth profile's session builder passes through to `prefillFromHistory`. */

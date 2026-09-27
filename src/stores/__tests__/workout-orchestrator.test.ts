@@ -152,7 +152,7 @@ describe('workout orchestrator', () => {
     expect(advanced?.currentSessionIndex).toBe(0);
   });
 
-  it('youth: skipRestDay refuses a rest day reached the same calendar day, allows it the next day', async () => {
+  it('youth: skipRestDay refuses a rest day until it has passed (same day and the rest day itself), then allows it', async () => {
     await repo.profiles.update(profileId, { birthYear: NOW.getFullYear() - 11 });
     // The program advanced "today" (relative to the injected clock).
     const p = await repo.programs.create(profileId, { ...template, currentSessionIndex: 1 }, { activate: true });
@@ -162,8 +162,14 @@ describe('workout orchestrator', () => {
     const refused = await sameDay.skipRestDay(profileId);
     expect(refused?.currentSessionIndex).toBe(1);
     expect((await repo.programs.getActive(profileId))?.currentSessionIndex).toBe(1);
+    // The day after the workout IS the rest day: still refused, nothing written.
     const nextDay = new Date(new Date(stamped!.updatedAt).getTime() + 26 * 3600 * 1000);
-    const later = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => nextDay });
+    const restDay = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => nextDay });
+    expect((await restDay.skipRestDay(profileId))?.currentSessionIndex).toBe(1);
+    expect((await repo.programs.getActive(profileId))?.updatedAt).toBe(stamped!.updatedAt);
+    // Two calendar days later the rest day has passed: it can be marked done.
+    const twoDays = new Date(new Date(stamped!.updatedAt).getTime() + 50 * 3600 * 1000);
+    const later = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => twoDays });
     const advanced = await later.skipRestDay(profileId);
     expect(advanced?.currentSessionIndex).toBe(0);
   });

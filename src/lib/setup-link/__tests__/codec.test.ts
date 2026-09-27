@@ -59,6 +59,18 @@ describe('parseSetupFragment: valid payloads', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.payload.profiles[0].name).toBe(nfdName.normalize('NFC'));
   });
+
+  it('checks the 40-character limit on the NFC form, not the decomposed input', () => {
+    // 40 x 'č': 40 code units in NFC, 80 when decomposed (c + combining caron).
+    const nfc = 'č'.repeat(40);
+    const nfd = nfc.normalize('NFD');
+    expect(nfd.length).toBe(80);
+    const ok = parseSetupFragment(`#p=${encodeSetupPayload({ v: 1, profiles: [{ name: nfd, presetId: 'bw-fundamentals' }] })}`);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.payload.profiles[0].name).toBe(nfc);
+    const tooLong = parseSetupFragment(`#p=${encodeSetupPayload({ v: 1, profiles: [{ name: 'č'.repeat(41), presetId: 'bw-fundamentals' }] })}`);
+    expect(tooLong.ok).toBe(false);
+  });
 });
 
 describe('parseSetupFragment: rejections (AC2)', () => {
