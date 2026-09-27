@@ -16,6 +16,7 @@ import { patternsEn } from './modules/patterns.en';
 import { patterns2En } from './modules/patterns2.en';
 import { youthEn } from './modules/youth.en';
 import { progressionEn } from './modules/progression.en';
+import { setupEn } from './modules/setup.en';
 
 // English dictionary: core + every module. hr.ts must carry exactly the same keys
 // (parity test). Loaded lazily in the browser (`loadLocale('en')` in ./index.ts).
@@ -40,4 +41,5 @@ export const en = {
   ...patterns2En,
   ...youthEn,
   ...progressionEn,
+  ...setupEn,
 } as const;

@@ -17,6 +17,7 @@ import { patternsHr } from './modules/patterns.hr';
 import { patterns2Hr } from './modules/patterns2.hr';
 import { youthHr } from './modules/youth.hr';
 import { progressionHr } from './modules/progression.hr';
+import { setupHr } from './modules/setup.hr';
 
 // Croatian dictionary (default locale): core + every module, same keys as en.ts
 // (parity test). For server code and tests; the browser gets core.hr.ts up front
@@ -40,4 +41,5 @@ export const hr: Record<TranslationKey, string> = {
   ...patterns2Hr,
   ...youthHr,
   ...progressionHr,
+  ...setupHr,
 };

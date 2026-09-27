@@ -109,7 +109,7 @@ describe('dictionary modules', () => {
   it('no key is defined in more than one module', async () => {
     const { coreKeys } = await import('../en');
     const mods = await Promise.all(
-      ['shared', 'dashboard', 'programs', 'exercises', 'history', 'analytics', 'settings', 'requests', 'g3Tools', 'g3Picker', 'g3Workout', 'g3Session', 'g5Auth', 'patterns', 'patterns2', 'youth', 'progression'].map(
+      ['shared', 'dashboard', 'programs', 'exercises', 'history', 'analytics', 'settings', 'requests', 'g3Tools', 'g3Picker', 'g3Workout', 'g3Session', 'g5Auth', 'patterns', 'patterns2', 'youth', 'progression', 'setup'].map(
         async (m) => Object.keys((await import(`../modules/${m}.ts`))[`${m}En`] as Record<string, string>)
       )
     );
