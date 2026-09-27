@@ -74,6 +74,14 @@ describe('parseSetupFragment: valid payloads', () => {
 });
 
 describe('parseSetupFragment: rejections (AC2)', () => {
+  it('rejects two profiles with the same name (NFC, case-insensitive): names are the replay key', () => {
+    const dup = parseSetupFragment(`#p=${encodeSetupPayload({ v: 1, profiles: [
+      { name: 'Kovač', presetId: 'tytax-balanced-6day' },
+      { name: 'KOVAČ'.normalize('NFD'), presetId: 'bw-fundamentals' },
+    ] })}`);
+    expect(dup.ok).toBe(false);
+  });
+
   it('rejects an unknown preset id', () => {
     const payload = { v: 1, profiles: [{ name: 'Ana', presetId: 'not-a-real-preset' }] };
     const result = parseSetupFragment(`#p=${encodeSetupPayload(payload)}`);

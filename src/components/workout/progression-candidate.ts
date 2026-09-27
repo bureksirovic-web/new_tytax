@@ -50,6 +50,11 @@ export async function computeProgressionCandidate(
   const programId = draft.programId;
   const programSessionId = draft.programSessionId;
 
+  // The originating program slot defines the target and prescribed sets.
+  const program = await repo.programs.get(profileId, programId);
+  const programSession = program?.sessions.find((s) => s.id === programSessionId);
+  if (!programSession) return null;
+
   const catalog = await loadCatalog(['bodyweight']);
   const youth = isYouthProfile(birthYear, now);
   const draftSession: ProgressionSession = { id: draft.id, exercises: draft.exercises, isDeload: draft.isDeload };
@@ -62,6 +67,9 @@ export async function computeProgressionCandidate(
 
     const exercise = catalog.getById(exerciseId);
     if (!exercise?.progressionChildIds?.length) continue;
+    // Only a slot of the originating session can be promoted (ad-hoc exercises have no slot).
+    const slot = programSession.exercises.find((e) => e.exerciseId === exerciseId);
+    if (!slot) continue;
 
     const history = await repo.logs.historyFor(profileId, exerciseId);
     const sessions: ProgressionSession[] = [draftSession, ...history];
@@ -69,7 +77,8 @@ export async function computeProgressionCandidate(
     const result = readyToProgress({
       exerciseId,
       logs: sessions,
-      target: exercise.defaultReps,
+      target: slot.reps || exercise.defaultReps,
+      prescribedSets: slot.sets,
       youth,
       catalogLookup: catalog.getById,
     });
@@ -93,10 +102,9 @@ export async function computeProgressionCandidate(
 /**
  * Swaps `candidate.exerciseId` for `candidate.nextExerciseId` in the program
  * session the workout came from (never session 0: always `programSessionId`).
- * Sets are kept; the prescribed reps reset to the child's own default target
- * only when its measure unit differs from the parent's (a hold becoming a
- * reps exercise or vice versa), otherwise the session's existing reps text
- * is kept as is.
+ * Sets are kept; the prescribed reps always reset to the child's own default
+ * target. Throws (the card stays open with an error) when that session or its
+ * slot no longer exists, instead of silently writing an unchanged program.
  */
 export async function applyProgressionSwap(
   repo: Repository,
@@ -109,6 +117,12 @@ export async function applyProgressionSwap(
   const catalog = await loadCatalog(['bodyweight']);
   const nextExercise = catalog.getById(candidate.nextExerciseId);
   if (!nextExercise) throw new Error('progression swap: next exercise not found');
+
+  // Refuse a stale swap: the session or the slot changed since the workout.
+  const target = program.sessions.find((s) => s.id === candidate.programSessionId);
+  if (!target?.exercises.some((e) => e.exerciseId === candidate.exerciseId)) {
+    throw new Error('progression swap: program session changed since the workout');
+  }
 
   const sessions = program.sessions.map((session) => {
     if (session.id !== candidate.programSessionId) return session;

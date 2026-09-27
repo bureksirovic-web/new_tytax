@@ -51,7 +51,12 @@ export const setupProfileSchema = z
 export const setupPayloadSchema = z
   .object({
     v: z.literal(1),
-    profiles: z.array(setupProfileSchema).min(1).max(MAX_SETUP_PROFILES),
+    profiles: z
+      .array(setupProfileSchema)
+      .min(1)
+      .max(MAX_SETUP_PROFILES)
+      // Names are the idempotency key (NFC, case-insensitive): duplicates would make replays ambiguous.
+      .refine((ps) => new Set(ps.map((p) => p.name.toLocaleLowerCase('und'))).size === ps.length, { message: 'duplicate_name' }),
   })
   .strict();
 

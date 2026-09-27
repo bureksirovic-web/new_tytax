@@ -36,8 +36,14 @@ export interface ReadyToProgressInput {
   exerciseId: string;
   /** Newest-first (draft, if any, then history as `LogsRepo.historyFor` returns it). */
   logs: readonly ProgressionSession[];
-  /** The exercise's target range text, e.g. "8-12", "10-30s/side". */
+  /** The originating program slot's target range text, e.g. "8-12", "10-30s/side". */
   target: string;
+  /**
+   * Working sets the program slot prescribes. A session qualifies only when it
+   * logged at least this many working sets, all done at the top of `target`
+   * (so dropping a set can never unlock the next step). Default 1.
+   */
+  prescribedSets?: number;
   /** Whether the profile is under 16 (see `isYouthProfile`). */
   youth: boolean;
   catalogLookup: (exerciseId: string) => Exercise | undefined;
@@ -95,14 +101,14 @@ export function isYouthProfile(birthYear: number | undefined, now: Date): boolea
   return isYouth({ birthYear }, now);
 }
 
-function sessionQualifies(session: ProgressionSession, exerciseId: string, target: string): boolean {
+function sessionQualifies(session: ProgressionSession, exerciseId: string, target: string, prescribedSets: number): boolean {
   const parsed = parseTarget(target);
   if (!parsed) return false; // unparseable target text: never prompt
   const workingSets = session.exercises
     .filter((e) => e.exerciseId === exerciseId)
     .flatMap((e) => e.sets)
     .filter((s) => s.type === 'working');
-  if (workingSets.length === 0) return false;
+  if (workingSets.length === 0 || workingSets.length < prescribedSets) return false;
   return workingSets.every((s) => {
     if (!s.done) return false;
     return parsed.unit === 's' ? (s.durationSeconds ?? 0) >= parsed.max : s.reps >= parsed.max;
@@ -117,6 +123,7 @@ function sessionQualifies(session: ProgressionSession, exerciseId: string, targe
  */
 export function readyToProgress(input: ReadyToProgressInput): ReadyToProgressResult {
   const { exerciseId, logs, target, youth, catalogLookup } = input;
+  const prescribedSets = Math.max(1, input.prescribedSets ?? 1);
 
   const exercise = catalogLookup(exerciseId);
   const nextExerciseId = exercise?.progressionChildIds?.[0];
@@ -132,7 +139,7 @@ export function readyToProgress(input: ReadyToProgressInput): ReadyToProgressRes
   const recentTwo = eligible.slice(0, 2);
   if (recentTwo.length < 2) return { ready: false, nextExerciseId, reason: 'not-enough-sessions' };
 
-  const allQualify = recentTwo.every((session) => sessionQualifies(session, exerciseId, target));
+  const allQualify = recentTwo.every((session) => sessionQualifies(session, exerciseId, target, prescribedSets));
   if (!allQualify) return { ready: false, nextExerciseId, reason: 'sets-below-target' };
 
   return { ready: true, nextExerciseId, reason: 'ready' };

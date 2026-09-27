@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Exercise, Program, WorkoutDraft, WorkoutLog } from '@/contracts/domain';
+import type { Exercise, Program, ProgramExercise, WorkoutDraft, WorkoutLog } from '@/contracts/domain';
 import type { Catalog } from '@/contracts/exercise-catalog';
 import type { Repository } from '@/contracts/repo';
 
@@ -95,11 +95,21 @@ function draftWith(over: Partial<WorkoutDraft> = {}): WorkoutDraft {
   };
 }
 
-function fakeRepo(over: Partial<Repository> = {}): Repository {
+/** The originating program: session sess-1 has the hold slot, 1 set of "10-30s". */
+function sourceProgram(slot: Partial<ProgramExercise> = {}): Program {
+  return {
+    id: 'prog-1', profileId: 'p1', name: 'Youth Start', splitType: 'custom', frequency: 3, periodizationType: 'none',
+    sessionOrder: ['A'], isPreset: false, currentSessionIndex: 0, createdAt: '', updatedAt: '', modalitiesUsed: ['bodyweight'],
+    sessions: [{ id: 'sess-1', programId: 'prog-1', name: 'A', dayIndex: 0,
+      exercises: [{ exerciseId: HOLD_ID, exerciseName: 'Dip Support Hold', modality: 'bodyweight', sets: 1, reps: '10-30s', ...slot }] }],
+  } as Program;
+}
+
+function fakeRepo(over: Partial<Repository> = {}, program: Program | null = sourceProgram()): Repository {
   return {
     logs: { historyFor: async () => [qualifyingLog(72)] },
     programs: {
-      get: async () => undefined,
+      get: async () => program ?? undefined,
       update: async () => {
         throw new Error('not implemented');
       },
@@ -134,6 +144,22 @@ describe('computeProgressionCandidate', () => {
     const repo = fakeRepo({ logs: { historyFor: async () => [] } } as unknown as Partial<Repository>);
     const candidate = await computeProgressionCandidate(repo, 'p1', undefined, draft, new Date());
     expect(candidate).toBeNull();
+  });
+
+  it('uses the originating slot target, not the catalog default (30 s holds do not reach a "20-40s" slot)', async () => {
+    const candidate = await computeProgressionCandidate(fakeRepo({}, sourceProgram({ reps: '20-40s' })), 'p1', undefined, draftWith(), new Date());
+    expect(candidate).toBeNull();
+  });
+
+  it('requires the prescribed set count (1 logged set never satisfies a 2-set slot)', async () => {
+    const candidate = await computeProgressionCandidate(fakeRepo({}, sourceProgram({ sets: 2 })), 'p1', undefined, draftWith(), new Date());
+    expect(candidate).toBeNull();
+  });
+
+  it('never offers an exercise that is not a slot of the originating session, or when that session is gone', async () => {
+    const otherSlot = sourceProgram({ exerciseId: 'bw_squat_air-squat', exerciseName: 'Air Squat', reps: '12-15' });
+    expect(await computeProgressionCandidate(fakeRepo({}, otherSlot), 'p1', undefined, draftWith(), new Date())).toBeNull();
+    expect(await computeProgressionCandidate(fakeRepo({}, null), 'p1', undefined, draftWith(), new Date())).toBeNull();
   });
 
   it('marks the candidate youth when the birth year makes the profile under 16', async () => {
@@ -216,6 +242,15 @@ describe('applyProgressionSwap', () => {
     // Plan (critic round 1): a promoted slot always starts at the child's own default target.
     expect(patch.sessions?.[0].exercises[0].reps).toBe('20-40s');
     expect(patch.sessions?.[0].exercises[0].exerciseId).toBe(HOLD_CHILD);
+  });
+
+  it('refuses a stale swap: the slot was removed from the originating session after the workout', async () => {
+    const edited = program();
+    edited.sessions[0].exercises = [{ exerciseId: 'bw_squat_air-squat', exerciseName: 'Air Squat', modality: 'bodyweight', sets: 2, reps: '12-15' }];
+    const update = vi.fn();
+    const repo = fakeRepo({ programs: { get: async () => edited, update } } as unknown as Partial<Repository>);
+    await expect(applyProgressionSwap(repo, 'p1', candidate)).rejects.toThrow(/changed since the workout/);
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('throws when the program is gone', async () => {
