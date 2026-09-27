@@ -150,3 +150,50 @@ An earlier aborted attempt (branch `v2-integration-wave1-attempt`, older SHAs) i
   - Repeat with no draft has no catalog loaded, so an old hold logged as reps repeats as reps (`draft-ops.ts`; proposed: async `repeatLog` awaiting `catalog.loadCatalog()`).
   - `e1rm` contract formula grows steeply at 30-36 reps (tool warns above 12; PRs capped at 12 reps) — contract owner decision.
   - Mobile Playwright project not run (chromium only, per the task).
+
+## 6. merge v2-g4 (2026-09-27)
+- Merge: `1f33b2d` "merge v2-g4 into v2" (`git merge --no-ff v2-g4`; tip 63961e8, matches `signals/G4_DONE`; merge base 7743ede). 400 files, +28496/-4315.
+- Conflicts: none. No file was changed on both sides since the merge base (`comm -12` of the two `--name-only` diffs is empty); no `src/contracts/**` change. v2-g4 contains v2-wave0 and v2-w2-contracts, not v2-g1/g2/g3.
+- Read: `docs/v2/goals/G4-REPORT.md` (Wave 1 + Wave 2), requests G4-01/02/03/35/40, G4-W2-06/07. Merge-relevant:
+  - G4-35 (legacy import through `@/lib/import`) and G4-W2-06 (backup via G2's service): possible now that v2-g2 and v2-g4 are both in -> applied (c6c45c3).
+  - G4-02 `page-heading-workout`: already on G3's `/workout` h1; nav + a11y specs pass.
+  - G4 W2 unfixed "G3 tests fail once G2 is merged" (`setup-adapter.test.ts`, `use-workout-w2.test.ts`): not reproduced, the unit suite is all green (fixed at step 5, cbafa38).
+  - Step 5 deferrals for this merge: G3-03 test ids (`dashboard-next-session`, `install-preset`), G3-04 foreign draft, History time sets, G4-25 Repeat over `startFromLog`, G3 i18n fold: all present in G4's code. "SW must serve the lazy row-check chunk": it did not -> fixed (5eabb04).
+- Gate on 1f33b2d: ci=0 lint=0 tsc=0 test=0 build=0.
+  ```
+  5 vulnerabilities (1 low, 4 moderate)               # npm ci notice, unchanged
+  ✖ 7 problems (0 errors, 7 warnings)                 # all i18next/no-literal-string in src/app/auth/login/page.tsx (G5); G4 retired the stale copies behind the old 52
+   Test Files  288 passed (288)
+        Tests  2177 passed (2177)
+  ```
+  Extra `check-bundle`: FAIL, `/dashboard 259.2 kB gzip (budget 250 kB): OVER` (see Unfixed).
+- E2E on 1f33b2d (`PORT=3100 npx playwright test --project=chromium`, port 3100 free): 51 passed, 5 failed, 2 did not run, exit 1.
+  - `offline.spec.ts:37` "offline.spec needs E2E_SERVER=prod" (+2 did not run, serial): by design under `next dev` (G4-03; the npm script/CI split is G5-09, lands with v2-g5).
+  - `pr.spec.ts:62/101/132`: `toHaveURL(/\/workout\/active$/)` received `http://127.0.0.1:3100/workout` after 5 s (the draft was created, the navigation had not finished).
+  - `profiles-ui.spec.ts:11`: `page.goto /history` test timeout 30 s.
+  - Solo re-run of pr + profiles-ui: 6/6 pass. Second full run: the same 4 failed. Full run with service workers blocked (scratch config): 55/55 in 19.7 s vs 40 s. Cause: G4's worker precaches all 12 shell routes on install and again on CACHE_URLS, so under `next dev` every fresh test context made the dev server SSR-render about 24 pages.
+- Fixes:
+  - `f23e4bb` fix(integration): block service workers in e2e except offline.spec. `serviceWorkers: 'block'` in `playwright.config.ts` `use`, with a comment giving the evidence; `offline.spec.ts` opts back in with `test.use({ serviceWorkers: 'allow' })`. No assertion changed. (G5's playwright.config diff touches other lines.)
+  - `c6c45c3` fix(integration): wire settings legacy import and backup to G2's service. G4-35 step 1 verbatim (`loadLegacyImportApi` imports `@/lib/import`; before, the legacy import button stayed disabled in the merged tree) plus step 2's `legacy-import.integration.test.tsx`; G4-W2-06 one-line switch in `loadBackupService`. Settings tests 19 files/103 pass. G4-35 step 4 (drop the two `legacy` lines of `data-card.test.tsx`) not applied: the test still passes (the API loads asynchronously) and nothing is deleted without a failure; it is racy by design, see Deferred.
+  - `5eabb04` fix(integration): service worker caches lazy chunks; offline restore e2e. New `offline.spec` test "a backup can be restored while offline" (prime on /dashboard, then /settings offline: download backup, restore it). Red first: `/settings` hit the error boundary ("Nešto je pošlo po zlu"; trace: `ChunkLoadError: Failed to load chunk /_next/static/chunks/1tcztxp2lsjxa.js`), because lazy chunks (G4's next/dynamic settings panels, G2's backup service, the lazily loaded row validator from 04e4ce5) are named only inside other chunks' loader code (`"static/chunks/x.js"`), never in page HTML. `public/sw.js` now follows those references transitively when caching (`cacheChunksDeep`; the unused `cacheEach` removed). A first attempt warmed the modules from the layout with `import()`; it failed because Turbopack emitted different chunk files for that import site (module 12732 in both `1tcztxp2lsjxa.js` and `35nd5o8dtw65p.js`), so it was reverted.
+  - `1013e5f` test(integration): every offline test goes offline via `goOffline()` = `context.route('**/*', abort)` + `setOffline`. Probe evidence: with `setOffline` alone the worker's own fetch of a never-cached chunk returned 200 (`request.serviceWorker()` set). Stricter only.
+- Gate on 1013e5f (final): ci=0 lint=0 tsc=0 test=0 build=0.
+  ```
+  5 vulnerabilities (1 low, 4 moderate)
+  ✖ 7 problems (0 errors, 7 warnings)
+   Test Files  289 passed (289)
+        Tests  2179 passed (2179)
+  first-load JS for /dashboard: 259.4 kB gzip (budget 250 kB)   # check-bundle exit 1, see Unfixed
+  ```
+- E2E on 1013e5f: 55 passed, 1 failed, 3 did not run, exit 1; the only failure is `offline.spec.ts:53` "needs E2E_SERVER=prod" (by design under dev, G4-03/G5-09). Prod step `NEXT_PUBLIC_E2E_HOOKS=1 npm run build && E2E_SERVER=prod PORT=3100 npx playwright test e2e/offline.spec.ts --project=chromium`: 4 passed, exit 0 (also 12/12 with `--repeat-each=3` before 1013e5f, 8/8 with `--repeat-each=2` after). No @sync specs yet (v2-g5 not merged), no Supabase env needed.
+- Deferred (owned elsewhere, check at later merges):
+  - G5 merge: G4-01/G4-40 LocaleProvider (hydration mismatch on every hard load; the pr.spec failure snapshots show "1 Issue" in the Next overlay; G5 report says applied), G4-03/G5-09 offline npm script and CI job, G4-W2-07 `settings-account` test id in G5's `settings-flag-off.test.tsx`, G4-W2-01 switch G3/G5 local string tables to the dictionary, G4-W2-05 `/auth/login` 304.2 kB, G5-06 AccountSection hidden when sync is off. G5-03 (worker must not intercept cross-origin GETs): `sw.js` `isExcluded` already returns early for cross-origin; re-check after the merge.
+  - G4-35 step 4: `data-card.test.tsx` "shows the not-yet-available controls disabled" asserts the legacy button disabled right after render; true only until the async API load finishes. Correct it (with a comment) if it ever fails.
+  - Contract/library follow-ups from G4-REPORT (G4-10/15/16/17/20/21/22/26/31/36/37/41/52, G4-W2-16/40/45): product/contract decisions, no merge action.
+- Unfixed:
+  - check-bundle `/dashboard` 259.4 kB gzip > 250 kB (PLAN §10.2 AC8; not a gate step). Also over: `/analytics` 260.1, `/exercises/[id]` 267.2, `/settings` 259.5, `/workout` 262.2, `/workout/active` 275.7, `/auth/login` 304.2 kB; no catalog leak on any route.
+    - Evidence: 217.0 kB at 04e4ce5, 245.8 kB in G4's own tree, 259.2 kB after the merge. Source-map attribution of the 17 first-load files (scratch build with `productionBrowserSourceMaps`, not committed): the i18n dictionary (`src/lib/i18n/{en,hr}.ts` + all `modules/*`, both locales, one 37.7 kB gzip chunk) is most of G4's addition; next ~447 kB and dexie ~51 kB of unminified-gzip source are the framework/runtime base.
+    - Tried: attribution only (about 25 min). There is no cheap cut: `t()` is synchronous and imported directly in 46 files.
+    - Proposed fix: once G5's LocaleProvider (G4-01) lands, load the non-active locale's dictionary lazily (`en` for the hr default; the provider awaits it before switching), or split the dictionary per route. Owner: i18n (G4 scope).
+  - Carried from G4-REPORT, not integration breakage, not worked here: `prCount`/PR records stale after editing a PR set (G4-47, G2 `logs.update`); e1RM blow-up near 36 reps (G4-41, owner decision); page `<title>` metadata not localised; Recovery thresholds owner question.
+  - Mobile Playwright project not run (chromium only, per the task).
