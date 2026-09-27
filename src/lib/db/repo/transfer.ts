@@ -72,7 +72,8 @@ export async function importBackup(ctx: RepoContext, backup: BackupV3): Promise<
       if (plan.name === 'workoutLogs' || plan.name === 'prRecords') for (const r of plan.write) touched.add(String(r.profileId));
       await dataTable(ctx.db, plan.name).bulkPut(plan.write);
       inserted += plan.inserted;
-      updated += plan.write.length - plan.inserted;
+      // File rows only: local losers tombstoned by the natural-key rule are neither (import-plan.ts).
+      updated += plan.fromFile - plan.inserted;
       // One outbox request per table, never one await per row (see WriteScope.queueMany).
       await w.queueMany(plan.write.map((r) => ({ table: plan.syncName, op: 'upsert' as const, recordId: r.id, profileId: plan.isProfiles ? r.id : String(r.profileId) })));
     }

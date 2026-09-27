@@ -30,7 +30,9 @@ describe('importBackup: exercise notes with a different id for the same key', ()
   it('newer backup content wins; the local row is tombstoned; a second restore writes nothing', async () => {
     const { t, p, local, foreign, backup } = await setup(true, 60_000);
 
-    expect(await t.repo.importBackup(backup)).toEqual({ inserted: 1, updated: 1 });
+    // updated 0 (was 1): counts are file rows only; the local loser tombstoned in place is not a
+    // file row, and counting it let restoreBackupJson report a negative `skipped` (G2-REPORT Wave 2 #1).
+    expect(await t.repo.importBackup(backup)).toEqual({ inserted: 1, updated: 0 });
     const live = await liveNotes(t, p.id);
     expect(live.map((n) => [n.id, n.content])).toEqual([[foreign.id, 'backup text']]);
     const loser = await t.db.exerciseNotes.get(local.id);
@@ -106,7 +108,8 @@ describe('importBackup: arsenal entries with a different id for the same key', (
     const foreign = { ...local, id: 'other-device-arsenal', updatedAt: plus(local.updatedAt, 1000) };
     const backup: BackupV3 = { ...base, arsenal: [foreign] };
 
-    expect(await t.repo.importBackup(backup)).toEqual({ inserted: 1, updated: 1 });
+    // updated 0 (was 1): the local loser is not a file row (see the notes test above).
+    expect(await t.repo.importBackup(backup)).toEqual({ inserted: 1, updated: 0 });
     expect(await t.repo.importBackup(backup)).toEqual({ inserted: 0, updated: 0 });
     expect((await t.repo.arsenal.list(p.id)).map((a) => a.id)).toEqual([foreign.id]);
     expect(await t.repo.arsenal.has(p.id, 'bench')).toBe(true);

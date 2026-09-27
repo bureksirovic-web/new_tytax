@@ -18,7 +18,10 @@
  *   profileId (one inventory per profile, keyed by the profile id).
  * - Notes and arsenal keep one live row per (profileId, exerciseId) even when
  *   backup and local ids differ (./natural-key): the losing row is written as
- *   a tombstone under its own id and counted like any other written row.
+ *   a tombstone under its own id. `inserted`/`updated` count rows of the file
+ *   only, so a LOCAL loser tombstoned in place counts in neither (it is in
+ *   `tombstonedLocal`); otherwise the service's `skipped = rows − inserted −
+ *   updated` could go negative (G2-REPORT Wave 2 unfixed #1).
  */
 import { RepoError, type BackupV3 } from '@/contracts/repo';
 import type { SyncTable } from '@/contracts/sync';
@@ -46,7 +49,12 @@ export interface TablePlan {
   syncName: SyncTable;
   isProfiles: boolean;
   write: DataRow[];
+  /** File rows written that did not exist locally. */
   inserted: number;
+  /** File rows written (inserted + updated); `write` may also hold local losers. */
+  fromFile: number;
+  /** Local rows tombstoned in place by the natural-key rule (not file rows). */
+  tombstonedLocal: number;
 }
 
 /** `rowProblem` comes from `loadRowProblem()` (row-check-lazy.ts), so zod stays out of first-load JS. */
@@ -96,7 +104,7 @@ async function liveOwners(ctx: RepoContext, profilePlan: TablePlan): Promise<Set
 async function planTable(ctx: RepoContext, key: BackupKey, name: DataTableName, syncName: SyncTable, rows: DataRow[], live?: Set<string>): Promise<TablePlan> {
   const isProfiles = key === 'profiles';
   const existing = await dataTable(ctx.db, name).bulkGet(rows.map((r) => r.id));
-  const plan: TablePlan = { name, syncName, isProfiles, write: [], inserted: 0 };
+  const plan: TablePlan = { name, syncName, isProfiles, write: [], inserted: 0, fromFile: 0, tombstonedLocal: 0 };
   rows.forEach((row, i) => {
     const local = existing[i];
     if (local && !isProfiles && local.profileId !== row.profileId) {
@@ -107,10 +115,14 @@ async function planTable(ctx: RepoContext, key: BackupKey, name: DataTableName, 
     if (!local) plan.inserted += 1;
     plan.write.push(row);
   });
+  plan.fromFile = plan.write.length;
   for (const tomb of await resolveKeyed(ctx, name, plan.write)) {
     const at = plan.write.findIndex((r) => r.id === tomb.id);
     if (at >= 0) plan.write[at] = tomb;
-    else plan.write.push(tomb);
+    else {
+      plan.write.push(tomb);
+      plan.tombstonedLocal += 1;
+    }
   }
   return plan;
 }
