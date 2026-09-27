@@ -22,6 +22,7 @@ import { RepoError, type BackupV3 } from '@/contracts/repo';
 import type { SyncOperation, SyncOutbox } from '@/contracts/sync';
 import type { RepoContext } from './context';
 import { planImport, validateBackup } from './import-plan';
+import { loadRowProblem } from './row-check-lazy';
 import { rebuildPRsFrom } from './prs';
 import { dataTable } from './tables';
 
@@ -59,7 +60,8 @@ interface ProfileScoped<T> {
 }
 
 export async function importBackup(ctx: RepoContext, backup: BackupV3): Promise<{ inserted: number; updated: number }> {
-  validateBackup(backup);
+  // Lazy (zod stays out of first-load JS); safe inside a caller's transaction: see row-check-lazy.ts.
+  validateBackup(backup, await loadRowProblem());
   return ctx.write(async (w) => {
     const plans = await planImport(ctx, backup);
     let inserted = 0;

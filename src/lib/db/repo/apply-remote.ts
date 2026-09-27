@@ -21,7 +21,8 @@ import { RepoError } from '@/contracts/repo';
 import type { ApplyRemoteResult, SyncTable } from '@/contracts/sync';
 import { SYNC_TABLES } from '@/contracts/sync';
 import type { RepoContext } from './context';
-import { rowProblem, type BackupTableKey } from '@/lib/import/backup-v3/row-check';
+import type { BackupTableKey } from '@/lib/import/backup-v3/row-check';
+import { loadRowProblem, type RowProblemFn } from './row-check-lazy';
 import { resolveKeyed } from './natural-key';
 import { SYNC_TO_DEXIE, dataTable, isDataRow, timeOf, type DataRow } from './tables';
 
@@ -37,7 +38,7 @@ const SYNC_TO_BACKUP: Readonly<Record<SyncTable, BackupTableKey>> = {
   equipment: 'equipment',
 };
 
-function wellFormed(table: SyncTable, row: DataRow): boolean {
+function wellFormed(rowProblem: RowProblemFn, table: SyncTable, row: DataRow): boolean {
   if (table === 'equipment' && row.id !== row.profileId) return false;
   return rowProblem(SYNC_TO_BACKUP[table], row, { nullAsAbsent: true }) === null;
 }
@@ -53,11 +54,13 @@ function remoteWins(remote: DataRow, local: DataRow | undefined): boolean {
 export async function applyRemote(ctx: RepoContext, table: SyncTable, records: readonly Record<string, unknown>[]): Promise<ApplyRemoteResult> {
   if (!SYNC_TABLES.includes(table)) throw new RepoError('VALIDATION', `Unknown sync table ${String(table)}`);
   const target = dataTable(ctx.db, SYNC_TO_DEXIE[table]);
+  // Lazy (zod stays out of first-load JS); safe inside a caller's transaction: see row-check-lazy.ts.
+  const rowProblem = await loadRowProblem();
   return ctx.write(async () => {
     let applied = 0;
     let skipped = 0;
     for (const remote of records) {
-      if (!isDataRow(remote) || !Number.isFinite(timeOf(remote.updatedAt)) || !wellFormed(table, remote)) {
+      if (!isDataRow(remote) || !Number.isFinite(timeOf(remote.updatedAt)) || !wellFormed(rowProblem, table, remote)) {
         skipped += 1;
         continue;
       }

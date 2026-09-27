@@ -23,7 +23,7 @@
 import { RepoError, type BackupV3 } from '@/contracts/repo';
 import type { SyncTable } from '@/contracts/sync';
 import type { RepoContext } from './context';
-import { rowProblem } from '@/lib/import/backup-v3/row-check';
+import type { RowProblemFn } from './row-check-lazy';
 import { resolveKeyed } from './natural-key';
 import { dataTable, isDataRow, isObject, sameRow, timeOf, type DataRow, type DataTableName } from './tables';
 
@@ -49,7 +49,8 @@ export interface TablePlan {
   inserted: number;
 }
 
-export function validateBackup(backup: unknown): asserts backup is BackupV3 {
+/** `rowProblem` comes from `loadRowProblem()` (row-check-lazy.ts), so zod stays out of first-load JS. */
+export function validateBackup(backup: unknown, rowProblem: RowProblemFn): asserts backup is BackupV3 {
   if (!isObject(backup) || backup.format !== 'tytax-backup' || backup.version !== 3) {
     throw new RepoError('VALIDATION', 'Not a tytax-backup version 3 file');
   }
