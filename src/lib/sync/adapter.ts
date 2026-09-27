@@ -36,6 +36,8 @@ export interface SupabaseSyncAdapterOptions {
   random?: () => number;
   log?: SyncLogger;
   pageSize?: number;
+  /** Push rounds per run before the pull (default MAX_PUSH_ROUNDS); a backlog left over schedules a follow-up run. */
+  maxPushRounds?: number;
 }
 
 export interface SupabaseSyncAdapter extends SyncAdapter {
@@ -156,7 +158,12 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
 
     const totals = { pushed: 0, failed: 0, deferred: 0, permanentCode: undefined as string | undefined };
     const sent = new Map<string, string>();
-    for (let round = 0; round < MAX_PUSH_ROUNDS; round++) {
+    const maxRounds = opts.maxPushRounds ?? MAX_PUSH_ROUNDS;
+    // Set when the round budget runs out while the outbox still makes progress:
+    // the rest is drained by a follow-up run (after this run's pull), never left
+    // waiting for an unrelated trigger.
+    let backlog = false;
+    for (let round = 0; round < maxRounds; round++) {
       const push = await pushRun({ repo: r, remote, log }, accountId, round === 0 ? snapshot : null, sent);
       totals.pushed += push.pushed;
       totals.failed += push.failed;
@@ -165,6 +172,7 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
       if (push.abort) return stopWith(push.abort, totals.pushed, pulled, totals.failed);
       // A full peek window: drain the backlog now instead of waiting for the next trigger.
       if (!push.more || push.settled === 0) break;
+      if (round === maxRounds - 1) backlog = true;
     }
     const stamp = now().toISOString();
     if (firstPush) for (const t of PUSH_ORDER) cursors.set(accountId, t, { lastPushedAt: stamp });
@@ -182,6 +190,7 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
       retryTimer = null;
     }
     const pending = await refreshPending();
+    if (backlog && pending > 0) rerun = true; // syncNow's finally re-arms the debounce
     if (totals.failed > 0) {
       setState({ status: 'error', lastError: totals.permanentCode, pending });
     } else if (totals.deferred > 0) {

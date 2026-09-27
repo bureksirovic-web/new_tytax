@@ -9,7 +9,6 @@ import type { SyncLogger } from './log';
 import type { RemoteRow } from './mapper';
 
 export const PEEK_LIMIT = 200;
-const MAX_PEEK = 6_400;
 
 export const keyOf = (table: string, id: string): string => `${table}:${id}`;
 
@@ -45,7 +44,15 @@ export interface PushOutcome {
   deferred: number;
 }
 
-/** Oldest-first live ops; widens the peek window past dead letters and deferred ops so they never block the queue. */
+/**
+ * Oldest-first live ops; widens the peek window past dead letters and deferred
+ * ops so they never block the queue. The window grows until it holds
+ * PEEK_LIMIT live ops or the outbox is exhausted: no fixed ceiling, because a
+ * ceiling let a run of dead letters or another account's ops longer than it
+ * hide every live op behind them (the run then reported idle with nothing
+ * sent). Worst case this reads the whole outbox once, as pendingRecordKeys
+ * already does on every pull page.
+ */
 export async function collectOps(
   outbox: SyncOutbox,
   pushable: (op: SyncOperation) => boolean,
@@ -54,7 +61,7 @@ export async function collectOps(
     const ops = await outbox.peek(limit);
     const dead = ops.filter((o) => isDeadLetter(o.lastError));
     const live = ops.filter((o) => !isDeadLetter(o.lastError) && pushable(o));
-    if (live.length >= PEEK_LIMIT || ops.length < limit || limit >= MAX_PEEK) {
+    if (live.length >= PEEK_LIMIT || ops.length < limit) {
       return { live: live.slice(0, PEEK_LIMIT), dead, deferred: ops.length - dead.length - live.length };
     }
   }
