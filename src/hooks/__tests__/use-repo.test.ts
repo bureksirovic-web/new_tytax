@@ -81,4 +81,20 @@ describe('useHistory', () => {
     // 3 > (1 + 1)·2 = 4 is false → no more pages
     expect(result.current.hasMore).toBe(false);
   });
+
+  it('clears profile and profileId when a live re-read of the active profile fails', async () => {
+    const repo = installRepo();
+    const p = await repo.profiles.ensureActive('Me');
+    const { result } = renderHook(() => useActiveProfile());
+    await waitFor(() => expect(result.current.profileId).toBe(p.id));
+
+    vi.spyOn(repo.profiles, 'get').mockRejectedValue(new Error('broken'));
+    await act(async () => {
+      await repo.profiles.update(p.id, { name: 'Renamed' });
+    });
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+    expect(result.current.profileId).toBeUndefined();
+    expect(result.current.profile).toBeUndefined();
+    expect(result.current.loading).toBe(false);
+  });
 });

@@ -11,8 +11,9 @@ export function useRepo(): Repository {
 }
 
 export interface RepoQueryResult<T> {
-  /** Result for the current `deps`; undefined until the first result for them arrives. */
+  /** Result for the current `deps`; undefined until the first result for them arrives, and after a failed run. */
   data: T | undefined;
+  /** Set when the latest run failed; it replaces `data` (stale data is never shown beside an error). */
   error: unknown;
   loading: boolean;
 }
@@ -39,7 +40,7 @@ export function useRepoQuery<T>(query: (repo: Repository) => Promise<T>, deps: r
     const unsubscribe = repo.watch(
       () => query(repo),
       (data) => setState({ token, data, error: undefined }),
-      (error) => setState((prev) => ({ token, data: prev.token === token ? prev.data : undefined, error })),
+      (error) => setState({ token, data: undefined, error }),
     );
     return unsubscribe;
     // `query` is intentionally read from the render that produced `token`.
@@ -58,13 +59,19 @@ export interface ActiveProfileResult {
   profile: Profile | undefined;
   profileId: string | undefined;
   loading: boolean;
+  /** Set when reading the active profile failed (profile and profileId are then undefined). */
+  error: unknown;
 }
 
-/** The device's active profile (live). Use `repo.profiles.ensureActive` at app start to guarantee one. */
+/**
+ * The device's active profile (live: follows `setActive`, and `remove` of the
+ * active profile). A soft-deleted or missing active id reads as no profile.
+ * Use `repo.profiles.ensureActive` at app start to guarantee one.
+ */
 export function useActiveProfile(): ActiveProfileResult {
-  const { data, loading } = useRepoQuery(async (repo) => {
+  const { data, loading, error } = useRepoQuery(async (repo) => {
     const id = await repo.profiles.getActiveId();
     return id ? ((await repo.profiles.get(id)) ?? null) : null;
   }, []);
-  return { profile: data ?? undefined, profileId: data?.id, loading };
+  return { profile: data ?? undefined, profileId: data?.id, loading, error };
 }

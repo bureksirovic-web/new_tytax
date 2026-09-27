@@ -1,0 +1,151 @@
+{
+  "logs": [
+    {
+      "id": 1717243200000,
+      "date": "2024-06-01",
+      "session": "Upper A",
+      "duration": 3500,
+      "rpe": "8",
+      "notes": "Synthetic",
+      "exercises": [
+        {
+          "name": "TYTAX T1 | Smith Flat Bench Press",
+          "sets": [
+            {
+              "kg": "35.0",
+              "reps": 10,
+              "rir": "",
+              "done": true,
+              "type": "warmup"
+            },
+            {
+              "kg": "55",
+              "reps": "8",
+              "rir": "",
+              "done": true
+            }
+          ]
+        },
+        {
+          "name": "TYTAX T1 | Lower Pulley Seated Cable Row (bench)",
+          "sets": [
+            {
+              "kg": "40",
+              "reps": "12",
+              "rir": "2",
+              "done": true
+            }
+          ]
+        },
+        {
+          "name": "TYTAX T1 | Smith Flat Bench Press",
+          "sets": [
+            {
+              "kg": 45,
+              "reps": 10,
+              "rir": 3,
+              "done": true
+            },
+            {
+              "kg": "",
+              "reps": "",
+              "rir": "",
+              "done": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1717416000000,
+      "date": "2024-06-03",
+      "session": "Lower A",
+      "duration": 3900,
+      "exercises": [
+        {
+          "name": "TYTAX T1 | Smith Back Squat",
+          "sets": [
+            {
+              "kg": "45.0",
+              "reps": 10,
+              "rir": "",
+              "done": true,
+              "type": "warmup"
+            },
+            {
+              "kg": "65.0",
+              "reps": 5,
+              "rir": "",
+              "done": true,
+              "type": "warmup"
+            },
+            {
+              "kg": 90,
+              "reps": 5,
+              "rir": "1",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1717502400000,
+      "date": "2024-06-04",
+      "exercises": []
+    }
+  ],
+  "sessionOrder": [
+    "Upper A",
+    "Lower A",
+    "Rest Day"
+  ],
+  "trainingPlan": {
+    "Upper A": [
+      "TYTAX T1 | Smith Flat Bench Press",
+      "TYTAX T1 | Lower Pulley Seated Cable Row (bench)",
+      "TYTAX T1 | Smith Seated Shoulder Press"
+    ],
+    "Lower A": [
+      "TYTAX T1 | Smith Back Squat",
+      "TYTAX T1 | Smith Romanian Deadlift (RDL)"
+    ],
+    "Rest Day": []
+  },
+  "masterExercises": [
+    {
+      "name": "TYTAX T1 | Smith Flat Bench Press"
+    },
+    {
+      "name": "TYTAX T1 | Smith Back Squat"
+    }
+  ],
+  "startDate": "2024-06-01",
+  "oledMode": true,
+  "userInventory": [
+    "Lat Bar",
+    "D-Handles"
+  ],
+  "userProfile": null,
+  "customProtocols": [
+    {
+      "id": "custom_1717000000000",
+      "name": "Backup Protocol",
+      "description": "Synthetic protocol",
+      "data": {
+        "INITIAL_PLAN": {
+          "Full A": [
+            "TYTAX T1 | Smith Flat Bench Press",
+            "TYTAX T1 | Smith Back Squat"
+          ],
+          "Rest Day": []
+        },
+        "INITIAL_ORDER": [
+          "Full A",
+          "Rest Day"
+        ]
+      }
+    }
+  ],
+  "warmupStrategy": "Standard"
+}

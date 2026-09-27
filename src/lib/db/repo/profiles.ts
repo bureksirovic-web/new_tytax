@@ -1,77 +1,55 @@
-import { DEFAULT_PROFILE_SETTINGS, type Profile, type ProfileSettings } from '@/contracts/domain';
+import type { Profile } from '@/contracts/domain';
 import { RepoError, type CreateProfileInput, type ProfilesRepo } from '@/contracts/repo';
-import {
-  asc,
-  assertNonEmpty,
-  assertNonNegative,
-  assertPositive,
-  byProfile,
-  compact,
-  notFound,
-  paginate,
-  stripKeys,
-  visible,
-  type RepoContext,
-  type WriteScope,
-} from './context';
-import { OWNED_TABLES, dataTable } from './tables';
+import type { RepoContext, WriteScope } from './context';
+import { removeProfile } from './profile-remove';
+import { firstLiveProfile, getLiveProfile, putProfile, readActiveId, writeActiveId } from './profile-store';
+import { asc, compact, paginate, stripKeys, visible } from './rows';
+import { defaultSettings, mergeSettings } from './settings';
+import { assertNonEmpty, assertPositive, notFound } from './validate';
 
-export const ACTIVE_PROFILE_KEY = 'activeProfileId';
+export { ACTIVE_PROFILE_KEY, getLiveProfile, putProfile } from './profile-store';
+export { mergeSettings } from './settings';
 
-const UNITS = new Set(['kg', 'lb']);
-const LANGUAGES = new Set(['hr', 'en']);
-const WARMUPS = new Set(['standard', 'heavy', 'pyramid', 'none']);
-const THEMES = new Set(['tactical', 'oled']);
+type ProfilePatch = Parameters<ProfilesRepo['update']>[1];
 
-function validateSettings(s: ProfileSettings): void {
-  if (!UNITS.has(s.units)) throw new RepoError('VALIDATION', 'settings.units must be kg or lb');
-  if (!LANGUAGES.has(s.language)) throw new RepoError('VALIDATION', 'settings.language must be hr or en');
-  if (!WARMUPS.has(s.warmupStrategy)) throw new RepoError('VALIDATION', 'settings.warmupStrategy is invalid');
-  if (!THEMES.has(s.theme)) throw new RepoError('VALIDATION', 'settings.theme is invalid');
-  assertNonNegative(s.restSeconds, 'settings.restSeconds');
-  assertNonNegative(s.barWeightKg, 'settings.barWeightKg');
-  if (!Array.isArray(s.plateSetKg)) throw new RepoError('VALIDATION', 'settings.plateSetKg must be an array');
-  s.plateSetKg.forEach((p) => assertPositive(p, 'settings.plateSetKg[]'));
+const GENDERS: ReadonlySet<string> = new Set(['male', 'female', 'other']);
+const LEVELS: ReadonlySet<string> = new Set(['beginner', 'intermediate', 'advanced']);
+
+function assertOptionalString(v: unknown, field: string): void {
+  if (v !== undefined && typeof v !== 'string') throw new RepoError('VALIDATION', `${field} must be a string`);
 }
 
-/** Defaults overlaid with `patch`; arrays are copied, never shared with DEFAULT_PROFILE_SETTINGS. */
-export function mergeSettings(base: ProfileSettings, patch?: Partial<ProfileSettings>): ProfileSettings {
-  const merged: ProfileSettings = { ...base, ...compact(patch ?? {}) };
-  merged.plateSetKg = [...(merged.plateSetKg ?? DEFAULT_PROFILE_SETTINGS.plateSetKg)];
-  validateSettings(merged);
-  return merged;
+function assertOneOf(v: unknown, allowed: ReadonlySet<string>, field: string): void {
+  if (v !== undefined && (typeof v !== 'string' || !allowed.has(v))) {
+    throw new RepoError('VALIDATION', `${field} must be one of ${[...allowed].join(', ')}`);
+  }
 }
 
-export async function getLiveProfile(ctx: RepoContext, id: string): Promise<Profile> {
-  const p = await ctx.db.profiles.get(id);
-  if (!p || p.deletedAt) throw notFound('Profile', id);
-  return p;
-}
-
-export async function putProfile(ctx: RepoContext, w: WriteScope, profile: Profile): Promise<Profile> {
-  const next = compact({ ...profile, updatedAt: ctx.stamp() });
-  await ctx.db.profiles.put(next);
-  await w.queue('profiles', 'upsert', next.id, next.id);
-  return next;
-}
-
-async function firstLiveProfile(ctx: RepoContext): Promise<Profile | undefined> {
-  const all = await ctx.db.profiles.toArray();
-  return all.filter((p) => !p.deletedAt).sort((a, b) => asc(a.createdAt, b.createdAt) || asc(a.id, b.id))[0];
-}
-
-async function readActiveId(ctx: RepoContext): Promise<string | null> {
-  const row = await ctx.db.meta.get(ACTIVE_PROFILE_KEY);
-  return typeof row?.value === 'string' ? row.value : null;
-}
-
-async function writeActiveId(ctx: RepoContext, id: string | null): Promise<void> {
-  await ctx.db.meta.put({ key: ACTIVE_PROFILE_KEY, value: id });
+/** Validates and normalises a profile patch; `activeProgramId` must be one of this profile's live programs. */
+async function cleanPatch(ctx: RepoContext, id: string, patch: ProfilePatch): Promise<ProfilePatch> {
+  const clean = stripKeys(patch ?? {}, ['id', 'createdAt', 'settings', 'deletedAt', 'updatedAt']);
+  if (clean.name !== undefined) {
+    assertNonEmpty(clean.name, 'name');
+    clean.name = clean.name.trim();
+  }
+  if (clean.bodyweightKg !== undefined) assertPositive(clean.bodyweightKg, 'bodyweightKg');
+  assertOneOf(clean.gender, GENDERS, 'gender');
+  assertOneOf(clean.experienceLevel, LEVELS, 'experienceLevel');
+  assertOptionalString(clean.avatarColor, 'avatarColor');
+  assertOptionalString(clean.accountId, 'accountId');
+  const programId = clean.activeProgramId;
+  if (programId !== undefined && programId !== null) {
+    const program = typeof programId === 'string' ? await ctx.db.programs.get(programId) : undefined;
+    if (!program || program.profileId !== id || program.deletedAt) throw notFound('Program', String(programId));
+  }
+  return clean;
 }
 
 export function createProfilesRepo(ctx: RepoContext): ProfilesRepo {
   async function createIn(w: WriteScope, input: CreateProfileInput): Promise<Profile> {
     assertNonEmpty(input?.name, 'name');
+    assertOptionalString(input.avatarColor, 'avatarColor');
+    assertOptionalString(input.accountId, 'accountId');
     const stamp = ctx.stamp();
     const profile: Profile = compact({
       id: ctx.newId(),
@@ -79,7 +57,7 @@ export function createProfilesRepo(ctx: RepoContext): ProfilesRepo {
       accountId: input.accountId,
       avatarColor: input.avatarColor,
       activeProgramId: null,
-      settings: mergeSettings({ ...DEFAULT_PROFILE_SETTINGS, plateSetKg: [...DEFAULT_PROFILE_SETTINGS.plateSetKg] }, input.settings),
+      settings: mergeSettings(defaultSettings(), input.settings),
       createdAt: stamp,
       updatedAt: stamp,
     });
@@ -105,12 +83,7 @@ export function createProfilesRepo(ctx: RepoContext): ProfilesRepo {
     update: (id, patch) =>
       ctx.write(async (w) => {
         const current = await getLiveProfile(ctx, id);
-        const clean = stripKeys(patch ?? {}, ['id', 'createdAt', 'settings', 'deletedAt']);
-        if (clean.name !== undefined) {
-          assertNonEmpty(clean.name, 'name');
-          clean.name = clean.name.trim();
-        }
-        if (clean.bodyweightKg !== undefined) assertPositive(clean.bodyweightKg, 'bodyweightKg');
+        const clean = await cleanPatch(ctx, id, patch);
         return putProfile(ctx, w, { ...current, ...clean });
       }),
 
@@ -120,37 +93,7 @@ export function createProfilesRepo(ctx: RepoContext): ProfilesRepo {
         return putProfile(ctx, w, { ...current, settings: mergeSettings(current.settings, patch) });
       }),
 
-    remove: (id) =>
-      ctx.write(async (w) => {
-        const profile = await getLiveProfile(ctx, id);
-        const soft = ctx.sync.enabled;
-        const stamp = ctx.stamp();
-        for (const [name, syncName] of OWNED_TABLES) {
-          const table = dataTable(ctx.db, name);
-          const rows = await byProfile(table, id);
-          if (!soft) {
-            await table.bulkDelete(rows.map((r) => r.id));
-            continue;
-          }
-          for (const row of rows) {
-            if (row.deletedAt) continue;
-            await table.put({ ...row, deletedAt: stamp, updatedAt: stamp });
-            await w.queue(syncName, 'delete', row.id, id);
-          }
-        }
-        if (soft) {
-          await ctx.db.profiles.put({ ...profile, deletedAt: stamp, updatedAt: stamp });
-          await w.queue('profiles', 'delete', id, id);
-        } else {
-          await ctx.db.profiles.delete(id);
-          const stale = await ctx.db.syncQueue.filter((op) => op.profileId === id).primaryKeys();
-          await ctx.db.syncQueue.bulkDelete(stale);
-        }
-        if ((await readActiveId(ctx)) === id) {
-          const next = await firstLiveProfile(ctx);
-          await writeActiveId(ctx, next?.id ?? null);
-        }
-      }),
+    remove: (id) => ctx.write((w) => removeProfile(ctx, w, id)),
 
     async getActiveId() {
       const id = await readActiveId(ctx);

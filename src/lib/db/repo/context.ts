@@ -1,15 +1,31 @@
 /**
  * Shared plumbing for the Dexie repository: clock, ids, write transactions,
- * outbox queueing and small validation/list helpers.
+ * outbox queueing. Re-exports the validation and row helpers.
  */
-import Dexie, { type Table } from 'dexie';
-import { RepoError, isRepoError, type ListOptions } from '@/contracts/repo';
 import type { SyncAdapter, SyncOperation, SyncOperationType, SyncTable } from '@/contracts/sync';
+import Dexie, { type Transaction } from 'dexie';
 import type { TytaxDatabase } from '../dexie';
+import { wrapStorage } from './errors';
+
+/** One outbox entry for `WriteScope.queueMany`. */
+export interface QueuedOp {
+  table: SyncTable;
+  op: SyncOperationType;
+  recordId: string;
+  profileId: string;
+}
 
 /** Handed to every write; queues outbox rows inside the running transaction. */
 export interface WriteScope {
   queue(table: SyncTable, op: SyncOperationType, recordId: string, profileId: string): Promise<void>;
+  /**
+   * Queues many ops with one IndexedDB request. Use it instead of awaiting
+   * `queue` in a loop with no other IndexedDB work between iterations:
+   * with sync off `queue` makes no request, and Dexie drops the transaction
+   * zone after 100 consecutive non-IndexedDB awaits (ZONE_ECHO_LIMIT), so
+   * IndexedDB auto-commits mid-write (PrematureCommitError, no rollback).
+   */
+  queueMany(ops: readonly QueuedOp[]): Promise<void>;
 }
 
 export interface RepoContext {
@@ -19,7 +35,11 @@ export interface RepoContext {
   newId(): string;
   /** `now()` as an ISO string. */
   stamp(): string;
-  /** One rw transaction over every table; notifies the sync adapter after commit when ops were queued. */
+  /**
+   * One rw transaction over every table; notifies the sync adapter after
+   * commit when ops were queued. Inside `transaction()` (or another write) it
+   * joins the caller's transaction and the notification waits for that commit.
+   */
   write<T>(fn: (w: WriteScope) => Promise<T>): Promise<T>;
   /** Public `Repository.transaction`: nested repo writes join it; notification waits for the outer commit. */
   transaction<T>(fn: () => Promise<T>): Promise<T>;
@@ -32,21 +52,68 @@ export interface ContextOptions {
   newId: () => string;
 }
 
+/** Notification state of one top-level rw transaction; joined writes share it. */
+interface Outer {
+  pending: boolean;
+}
+
+/**
+ * Outbox row id that sorts in insertion order. IndexedDB orders equal
+ * `createdAt` index keys by primary key, and the clock has millisecond
+ * precision, so a random id would let ops of one millisecond come back from
+ * `outbox.peek` in random order (a pr_records op before its workout_logs op).
+ * The counter is seeded from the wall clock in microseconds, so it keeps
+ * rising across reloads; the random suffix keeps ids unique across tabs.
+ */
+let opSeq = 0;
+function nextOpId(random: string): string {
+  opSeq = Math.max(opSeq + 1, Date.now() * 1000);
+  return `${String(opSeq).padStart(17, '0')}-${random}`;
+}
+
 export function createContext(opts: ContextOptions): RepoContext {
-  let outerDepth = 0;
-  let pendingNotify = false;
+  /** Top-level transactions this context opened (keyed by Dexie's transaction object). */
+  const outers = new WeakMap<Transaction, Outer>();
+
+  /**
+   * The top-level transaction the caller is running inside, if any. Decided
+   * from Dexie's zone, never from a global counter: a write that merely runs
+   * concurrently with an unrelated `transaction()` is top-level (S3-13).
+   */
+  const joinedOuter = (): Outer | undefined => {
+    for (let tx: Transaction | undefined = Dexie.currentTransaction ?? undefined; tx; tx = tx.parent) {
+      const outer = outers.get(tx);
+      if (outer) return outer;
+    }
+    return undefined;
+  };
 
   const notify = (): void => {
-    if (outerDepth > 0) {
-      pendingNotify = true;
-      return;
-    }
     try {
       opts.sync().notifyChanged();
     } catch {
       // The adapter must never break a committed write.
     }
   };
+
+  /** One rw transaction over every table; nested calls join the caller's and notify only after its commit. */
+  async function runRw<T>(fn: (outer: Outer) => Promise<T>): Promise<T> {
+    const db = opts.db();
+    const joined = joinedOuter();
+    // The scope functions must be `async` functions: Dexie only keeps the
+    // transaction zone across native awaits for AsyncFunction scopes.
+    if (joined) return wrapStorage(() => db.transaction('rw', db.tables, async () => fn(joined)));
+    const own: Outer = { pending: false };
+    const result = await wrapStorage(() =>
+      db.transaction('rw', db.tables, async () => {
+        const tx = Dexie.currentTransaction;
+        if (tx) outers.set(tx, own);
+        return fn(own);
+      }),
+    );
+    if (own.pending) notify();
+    return result;
+  }
 
   const ctx: RepoContext = {
     get db() {
@@ -59,172 +126,34 @@ export function createContext(opts: ContextOptions): RepoContext {
     newId: () => opts.newId(),
     stamp: () => opts.now().toISOString(),
 
-    async write<T>(fn: (w: WriteScope) => Promise<T>): Promise<T> {
-      const db = opts.db();
-      let queued = 0;
-      const scope: WriteScope = {
-        async queue(table, op, recordId, profileId) {
-          if (!opts.sync().enabled) return;
-          const row: SyncOperation = {
-            id: opts.newId(),
-            table,
-            op,
-            recordId,
-            profileId,
-            createdAt: opts.now().toISOString(),
-            retryCount: 0,
-          };
-          await db.syncQueue.add(row);
-          queued += 1;
-        },
-      };
-      // The scope function must be an `async` function: Dexie only keeps the
-      // transaction zone across native awaits for AsyncFunction scopes.
-      const result = await wrapStorage(() => db.transaction('rw', db.tables, async () => fn(scope)));
-      if (queued > 0) notify();
-      return result;
+    write<T>(fn: (w: WriteScope) => Promise<T>): Promise<T> {
+      return runRw(async (outer) => {
+        const db = opts.db();
+        const toRow = (q: QueuedOp, createdAt: string): SyncOperation => ({ id: nextOpId(opts.newId()), ...q, createdAt, retryCount: 0 });
+        const scope: WriteScope = {
+          async queue(table, op, recordId, profileId) {
+            if (!opts.sync().enabled) return;
+            await db.syncQueue.add(toRow({ table, op, recordId, profileId }, opts.now().toISOString()));
+            outer.pending = true;
+          },
+          async queueMany(ops) {
+            if (ops.length === 0 || !opts.sync().enabled) return;
+            const createdAt = opts.now().toISOString();
+            // Ids are generated in array order, so bulkAdd keeps it too.
+            await db.syncQueue.bulkAdd(ops.map((q) => toRow(q, createdAt)));
+            outer.pending = true;
+          },
+        };
+        return fn(scope);
+      });
     },
 
-    async transaction<T>(fn: () => Promise<T>): Promise<T> {
-      const db = opts.db();
-      outerDepth += 1;
-      let ok = false;
-      try {
-        const result = await wrapStorage(() => db.transaction('rw', db.tables, async () => fn()));
-        ok = true;
-        return result;
-      } finally {
-        outerDepth -= 1;
-        if (outerDepth === 0) {
-          const shouldNotify = pendingNotify && ok;
-          pendingNotify = false;
-          if (shouldNotify) notify();
-        }
-      }
+    transaction<T>(fn: () => Promise<T>): Promise<T> {
+      return runRw(async () => fn());
     },
   };
   return ctx;
 }
 
-/** RepoErrors pass through; anything else from IndexedDB becomes STORAGE. */
-async function wrapStorage<T>(run: () => Promise<T>): Promise<T> {
-  try {
-    return await run();
-  } catch (e) {
-    if (isRepoError(e)) throw e;
-    if (isDexieError(e)) throw new RepoError('STORAGE', e.message, e);
-    throw e;
-  }
-}
-
-function isDexieError(e: unknown): e is Error {
-  // IndexedDB failures (quota, constraint, closed database) surface as DexieError subclasses.
-  return e instanceof Dexie.DexieError;
-}
-
-// ─── Validation ──────────────────────────────────────────────────────────────
-
-const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-export function isCalendarDay(v: unknown): v is string {
-  if (typeof v !== 'string') return false;
-  const m = DAY_RE.exec(v);
-  if (!m) return false;
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  const dt = new Date(Date.UTC(y, mo - 1, d));
-  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
-}
-
-export function assertDay(v: unknown, field: string): asserts v is string {
-  if (!isCalendarDay(v)) throw new RepoError('VALIDATION', `${field} must be a 'YYYY-MM-DD' date`);
-}
-
-export function isIsoTimestamp(v: unknown): v is string {
-  return typeof v === 'string' && v.length >= 10 && Number.isFinite(Date.parse(v));
-}
-
-export function assertTimestamp(v: unknown, field: string): asserts v is string {
-  if (!isIsoTimestamp(v)) throw new RepoError('VALIDATION', `${field} must be an ISO timestamp`);
-}
-
-export function assertNonNegative(v: unknown, field: string): asserts v is number {
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
-    throw new RepoError('VALIDATION', `${field} must be a finite number >= 0`);
-  }
-}
-
-export function assertPositive(v: unknown, field: string): asserts v is number {
-  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
-    throw new RepoError('VALIDATION', `${field} must be a finite number > 0`);
-  }
-}
-
-export function assertNonEmpty(v: unknown, field: string): asserts v is string {
-  if (typeof v !== 'string' || v.trim() === '') throw new RepoError('VALIDATION', `${field} must not be empty`);
-}
-
-export function notFound(what: string, id: string): RepoError {
-  return new RepoError('NOT_FOUND', `${what} ${id} not found`);
-}
-
-// ─── Records and lists ───────────────────────────────────────────────────────
-
-export interface SoftDeletable {
-  deletedAt?: string;
-}
-
-export function isLive(row: SoftDeletable): boolean {
-  return !row.deletedAt;
-}
-
-export function visible<T extends SoftDeletable>(rows: T[], includeDeleted?: boolean): T[] {
-  return includeDeleted ? rows : rows.filter(isLive);
-}
-
-export function paginate<T>(rows: T[], opts?: ListOptions): T[] {
-  const offset = Math.max(0, Math.floor(opts?.offset ?? 0));
-  const limit = opts?.limit;
-  if (limit === undefined) return offset ? rows.slice(offset) : rows;
-  return rows.slice(offset, offset + Math.max(0, Math.floor(limit)));
-}
-
-/** Descending string compare (ISO timestamps and 'YYYY-MM-DD' sort lexically). */
-export function desc(a: string | undefined, b: string | undefined): number {
-  const x = a ?? '';
-  const y = b ?? '';
-  return x < y ? 1 : x > y ? -1 : 0;
-}
-
-export function asc(a: string | undefined, b: string | undefined): number {
-  return -desc(a, b);
-}
-
-/** Drops keys whose value is `undefined` (top level only). */
-export function compact<T extends object>(obj: T): T {
-  const out = { ...obj };
-  for (const key of Object.keys(out) as Array<keyof T>) {
-    if (out[key] === undefined) delete out[key];
-  }
-  return out;
-}
-
-/** Copy without `deletedAt`. */
-export function undeleted<T extends SoftDeletable>(row: T): T {
-  const out = { ...row };
-  delete out.deletedAt;
-  return out;
-}
-
-/** Rows of one profile in a table indexed by `profileId`. */
-export function byProfile<T>(table: Table<T, string>, profileId: string): Promise<T[]> {
-  return table.where('profileId').equals(profileId).toArray();
-}
-
-/** Removes keys the caller may never patch. */
-export function stripKeys<T extends object>(patch: T, keys: readonly string[]): T {
-  const out = { ...patch };
-  for (const key of keys) delete (out as Record<string, unknown>)[key];
-  return out;
-}
+export * from './validate';
+export * from './rows';

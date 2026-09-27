@@ -47,3 +47,21 @@ export interface DataRow {
 export function dataTable(db: TytaxDatabase, name: DataTableName): Table<DataRow, string> {
   return db.table<DataRow, string>(name);
 }
+
+export const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isDataRow = (v: unknown): v is DataRow => isObject(v) && typeof v.id === 'string' && v.id !== '';
+/** Epoch ms of an ISO stamp; NaN for anything unparseable. */
+export const timeOf = (v: unknown): number => (typeof v === 'string' ? Date.parse(v) : Number.NaN);
+
+/** Key-order independent JSON (undefined fields dropped, as IndexedDB does). */
+function canonical(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (!isObject(v)) return v;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(v).sort()) if (v[k] !== undefined) out[k] = canonical(v[k]);
+  return out;
+}
+
+export function sameRow(a: unknown, b: unknown): boolean {
+  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+}
