@@ -44,6 +44,7 @@ export const PACKS = [
   'patterns',
   'patterns2',
   'youth',
+  'progression',
 ] as const;
 export type Pack = (typeof PACKS)[number];
 

@@ -5,10 +5,12 @@
  * progression-readiness check (another piece) — the API is exactly
  * `parseTarget(str) -> {min, max, unit, perSide} | null`, do not change its shape.
  */
+export type TargetUnit = 'reps' | 's';
+
 export interface ParsedTarget {
   min: number;
   max: number;
-  unit: 'reps' | 's';
+  unit: TargetUnit;
   perSide: boolean;
 }
 

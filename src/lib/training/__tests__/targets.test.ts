@@ -23,4 +23,9 @@ describe('parseTarget', () => {
     expect(parseTarget('12-8')).toBeNull(); // max < min
     expect(parseTarget('8/arm')).toBeNull();
   });
+  it('tolerates spaces around the separators', () => {
+    expect(parseTarget('  10 - 15 s / side  ')).toEqual({ min: 10, max: 15, unit: 's', perSide: true });
+    expect(parseTarget('8 / leg')).toEqual({ min: 8, max: 8, unit: 'reps', perSide: true });
+    expect(parseTarget(' 12 ')).toEqual({ min: 12, max: 12, unit: 'reps', perSide: false });
+  });
 });
