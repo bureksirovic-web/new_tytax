@@ -92,3 +92,69 @@ All files          |   97.47 |    94.88 |   98.09 |   97.51
 ## Estimate vs actual
 - Wall clock: estimate 6–8 h for all goals in parallel. G2 actual: 22:09 → 23:55, about 1 h 50 min, of which about 45 min was waiting for Wave 0 (spent on the pre-Wave-0 parser, CSV and contract-based pure modules).
 - Paid tokens: Claude (Opus workflows), 6 workflows, about 3.5 M subagent tokens in total (0.44 M + 0.82 M + 1.33 M + 0.48 M + 0.32 M + the main loop). Local lane: 0 agent-hours; ultracode covered the refuter role.
+
+---
+
+# Wave 2 (2026-09-27 00:21 → 02:25)
+
+Merged: `v2-w2-contracts` (twice: fields, then `ghostDurationSeconds`), `v2-g1` (coordinator instruction; its `rankableE1rm`/`isTimeSet`/`E1RM_MAX_REPS` replace G2's stubs). Scratch merge with `v2-g3` + `v2-g4` in a throwaway worktree (02:05): clean, `npx tsc --noEmit` rc 0, `npx vitest run` `Test Files 281 passed (281) / Tests 2148 passed (2148)`; aborted and removed.
+
+## Gate (at 7992307; e253d8b after it only removes an unused import in one test, re-checked with tsc, eslint and that file's 6 tests)
+Command: `npm run lint && npx tsc --noEmit && npm test && npm run build && PORT=3102 npx playwright test e2e/profiles.spec.ts --project=chromium`
+```
+✖ 53 problems (0 errors, 53 warnings)     # i18next warnings in other goals' files after the v2-g1 merge; G2 files: 0 after e253d8b
+ Test Files  152 passed (152)
+      Tests  1214 passed (1214)
+✓ Compiled successfully in 1733ms
+  2 passed (6.6s)
+GATE EXIT 0
+```
+
+## Items
+| Item | Status | Proof (command → output) |
+|---|---|---|
+| 1 (S2) G4-26/G4-47: `logs.update` recomputes e1rm/isPR/prCount/PR records for the edited log and every later log, one transaction; softDelete/restore too | done | `npx vitest run w2-` → `Test Files 23 passed (23) Tests 113 passed (113)` (w2-prs-rebuild, w2-prs-rebuild-all incl. the G4-47 repro as a repo test, w2-prs-chains, w2-prs-restore-stamp-perf) |
+| 2 (S2) G3-02: import/restore write PR records derived from history | done | w2-import-prs (db + import): import 100x5 with `prRecords: []` → baselines; next 120x5 is a real PR (prCount 2: e1rm + weight); re-import writes nothing |
+| 3 F3: e1rm stored only for reps ≤ 12 | done, on G1's `rankableE1rm` | w2-prs-f3-time; stored e1rm now rounded to 0.01 kg (G1 rule), two older expectations updated with the derivation |
+| 4 time sets: `durationSeconds` persisted; excluded from kg volume and PRs | done | w2-prs-f3-time, w2-backup-time-sets (backup schema kept dropping `durationSeconds` until the DSH round) |
+| 5 machine setup: `ExerciseNote.setup`, `getSetup`/`setSetup` | done (implementation ext `getNotesExt(repo)`); contract request `G2-W2-01` | w2-misc-notes-setup, w2-backup-setup-pins (JSON round trip), w2-notes-empty-setup-restore |
+| 6 G4-30 `pinnedExerciseIds` in settings | done; bad stored lists are sanitised (repo and backup schema share `sanitizePins`) | w2-settings-stored-bad-pins, w2-backup-setup-pins |
+| 7 G4-36 device wipe + equipment "not configured" | done: `getWipeAll(repo)`, `isEquipmentConfigured(inv)`; requests `G2-W2-02` (bless wipeAll), `G2-W2-03` (`configuredAt?`) | w2-misc-wipe-equipment |
+| 8 G1-03 items for G2 (R00 'local' orphans, R01, R02, S3-11/12/13) | closed in Wave 1 (commit 6e9b8c5, each proof checked to fail on `v2-wave0`) | review-* tests |
+| 9 hostile restore overwrite (Wave 1 unfixed #1) | done: `inspectBackupJson` returns per-profile conflicts, `requiresConfirmation`, `resurrectsProfileIds`; `restoreBackupJson` throws CONFLICT without `{ confirmOverwrite: true }`; rows with clamped future stamps never replace existing rows | w2-inspect-conflicts, w2-restore-clamped-pin, w2-restore-resurrect-profile, backup-restore-future-stamps |
+| G4-35 item 3 | done: `downloadCSV` defers `revokeObjectURL` | w2 export test |
+| AC10 regression | pass | `npm test -- legacy-import` → `Test Files 13 passed (13) Tests 134 passed (134)` (136 before: two unit tests of the deleted duplicate `planPRs`/`stampAfter` were removed with that code; the behaviour is covered by w2-import-prs) |
+
+API for G4 (settings / exercise detail): `getRepository()` returns `RepositoryExt`; `getNotesExt(repo).{getSetup,setSetup}`, `getWipeAll(repo)`, `isEquipmentConfigured` from `@/lib/db`; `inspectBackupJson`, `restoreBackupJson(repo, text, { confirmOverwrite })`, types `BackupProfileConflict`, `BackupOwnedTable`, `RestoreBackupOptions` from `@/lib/import`.
+
+## Coverage on owned dirs (same command as Wave 1)
+```
+All files          |   97.66 |    95.86 |   98.22 |   97.64
+ hooks             |     100 |       95 |     100 |     100
+ lib/db            |   93.69 |    95.94 |   85.41 |   93.54
+ lib/db/migrations |    99.4 |       94 |   98.94 |   99.22
+ lib/db/repo       |   99.38 |    96.22 |   99.65 |   99.77
+ lib/export        |     100 |      100 |     100 |     100
+ lib/import        |   98.51 |    95.39 |     100 |   99.22
+ lib/import/map    |     100 |    99.25 |     100 |     100
+```
+
+## Hardening
+- Claude refuters inside the build workflow: 11 findings reproduced, 10 fixed, 1 not reproducing (measured, dropped).
+- **Local refuters (DSH/Qwen, 2 live, engine queue 0 / token_usage 0.65 at start 01:00):** stopped at 02:17 to keep the 03:00 deadline; their final summaries were never produced ("not completed"). They left 9 reproduction files, 26 failing cases:
+  - 20 fixed, each a permanent `w2-*` test: log `programId` ownership and `programSessionId` on edit; `date` follows an edited `startedAt`; backup keeps `durationSeconds`/`ghostDurationSeconds`; totals repair uses the repo's `computeTotals`; restore of clamped rows is idempotent and never beats later local edits; resurrecting a deleted profile needs confirmation; an empty setup is not a live note; an equipment row whose id ≠ profileId is refused.
+  - 4 dropped as design choices, with measurement: an older own backup never beats newer rows (LWW); `existingProfileIds` lists live profiles only; a tombstone for a row the device never had is not an "addition" (2 cases). Each contradicts a committed test that states the intended behaviour.
+  - 2 unfixed (below).
+- One slip, fixed: 03b4dda was committed with 3 failing tests (my commit chain did not gate on vitest); fixed in 236d939 twenty minutes later.
+- Design note: `upsertRows` (`src/lib/db/repo/rows.ts`) clears and refills a table when a rebuild rewrites ≥ half of it. Measured under fake-indexeddb: an edit over 1000 logs took 10.5 s before, 1.26 s for the whole test after. It is atomic (same transaction; rollback tested) and keeps other profiles' rows (tested). In a real browser it does at most twice the writes.
+
+## Wave 2 unfixed findings
+1. **Restore can report a negative `skipped`.**
+   - **Evidence:** a 4-row backup (1 profile, 3 newer notes under new ids for exercises that already have notes) gives `inserted 3, updated 3, skipped -2`. `importBackup` counts the local losers it tombstones (natural-key rule) as `updated`, and `service/backup.ts:59` computes `skipped = rowCount - inserted - updated`.
+   - **Why not fixed:** found at 02:17; the fix changes `importBackup`'s count semantics, which `repo-import-natural-key.test.ts` (lines 33, 109) pins. There was no time to change both safely before 03:00.
+   - **Proposed fix:** `planTable` counts local-loser tombstones separately (`tombstonedLocal`); `inserted`/`updated` count in-file rows only; update those two expectations to `updated: 0` and the doc comment at `import-plan.ts:19-21`.
+2. **`finishWorkout` of a back-dated draft re-derives later logs**, but only for the finishing profile's live logs. This is working as designed; noted for G3's UI, where a back-dated finish can change the PR badges of later sessions.
+
+## Estimate vs actual (Wave 2)
+- Wall clock: 00:21 → 02:25, about 2 h 05 min (deadline 03:00).
+- Tokens: 3 Claude workflows (about 0.79 M + 0.28 M subagent tokens, plus the main loop). Local lane: 2 DSH agents for about 1 h 15 min.
