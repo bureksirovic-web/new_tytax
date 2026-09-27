@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-import type { Page } from 'playwright-core';
+import type { BrowserContext, Page } from 'playwright-core';
 
 /**
  * AC15 / AC18: after one online visit the service worker has precached the
@@ -24,6 +24,20 @@ async function primeOffline(page: Page, gotoApp: (p: string) => Promise<void>): 
   expect(controlled).toBe(true);
 }
 
+/**
+ * Offline for the page and for the worker's own fetches: `setOffline` alone
+ * let worker-initiated fetches reach the server (see the restore test).
+ */
+async function goOffline(context: BrowserContext): Promise<void> {
+  await context.route('**/*', (route) => route.abort('internetdisconnected'));
+  await context.setOffline(true);
+}
+
+async function goOnline(context: BrowserContext): Promise<void> {
+  await context.setOffline(false);
+  await context.unrouteAll();
+}
+
 test.describe.configure({ mode: 'serial' });
 // playwright.config.ts blocks service workers by default; this spec is about the worker.
 test.use({ serviceWorkers: 'allow' });
@@ -42,7 +56,7 @@ test('a workout can be logged while offline', async ({ page, context, tytax }) =
   await tytax.reset();
   await primeOffline(page, tytax.gotoApp);
 
-  await context.setOffline(true);
+  await goOffline(context);
   await page.goto('/workout');
   // Offline first paint in dev can take a while: chunks come from the SW cache.
   await expect(page.getByTestId('start-quick-workout')).toBeVisible({ timeout: 30_000 });
@@ -66,7 +80,7 @@ test('a workout can be logged while offline', async ({ page, context, tytax }) =
   await expect(page).toHaveURL(/\/history/);
   await expect(page.getByTestId('history-item')).toHaveCount(1);
 
-  await context.setOffline(false);
+  await goOnline(context);
   const { activeProfileId } = await tytax.snapshot();
   const logs = await tytax.listLogs(activeProfileId!);
   // 1: the workout logged offline is in IndexedDB.
@@ -81,7 +95,7 @@ test('an offline reload can use a catalog chunk never opened before', async ({ p
   await tytax.reset();
   await primeOffline(page, tytax.gotoApp);
 
-  await context.setOffline(true);
+  await goOffline(context);
   await page.goto('/workout');
   await page.reload();
   await page.getByTestId('start-quick-workout').click();
@@ -93,7 +107,7 @@ test('an offline reload can use a catalog chunk never opened before', async ({ p
   await option.click();
   await expect(page.getByTestId('session-exercise')).toHaveCount(1);
   await expect(page.getByTestId('session-exercise')).toContainText(/push/i);
-  await context.setOffline(false);
+  await goOnline(context);
 });
 
 test('an uncached route offline falls back to the offline page', async ({ page, context, tytax }) => {
@@ -101,12 +115,12 @@ test('an uncached route offline falls back to the offline page', async ({ page, 
   await tytax.gotoApp('/dashboard');
   await primeOffline(page, tytax.gotoApp);
 
-  await context.setOffline(true);
+  await goOffline(context);
   await page.goto('/this-route-was-never-cached');
   await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'hr');
   await expect(page.getByRole('link', { name: /Početna/ })).toHaveAttribute('href', '/dashboard');
-  await context.setOffline(false);
+  await goOnline(context);
 });
 
 // Integration (v2-g3/v2-g4 merge log): restore loads G2's backup service and
@@ -114,8 +128,8 @@ test('an uncached route offline falls back to the offline page', async ({ page, 
 // chunks are never referenced by a page's HTML. After one online visit they
 // must still be available offline, although Settings was never opened online.
 // `setOffline` alone let fetches made by the worker itself reach the server in
-// this setup (a chunk never cached still loaded), so the network is also
-// aborted with context.route, which in Chromium routes worker requests too.
+// this setup (a chunk never cached still loaded), so goOffline also aborts
+// the network with context.route, which in Chromium routes worker requests too.
 test('a backup can be restored while offline', async ({ page, context, tytax }) => {
   test.setTimeout(180_000);
   await tytax.gotoApp('/dashboard');
@@ -123,8 +137,7 @@ test('a backup can be restored while offline', async ({ page, context, tytax }) 
   await primeOffline(page, tytax.gotoApp);
 
   // Settings was never opened online: everything below runs offline, on a fresh load.
-  await context.route('**/*', (route) => route.abort('internetdisconnected'));
-  await context.setOffline(true);
+  await goOffline(context);
   await page.goto('/settings');
   const downloadButton = page.getByTestId('settings-backup-download');
   await expect(downloadButton).toBeEnabled({ timeout: 30_000 });
@@ -142,6 +155,5 @@ test('a backup can be restored while offline', async ({ page, context, tytax }) 
   await page.getByTestId('settings-restore-confirm').click();
   await expect(page.getByText(/Kopija vraćena/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('settings-restore-failed')).toHaveCount(0);
-  await context.setOffline(false);
-  await context.unrouteAll();
+  await goOnline(context);
 });
