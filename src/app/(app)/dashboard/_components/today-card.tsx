@@ -107,7 +107,7 @@ function ProgramToday({ program, start }: { program: Program; start: Starter }) 
             </p>
             <p className="text-sm text-fg-2">{t(`dash_session_exercises_${pluralCategory(count, locale)}`, { count })}</p>
           </div>
-          <Button fullWidth size="lg" data-testid="dash-start-session" disabled={start.busy} onClick={() => void start.program(program)}>
+          <Button fullWidth size="lg" data-testid="dash-start-session" disabled={start.busy} onClick={() => void start.program()}>
             {t('dash_start_session')}
           </Button>
           <QuickButton start={start} />

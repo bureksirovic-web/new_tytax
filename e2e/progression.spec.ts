@@ -124,3 +124,41 @@ test("'none' warm-up strategy adds no warm-ups; the manual button adds one 50% s
   await expect(bench.locator(warmup).getByTestId('set-reps')).toHaveValue('10');
   await expect(addWarmup).toBeDisabled();
 });
+
+// Refuter R2 (2026-09-27): "start today" on the dashboard built a draft
+// without warm-ups (store startFromProgram); it now goes through the same
+// orchestrator path as /workout.
+test('starting today\'s program session from the dashboard generates warm-ups, as /workout does', async ({ page, tytax }) => {
+  await tytax.gotoApp('/dashboard');
+  await tytax.reset();
+  const profile = await tytax.seedProfile({ name: 'Dash start', settings: { warmupStrategy: 'standard' } });
+  await tytax.seedHistory(profile.id, [
+    { daysAgo: 2, sessionName: 'Seeded Upper', exercises: [{ exerciseId: BENCH_ID, exerciseName: BENCH_NAME, sets: [{ kg: 100, reps: 8, rir: 3 }] }] },
+  ]);
+  await tytax.seedProgram(profile.id, {
+    template: {
+      name: 'Bench Day',
+      splitType: 'custom',
+      frequency: 1,
+      periodizationType: 'none',
+      sessionOrder: ['Bench'],
+      sessions: [
+        { id: 's-bench', programId: '', name: 'Bench', dayIndex: 0, exercises: [{ exerciseId: BENCH_ID, exerciseName: BENCH_NAME, modality: 'tytax', sets: 1, reps: '8' }] },
+      ],
+      modalitiesUsed: ['tytax'],
+      isPreset: false,
+      currentSessionIndex: 0,
+    },
+  });
+
+  await tytax.gotoApp('/dashboard');
+  await expect(page.getByTestId('dash-session-name')).toContainText('Bench');
+  await page.getByTestId('dash-start-session').click();
+  await expect(page).toHaveURL(/\/workout\/active$/);
+  const bench = page.getByTestId('session-exercise').first();
+  await expect(bench).toHaveAttribute('data-exercise-id', BENCH_ID);
+  // Standard ladder on the 102.5 kg prefill: warm-ups first, then the working set.
+  await expect(bench.locator(warmup)).not.toHaveCount(0);
+  await expect(bench.locator(working).getByTestId('set-kg')).toHaveValue('102.5');
+  await expect(bench.getByTestId('set-row').last()).toHaveAttribute('data-set-type', 'working');
+});

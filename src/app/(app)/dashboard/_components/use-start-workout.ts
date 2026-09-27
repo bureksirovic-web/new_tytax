@@ -1,41 +1,24 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Program, ProgramExercise, SetEntry } from '@/contracts/domain';
+import type { Program } from '@/contracts/domain';
 import { getRepository } from '@/lib/db';
-import { training } from '@/lib/training';
+import { loadCatalog } from '@/lib/catalog';
+import { useProgramStartFlow } from '@/components/workout/start-program-flow';
 import { useUIStore } from '@/stores/ui-store';
 import { useT } from '@/lib/i18n/use-t';
+import { createWorkoutOrchestrator, type PreparedProgramStart, type ProgramStartChoice } from '@/stores/workout-orchestrator';
 import { useWorkoutHydrated, useWorkoutStore } from '@/stores/workout-store';
-import { predictSession } from './dashboard-math';
 import '@/lib/i18n/packs/dashboard';
 
 /** Where the workout store's in-progress screen lives (G3's route). */
 export const ACTIVE_WORKOUT_HREF = '/workout/active';
 
-/** Working-set prefill per slot from the profile's history; a failing slot gets []. */
-async function loadPrefills(profileId: string, program: Program): Promise<Map<ProgramExercise, SetEntry[]>> {
-  const out = new Map<ProgramExercise, SetEntry[]>();
-  const predicted = predictSession(program);
-  if (!predicted) return out;
-  const repo = getRepository();
-  await Promise.all(
-    predicted.session.exercises.map(async (slot) => {
-      try {
-        const history = await repo.logs.historyFor(profileId, slot.exerciseId);
-        const result = training.prefillFromHistory(slot.exerciseId, history, { targetSets: slot.sets, repTarget: slot.reps });
-        out.set(slot, result.sets);
-      } catch {
-        out.set(slot, []);
-      }
-    }),
-  );
-  return out;
-}
-
 /**
- * Starts workouts through the workout store's public actions (G3) and opens
- * the in-progress screen. Never replaces an existing draft.
+ * Starts workouts and opens the in-progress screen. Never replaces an
+ * existing draft. A program session starts exactly as on /workout: through
+ * the orchestrator (warm-ups, muscle-impact snapshot, kettlebell snap) and the
+ * same deload / weak-point offers; render `dialogs` once on the page.
  */
 export function useStartWorkout(profileId: string | undefined) {
   const router = useRouter();
@@ -43,14 +26,36 @@ export function useStartWorkout(profileId: string | undefined) {
   const hydrated = useWorkoutHydrated();
   const draft = useWorkoutStore((s) => s.draft);
   const startQuick = useWorkoutStore((s) => s.startQuick);
-  const startFromProgram = useWorkoutStore((s) => s.startFromProgram);
   const [starting, setStarting] = useState(false);
   // Synchronous guard: two taps inside one render would both still see `starting === false`.
   const inFlight = useRef(false);
   const addToast = useUIStore((s) => s.addToast);
   const fail = () => addToast(t('dash_start_failed'), 'error');
 
-  const busy = !hydrated || starting;
+  const repo = getRepository();
+  const orch = useMemo(() => createWorkoutOrchestrator({ repo, loadCatalog: () => loadCatalog() }), [repo]);
+  const plan = useRef<PreparedProgramStart | null>(null);
+  const flow = useProgramStartFlow({
+    async prepareProgramStart() {
+      plan.current = profileId ? await orch.prepareProgramStart(profileId) : null;
+      return plan.current ? { offers: plan.current.offers } : null;
+    },
+    async startProgram(choice: ProgramStartChoice) {
+      const prepared = plan.current;
+      plan.current = null;
+      // A draft created meanwhile (another tab) is never replaced: open it instead.
+      const existing = useWorkoutStore.getState().draft;
+      if (existing) return existing;
+      return prepared ? orch.startProgram(prepared, choice) : null;
+    },
+    onDone(started) {
+      if (started) router.push(ACTIVE_WORKOUT_HREF);
+      else fail();
+    },
+    onError: fail,
+  });
+
+  const busy = !hydrated || starting || flow.busy;
 
   /** Runs `job` unless another start/skip is in flight; always releases the guard. */
   async function guarded(job: () => Promise<void>) {
@@ -84,22 +89,10 @@ export function useStartWorkout(profileId: string | undefined) {
     });
   }
 
-  async function program(p: Program) {
+  /** Today's session of the active program (the one the dashboard shows). */
+  async function program() {
     if (busy || draft || !profileId) return;
-    await guarded(async () => {
-      let prefills = new Map<ProgramExercise, SetEntry[]>();
-      try {
-        prefills = await loadPrefills(profileId, p);
-      } catch {
-        // No history: start with empty sets.
-      }
-      if (draftAppeared()) return;
-      const started = startFromProgram(profileId, p, p.currentSessionIndex, {
-        prefill: (_id, slot) => prefills.get(slot) ?? [],
-      });
-      if (started) router.push(ACTIVE_WORKOUT_HREF);
-      else fail();
-    });
+    await guarded(() => flow.begin());
   }
 
   /** Rest day: move the rotation pointer on without training. */
@@ -110,5 +103,5 @@ export function useStartWorkout(profileId: string | undefined) {
     });
   }
 
-  return { hydrated, busy, draft, quick, program, skipRest };
+  return { hydrated, busy, draft, quick, program, skipRest, dialogs: flow.dialogs };
 }

@@ -101,13 +101,14 @@ describe('useStartWorkout — never replaces a draft', () => {
 
   it('starts only once when tapped twice in the same render', async () => {
     const { repo, profileId } = await setup();
-    const program = await repo.programs.create(profileId, TEMPLATE, { activate: true });
+    await repo.programs.create(profileId, TEMPLATE, { activate: true });
     const { result } = renderHook(() => useStartWorkout(profileId));
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
+    // The dashboard starts today's session of the active program (the one it shows).
     const start = result.current.program;
     await act(async () => {
-      await Promise.all([start(program), start(program)]);
+      await Promise.all([start(), start()]);
     });
     expect(holder.push).toHaveBeenCalledTimes(1);
     expect(useWorkoutStore.getState().draft?.sessionName).toBe('Push A');
@@ -115,7 +116,7 @@ describe('useStartWorkout — never replaces a draft', () => {
 
   it('opens an existing draft instead of overwriting it when the handler is stale', async () => {
     const { repo, profileId } = await setup();
-    const program = await repo.programs.create(profileId, TEMPLATE, { activate: true });
+    await repo.programs.create(profileId, TEMPLATE, { activate: true });
     const { result } = renderHook(() => useStartWorkout(profileId));
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
@@ -123,7 +124,7 @@ describe('useStartWorkout — never replaces a draft', () => {
     const staleQuick = result.current.quick;
     const existing = useWorkoutStore.getState().startQuick(profileId, 'Keep Me');
     await act(async () => {
-      await staleStart(program);
+      await staleStart();
       await staleQuick();
     });
     expect(useWorkoutStore.getState().draft?.id).toBe(existing.id);
