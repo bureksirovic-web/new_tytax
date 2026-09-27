@@ -547,3 +547,60 @@ Largest route `/workout/active` 245.6 kB (4.4 kB headroom).
 - Flake (S3, test): `profiles.spec.ts:114` calls `tytax.snapshot()` after `page.reload()` without waiting for `__tytaxE2E` (`gotoApp`/`waitReady` do wait); 1 failure in 3 full dev runs, 0 in 20 isolated runs. Proposed fix: `snapshot()` (and the other hook calls) wait for the hooks the way `waitReady` does, or the spec uses `waitReady` after reload. Not changed here: not reproducible on demand and outside this step.
 - Observed once, not reproduced: `legacy-import.integration.test.tsx` and `restore-confirm.test.tsx` timed out (`toBeEnabled`) in a partial `vitest run src/lib/i18n src/components` under load; passed on rerun and in all 4 full `npm test` runs.
 - Headroom is 4.4 kB on `/workout/active`. Next levers if it shrinks: `src/lib/auth/i18n.ts` still ships `AUTH_STRINGS` (en + hr, ~1.2 kB gz on every route) as a fallback although every auth key is in the dictionary; `next/dynamic` for closed workout sheets (picker, swap, setup).
+
+## 12. INTEGRATION step 6: refuter findings (2026-09-27)
+
+14 reproduced findings (R1 data/sync, R2 loop/UI), 0 dropped. Each fix has its own commit and a test that failed on the code before the fix and passes after. The red run was done by reverting only the fix's source files (`git diff > patch; git checkout -- <files>; vitest; git apply patch`), with the new test in place.
+
+### Refuters
+
+| # | Sev | Finding | Outcome | Commit | Test (red before → green after) |
+|---|---|---|---|---|---|
+| 1 | S2 | Account switch mid-push dead-letters the op as `permanent:42501`; the next pull overwrites the unsent edit | fixed: on a 42501 the push re-reads `currentAccountId()`; a changed/signed-out session stops the run with the retryable `account_changed` and the op stays live; a 42501 under the same session is still permanent; a failing re-read is `network` | ae88a3b | `src/lib/sync/__tests__/adapter-account-switch.test.ts` (3 of 4 red before; the "same session still dead-letters" case is the guard) |
+| 2 | S2 | v2->v3 upgrade throws on malformed legacy shapes; DB stuck at v2 | fixed: `recordsOf()`/`Array.isArray` for log exercises, sets, program sessions and session exercises, `plateSet` of a non-array | f298a52 | `src/lib/db/__tests__/migration-edge.test.ts` "malformed legacy shapes complete the upgrade" (8 cases red before). The rollback test now injects its throw through `vi.mock('../migrations/log')` because `exercises:[null]` no longer throws; its assertions (v2 intact, no `meta` store, same dump) are unchanged |
+| 3 | S3 | `finishWorkout` returns a tombstone as `alreadyFinished:true`; the draft is discarded | fixed: `CONFLICT` "Workout <id> was deleted", nothing written; the debrief keeps the draft and shows its error (discard stays possible). Chose CONFLICT over undelete: the tombstone is a deliberate delete of this same workout | e24b290 | `src/lib/db/__tests__/finish-tombstoned-id.test.ts` (2 of 3 red before) |
+| 4 | S3 | Edits made with the sync adapter disabled queue no op and are overwritten by the next pull | fixed: `WriteScope.queue/queueMany` queue ops for any profile an account has claimed, whatever the adapter; never-synced profiles queue nothing (one `bulkGet` per write, no extra await on a cached answer: ZONE_ECHO_LIMIT) | d3bd06c | `src/lib/sync/__tests__/sync-off-edits.test.ts` (red before). `adapter-push.test.ts` "data written while sync was off" asserted the defect (outbox 0, a sync-off write after the first sync never reaches the server): now asserts ops are queued and the second row is pushed (2 rows, outbox 0) |
+| 5 | S3 | Family member without `createdAt` → v3 row fails `parseBackupV3` | fixed: `strOr(member.createdAt, ctx.now)` for createdAt/updatedAt | 6b869cf | `src/lib/db/migrations/__tests__/restorable-backup.test.ts` last case (red before) |
+| 6 | S3 | `repo.importBackup` stores own `__proto__` keys from pre-parsed input | fixed: `validateBackup` walks every row (iterative) and throws VALIDATION on an own `__proto__`/`constructor`/`prototype` key, before the first write | 5097669 | `src/lib/db/__tests__/repo-import-unsafe-keys.test.ts` (3 of 4 red before) |
+| 7 | S3 | Forced upgrade re-run over injected v2 programs re-points `activeProgramId` | fixed in code (not the comment): a v3 profile keeps an `activeProgramId` naming a live program of its own; only a missing/dangling one takes the legacy winner | 28e42e2 | `src/lib/db/__tests__/migration-dexie.test.ts` two new re-run cases (the keep case red before) |
+| 8 | S2 | Dashboard "start today" builds a different draft than /workout | fixed: `useStartWorkout` runs the orchestrator's `prepareProgramStart`/`startProgram` with the same `useProgramStartFlow` offer dialogs (rendered once on the dashboard page); `program()` takes no argument (today's session of the active program). `page-client.robustness.test.tsx` calls updated from `start(program)` to `start()`, assertions unchanged | 41f9ad4 | `src/app/(app)/dashboard/__tests__/start-parity.test.tsx` (both red before: warm-ups + snapshot + equality with the orchestrator draft; deload offer then `isDeload`), e2e `progression.spec.ts` "starting today's program session from the dashboard generates warm-ups" (chromium + mobile) |
+| 9 | S2 | History editor refuses >100 reps | fixed: one constant `MAX_SET_REPS = 1000` (`src/lib/constants.ts`) for the editor and the draft validator; an untouched stored count never blocks a save | 901e5b7 | `src/components/history/__tests__/edit-model-reps-cap.test.ts` (4 red before) |
+| 10 | S3 | >1000 reps silently deleted on rehydrate | fixed: reps `NumberField max={MAX_SET_REPS}` and `updateSet` clamps. `sanitizeDraft` still drops a set above the cap (`hardening.test.ts` asserts that for a 1e9-rep row from hand-edited storage); the app no longer writes one | aad76de | `src/stores/__tests__/reps-cap.test.tsx` (2 red before) |
+| 11 | S3 | lb-entered weight shows a 17-digit float in kg mode | fixed: `kgToDisplay` rounds kg to 0.01 (not 0.1: 1.25 kg plates); the set-row kg field gets `matchTolerance` 0.005 so a typed third decimal is not rewritten | 3f81c38 | `src/lib/__tests__/utils.test.ts` new case, `src/components/workout/__tests__/set-row-kg-display.test.tsx` (display case red before the rounding; typed-decimals case red with rounding but without the tolerance) |
+| 12 | S3 | Debrief volume raw kg, no unit, no locale format | fixed: `formatWeight(volumeKg, units, locale)`; the debrief page passes `settings.units`. The two existing volume assertions in `debrief-page.test.tsx` now expect `'1,140 kg'` (was the substring `'1140'`) | 13cf0ae | `debrief-page.test.tsx` new lb case (red before) |
+| 13 | S3 | Catalog load failure: a hold without ghost/duration is painted and logged as reps, no retry | fixed: a failed load retries on `online`/`visibilitychange`; every successful load records the catalog's time ids in a device cache (`src/stores/measure-cache.ts`, localStorage, union only) that `measureOfExercise` consults before the set heuristic | dbe4806 | `src/hooks/__tests__/use-workout-catalog-failure.test.ts` (2 red before) |
+| 14 | S3 | Finish advances the rotation from the pointer, not the trained session | fixed: `advanceIn(ctx, w, program, draft.programSessionId)` advances to the session after the trained one when the program still has it, else after the pointer; contract comment updated | f912560 | `src/lib/db/__tests__/finish-advance-from-trained.test.ts` (2 of 3 red before; the fallback case is the guard) |
+
+Not fixed (partial), with the proposed fix:
+- #1, second half of the suggestion (keep dead-lettered keys in `pendingRecordKeys` so a pull cannot overwrite a rejected edit): not done. `outbox-ops.ts` documents the opposite on purpose ("their change was rejected, so the server copy may win"); flipping it would pin a permanently rejected row against every newer server copy. The account-switch path no longer dead-letters, which removes the loss this finding reproduced. Proposed if wanted: surface dead letters in the sync panel with a "keep mine / take server" choice.
+- #8: `workout-store.startFromProgram` still exists (store API, own tests) but no screen calls it any more. Proposed: remove it or make it delegate to `buildSessionExercise` in a follow-up.
+- #13 residual: a device that has never loaded the catalog (no cached ids) and whose first catalog load fails still measures a ghostless hold as reps until the retry succeeds. Proposed: persist the measure on the `SessionExercise` at draft creation (optional contract field; `parseBackupV3` and the sync mapper must accept it first).
+
+Dropped (not reproduced): none (the list was empty).
+
+### The refuters' own repros on the fixed code
+- R1 `s6-cross-account` 3/3, `proto/pollution` 3/3 pass.
+- R1 `tests/migration`: 39/42. The 3 left assert the old behaviour: the A2 rollback probes (`missing-exercises`, `plate-weights-string`) expect the upgrade to reject, it now completes; the family-member probe expects `hasCreatedAt: false`, the row now has `createdAt` and `parseErr` is null as it wanted.
+- R1 `tests/finish` T4/T4b: fail by design of the chosen fix (they wanted an undelete; the finish now throws CONFLICT and the tombstone stays).
+- R1 `mysync/sync-off-edit`: fails at its precondition `no op queued while disabled: expected 1 to be +0`; the fix is that op.
+- R2 `probe-b` calls `store.startFromProgram` directly (a copy of the old dashboard code), so it still differs; the dashboard no longer uses that path (start-parity test).
+- R2 `probe-d` "renders the stored kg" and `probe-own` expect 0.1 rounding (`61.2`); the fix rounds to 0.01 (`61.24`).
+- R2 `probe-h` "follows the profile unit" renders `DebriefSummary` without a `units` prop; the page passes it. "is measured as reps" runs with a pending catalog and an empty cache: the #13 residual above.
+
+### Gate on f912560
+`npm run lint && npx tsc --noEmit && npm test && npm run build`: every step exit 0.
+```
+lint rc=0
+tsc rc=0
+test rc=0   Test Files 328 passed (328), Tests 2492 passed (2492)
+build rc=0
+```
+One run of a partial `vitest run src/components src/lib/__tests__` under load had `legacy-import.integration.test.tsx` and `restore-confirm` time out on `toBeEnabled` (the step-5 observation again); `vitest run src/components/settings` right after: 99/99, and the full `npm test` above passed.
+
+### `npm run check-bundle` on f912560: exit 0
+`/dashboard` 238.6 kB gzip (was 230.8, +7.8 kB: the orchestrator, session builder and offer dialogs now on the dashboard, 17 files), `/workout/active` 246.6 kB (was 245.6; 3.4 kB headroom), `/workout/debrief` 233.1, every route "budget 250 kB: ok", catalog leak: no on all 24.
+
+### E2E on f912560 (sync env from `supabase status -o env`, `PORT=3110`, `NEXT_PUBLIC_APP_URL=http://localhost:3110`)
+- `npx playwright test --project=chromium --project=mobile` (dev server): exit 1; 130 passed (128 + the new dashboard warm-up test in both projects), 2 failed, 8 did not run. Both failures are `offline.spec.ts:53` "offline.spec needs E2E_SERVER=prod" (by design under `next dev`); did-not-run = its 4 serial siblings per project.
+- `npm run test:e2e:offline`: exit 0, chromium 5 passed. `E2E_SERVER=prod npx playwright test e2e/offline.spec.ts --project=mobile`: exit 0, 5 passed.
+- `npm run test:sync`: exit 0, 2 files, 16 tests passed.
