@@ -68,7 +68,7 @@ import type {
 import { useRestTimerStore } from './rest-timer-store';
 import { draftFromLog, makeDraft, prependWarmupsTo, reorderByUids, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
 import { syncAcrossTabs } from './cross-tab';
-import { sanitizeDraft } from './draft-validation';
+import { MAX_REPS as MAX_SET_REPS, sanitizeDraft } from './draft-validation';
 import { cleanSeconds } from './measure';
 import { clearHoldStarts } from './hold-storage';
 
@@ -317,6 +317,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
               if (entry.id !== setId) return entry;
               const next = { ...entry, ...patch, id: entry.id };
               if ('durationSeconds' in patch) next.durationSeconds = cleanSeconds(patch.durationSeconds);
+              // Above the cap the persisted-draft validator would reject the set (refuter R2).
+              if (next.reps > MAX_SET_REPS) next.reps = MAX_SET_REPS;
               // A done set stays done while the SET still holds work in either dimension (refuter-2 F4):
               // seconds > 0, or reps with a weight (unless bodyweight). The measure only picks the inputs
               // shown; a wrong or not-yet-loaded measure never erases work logged in the other dimension.

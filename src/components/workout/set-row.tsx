@@ -3,6 +3,7 @@ import { useRef, type Ref } from 'react';
 import type { ExerciseMeasure, Modality, SetEntry, Units } from '@/contracts/domain';
 import type { SetPatch } from '@/stores/workout-store';
 import { displayToKg, kgToDisplay } from '@/lib/utils';
+import { MAX_SET_REPS } from '@/lib/constants';
 import { useSetsStrings } from './strings/sets';
 import { useTimeStrings } from './strings/time';
 import { NumberField } from './number-field';
@@ -120,6 +121,7 @@ export function SetRow({ set, number, modality, units, onChange, onToggleDone, o
                 : `${setLabel}: ${t('set_reps')}`
             }
             value={set.reps}
+            max={MAX_SET_REPS}
             zeroIsEmpty
             placeholder={set.ghostReps !== undefined ? String(set.ghostReps) : undefined}
             inputMode="numeric"
