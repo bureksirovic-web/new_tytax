@@ -53,6 +53,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { safeLocalStorage } from './safe-storage';
 import { newUuid } from '@/lib/db/ids';
 import type {
   Exercise,
@@ -424,7 +425,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
     {
       name: WORKOUT_DRAFT_STORAGE_KEY,
       version: WORKOUT_DRAFT_VERSION,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(safeLocalStorage),
       skipHydration: true,
       partialize: (s) => ({ draft: s.draft }),
       // Older shapes (the unpersisted v2 store) have nothing worth keeping.

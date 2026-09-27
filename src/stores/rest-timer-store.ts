@@ -25,6 +25,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { safeLocalStorage } from './safe-storage';
 import {
   addSeconds,
   isDone,
@@ -71,7 +72,7 @@ export const useRestTimerStore = create<RestTimerStore>()(
     {
       name: REST_TIMER_STORAGE_KEY,
       version: REST_TIMER_VERSION,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(safeLocalStorage),
       skipHydration: true,
       partialize: (s) => ({ timer: s.timer }),
       migrate: (persisted) => ({ timer: timerFromPersisted(persisted) }),
