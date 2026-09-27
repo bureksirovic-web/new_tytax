@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { SyncPanel } from '@/components/sync/sync-panel';
 import { useAuthT } from '@/lib/auth/use-auth-t';
+import '@/lib/i18n/packs/g5Auth';
 
 export function AccountView() {
   const t = useAuthT();

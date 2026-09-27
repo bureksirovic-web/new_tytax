@@ -1,6 +1,7 @@
 'use client';
 import { useId } from 'react';
 import { useFinishStrings } from '@/components/workout/strings/finish';
+import '@/lib/i18n/packs/g3Workout';
 
 export const RPE_MIN = 1;
 export const RPE_MAX = 10;

@@ -6,6 +6,7 @@ import { useLocale } from '@/components/providers';
 import { ArrowRightIcon } from '@/components/workout/icons';
 import { useStartStrings } from '@/components/workout/strings/start';
 import { DiscardWorkoutButton } from './discard-workout-button';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface ForeignDraftInfo {
   /** Name of the profile that started the draft; undefined while loading or when it was deleted. */

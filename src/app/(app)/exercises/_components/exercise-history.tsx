@@ -12,6 +12,7 @@ import { formatDuration } from './format-duration';
 import { HistoryLogItem } from './history-log-item';
 import { bestHold, bestPoint, e1rmSeries } from './history-stats';
 import { SectionCard } from './section-card';
+import '@/lib/i18n/packs/exercises';
 
 const PAGE = 10;
 

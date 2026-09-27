@@ -7,6 +7,7 @@ import { fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { SettingsCard } from './settings-section';
 import { localDay, notify, parseDecimal, PROFILE_NAME_MAX, validateProfileName, type NameProblem } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 const NAME_PROBLEM_KEY = {
   required: 'set_profile_name_required',

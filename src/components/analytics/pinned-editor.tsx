@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button, Modal } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
 import type { TrainedExercise } from './exercise-series';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   open: boolean;

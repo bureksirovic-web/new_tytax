@@ -9,6 +9,7 @@ import { buildBuilderTemplate, type BuilderSplit } from '@/components/programs/l
 import { SPLIT_KEYS } from '@/components/programs/lib/labels';
 import { todayLocal } from '@/lib/programs/calendar';
 import { useMutationRunner } from '@/components/programs/use-program';
+import '@/lib/i18n/packs/programs';
 
 /**
  * Builder wizard: days → split. Picking the split persists the program

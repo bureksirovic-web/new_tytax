@@ -4,6 +4,7 @@ import { LOCALES } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { Hint, SelectField, SettingsCard } from './settings-section';
 import { useSaveSettings } from './use-save-settings';
+import '@/lib/i18n/packs/settings';
 
 const LANGUAGES: readonly Language[] = ['hr', 'en'];
 

@@ -5,6 +5,7 @@ import { kgToDisplay } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { useFinishStrings } from '@/components/workout/strings/finish';
+import '@/lib/i18n/packs/g3Workout';
 
 type FinishT = ReturnType<typeof useFinishStrings>;
 

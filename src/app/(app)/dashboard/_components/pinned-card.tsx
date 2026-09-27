@@ -5,6 +5,7 @@ import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { cardSection, eyebrow } from './styles';
 import { usePinnedLifts } from './use-pinned-lifts';
+import '@/lib/i18n/packs/dashboard';
 
 /** Shown in place of a value when a pinned exercise has no e1RM yet (notation, not copy). */
 const NONE = '—';

@@ -1,5 +1,22 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
+import { registerLocale } from '@/lib/i18n';
+import { en } from '@/lib/i18n/en';
+import { hr } from '@/lib/i18n/hr';
+
+/**
+ * In the app the browser gets the hr core dictionary up front, each hr module
+ * through its pack (imported by the files that use it) and English as one lazy
+ * chunk (`loadLocale`). Unit tests render single components in English and in
+ * hr synchronously (see the locale-core mock below), so both full dictionaries
+ * are registered up front, as if every chunk had loaded. The lazy and pack
+ * paths are tested with a fresh module registry in
+ * src/lib/i18n/__tests__/lazy-locale.test.ts and
+ * src/components/providers/__tests__/locale-provider-lazy.test.tsx; that every
+ * file imports the packs it uses is checked by src/lib/i18n/__tests__/packs.test.ts.
+ */
+registerLocale('hr', hr);
+registerLocale('en', en);
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

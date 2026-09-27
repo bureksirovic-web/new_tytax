@@ -8,6 +8,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { useUIStore } from '@/stores/ui-store';
 import { SectionCard } from './section-card';
 import { SETUP_FIELDS, SETUP_MAX, normalizeSetup, sameSetup, setupWriter, toDraft, type SetupDraft, type SetupField } from './setup-adapter';
+import '@/lib/i18n/packs/exercises';
 
 const FIELD_KEYS: Record<SetupField, TranslationKey> = {
   seat: 'ex_setup_seat',

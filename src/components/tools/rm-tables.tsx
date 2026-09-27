@@ -2,6 +2,7 @@
 import { percentTable, repMaxTable } from './rm-math';
 import { formatKg } from './number-field';
 import { useToolsT } from './tools-i18n';
+import '@/lib/i18n/packs/g3Tools';
 
 const headClass = 'py-1 text-xs font-normal text-[var(--text-muted)]';
 const rowClass = 'border-t border-[var(--border-color)]';

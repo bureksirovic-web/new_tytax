@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/dictionaries';
 import SettingsPage from './page-client';
 
 // Server metadata uses the default language (hr); the client heading follows the active locale.

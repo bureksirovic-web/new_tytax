@@ -12,6 +12,7 @@ import { ProfilesCard } from '@/components/settings/profiles-card';
 import { SettingsCard } from '@/components/settings/settings-section';
 import { SyncSlot } from '@/components/settings/sync-slot';
 import { TrainingCard } from '@/components/settings/training-card';
+import '@/lib/i18n/packs/settings';
 
 export default function SettingsPage() {
   const { t } = useT();

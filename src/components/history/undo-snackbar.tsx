@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRepo } from '@/hooks/use-repo';
 import { useT } from '@/lib/i18n/use-t';
 import { useHistoryUndo } from './undo-store';
+import '@/lib/i18n/packs/history';
 
 /** "Workout deleted — Undo" bar; the undo window lasts UNDO_WINDOW_MS from the delete. */
 export function UndoSnackbar() {

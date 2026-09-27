@@ -1,5 +1,6 @@
 import type { TranslationKey } from '@/lib/i18n';
 import type { StandardMuscle } from '@/lib/constants';
+import '@/lib/i18n/packs/dashboard';
 
 /** i18n key per standardised catalog muscle (`MUSCLE_GROUPS`). */
 export const MUSCLE_KEYS: Readonly<Record<StandardMuscle, TranslationKey>> = {

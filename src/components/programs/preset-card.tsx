@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import { MODALITY_KEYS, SPLIT_KEYS } from './lib/labels';
+import '@/lib/i18n/packs/programs';
 
 interface PresetCardProps {
   preset: ProgramTemplate;

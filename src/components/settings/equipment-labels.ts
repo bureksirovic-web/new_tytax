@@ -1,5 +1,7 @@
 import type { EquipmentRequirement } from '@/contracts/domain';
 import type { TranslationKey } from '@/lib/i18n';
+import '@/lib/i18n/packs/requests';
+import '@/lib/i18n/packs/settings';
 
 /**
  * Catalog ids are compared in a normalised form (lower case, `_` → `-`), so the

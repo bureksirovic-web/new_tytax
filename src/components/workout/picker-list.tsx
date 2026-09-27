@@ -2,6 +2,7 @@
 import type { Exercise } from '@/contracts/domain';
 import { useLocale } from '@/components/providers';
 import { muscleKey, usePickerStrings } from './strings/picker';
+import '@/lib/i18n/packs/g3Picker';
 
 export interface PickerListProps {
   exercises: readonly Exercise[];

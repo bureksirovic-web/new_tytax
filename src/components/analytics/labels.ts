@@ -4,6 +4,7 @@ import { formatDate, fromDisplayWeight, toDisplayWeight, type Locale, type Trans
 import { parseDay } from './analytics-dates';
 import type { AcwrZone, DistributionWindow } from './analytics-math';
 import type { MovementPattern } from './movement-balance';
+import '@/lib/i18n/packs/analytics';
 
 export type TFn = (key: TranslationKey, vars?: TranslationVars) => string;
 

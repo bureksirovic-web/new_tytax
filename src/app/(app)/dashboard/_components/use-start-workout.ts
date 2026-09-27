@@ -8,6 +8,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { useT } from '@/lib/i18n/use-t';
 import { useWorkoutHydrated, useWorkoutStore } from '@/stores/workout-store';
 import { predictSession } from './dashboard-math';
+import '@/lib/i18n/packs/dashboard';
 
 /** Where the workout store's in-progress screen lives (G3's route). */
 export const ACTIVE_WORKOUT_HREF = '/workout/active';

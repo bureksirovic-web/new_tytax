@@ -18,6 +18,7 @@ import { restAlerts } from '@/components/workout/set-rules';
 import { useTimerStrings, voiceLang } from '@/components/workout/strings/timer';
 import { useTimer } from '@/hooks/use-timer';
 import { formatRest } from '@/stores/rest-timer-store';
+import '@/lib/i18n/packs/g3Tools';
 
 export interface RestTimerBarProps {
   /** Profile setting: speak "rest complete" on completion. */

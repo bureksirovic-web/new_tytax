@@ -10,6 +10,7 @@ import { attachmentLabelKey, BODYWEIGHT_GEAR, stationLabelKey, toggleId } from '
 import { KettlebellList } from './kettlebell-list';
 import { Hint, SettingsCard } from './settings-section';
 import { notify } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 type InventoryPatch = Partial<Pick<EquipmentInventory, 'stationIds' | 'attachmentIds' | 'kettlebellsKg' | 'bodyweightGear'>>;
 

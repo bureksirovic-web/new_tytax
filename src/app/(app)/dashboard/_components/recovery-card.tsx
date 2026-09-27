@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 import { muscleLabel } from './muscle-names';
 import { cardSection, eyebrow } from './styles';
+import '@/lib/i18n/packs/dashboard';
 
 const STATUS_KEY: Readonly<Record<RecoveryState, TranslationKey>> = {
   fresh: 'dash_status_fresh',

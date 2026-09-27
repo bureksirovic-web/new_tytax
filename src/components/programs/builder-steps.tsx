@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { useT } from '@/lib/i18n/use-t';
 import { FREQ_OPTIONS, splitOptions, slotNames, type BuilderSplit } from './lib/builder';
 import { SPLIT_KEYS } from './lib/labels';
+import '@/lib/i18n/packs/programs';
 
 const optionCls =
   'flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-line bg-card px-4 py-3 text-left text-fg transition-colors hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50';

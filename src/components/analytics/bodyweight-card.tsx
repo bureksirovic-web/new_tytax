@@ -12,6 +12,7 @@ import { BodyweightForm, type BodyweightSubmit } from './bodyweight-form';
 import { dayLabel } from './labels';
 import { LineChart } from './line-chart';
 import { useBodyweightEntries } from './use-analytics-data';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   profileId: string | undefined;

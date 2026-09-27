@@ -11,6 +11,8 @@ import { CheckIcon } from './icons';
 import { beatsGhostReps, canCompleteSet, canToggleDone, formatNumber, setE1rmKg } from './set-rules';
 import { canToggleTimeDone, rowMeasure } from './set-time-rules';
 import { SetTimeFields } from './set-time-fields';
+import '@/lib/i18n/packs/g3Session';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface SetRowProps {
   set: SetEntry;

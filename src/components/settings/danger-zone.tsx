@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { Hint, SettingsCard } from './settings-section';
 import { notify } from './settings-utils';
 import { TypeToConfirmDialog } from './type-to-confirm-dialog';
+import '@/lib/i18n/packs/settings';
 
 /** Only the app's own keys are cleared, never all of origin storage. */
 export const APP_STORAGE_PREFIXES = ['tytax', 'locale', 'theme', 'units'] as const;

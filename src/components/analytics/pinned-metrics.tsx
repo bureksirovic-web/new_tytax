@@ -13,6 +13,7 @@ import { LineChart } from './line-chart';
 import { PinnedEditor } from './pinned-editor';
 import { pinnedDisplayName, useSnapshotNames } from './pinned-names';
 import { MAX_PINNED, savePins, usePinnedExercises } from './use-analytics-data';
+import '@/lib/i18n/packs/analytics';
 
 /** Shown when a pinned exercise has no data yet (notation, not copy). */
 const NONE = '—';

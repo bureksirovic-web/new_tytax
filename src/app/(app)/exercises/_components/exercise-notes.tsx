@@ -8,6 +8,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { useUIStore } from '@/stores/ui-store';
 import { SectionCard } from './section-card';
 import { clearKeepsSetup, normalizeSetup, toDraft } from './setup-adapter';
+import '@/lib/i18n/packs/exercises';
 
 const MAX = 2000;
 

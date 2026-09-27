@@ -3,6 +3,7 @@ import type { TranslationKey } from '@/lib/i18n';
 import { ACWR_FRESH_BELOW, ACWR_FRIED_ABOVE, RECOVERY_WINDOW_HOURS } from '@/lib/training';
 import { useT } from '@/lib/i18n/use-t';
 import { SettingsCard } from './settings-section';
+import '@/lib/i18n/packs/settings';
 
 const ENTRIES: readonly { id: string; title: TranslationKey; body: TranslationKey }[] = [
   { id: 'impact', title: 'set_manual_impact_title', body: 'set_manual_impact_body' },

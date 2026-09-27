@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { MODALITY_KEYS, MUSCLE_KEYS, stationKey } from '../lib/labels';
 import { MUSCLE_CHIPS, type MuscleChip } from '@/lib/programs/session-kind';
 import type { SlotEditorState } from './use-slot-editor';
+import '@/lib/i18n/packs/programs';
 
 const MODALITIES: ReadonlyArray<Modality | 'all'> = ['all', 'tytax', 'bodyweight', 'kettlebell'];
 

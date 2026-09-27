@@ -4,6 +4,7 @@ import { useSync } from '@/hooks/use-sync';
 import { useAuthT } from '@/lib/auth/use-auth-t';
 import { SyncAccount } from './sync-account';
 import { SyncDetails } from './sync-details';
+import '@/lib/i18n/packs/g5Auth';
 
 export interface SyncPanelProps {
   /** Where sign-in returns to (default the settings page). */

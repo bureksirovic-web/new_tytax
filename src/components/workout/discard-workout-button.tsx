@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { useStartStrings } from '@/components/workout/strings/start';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface DiscardWorkoutButtonProps {
   sessionName: string;

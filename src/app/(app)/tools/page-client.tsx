@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useToolsT, type ToolsKey } from '@/components/tools/tools-i18n';
+import '@/lib/i18n/packs/g3Tools';
 
 const TOOLS: ReadonlyArray<{ href: string; title: ToolsKey; desc: ToolsKey; testId: string }> = [
   { href: '/tools/plate-calculator', title: 'plate_title', desc: 'plate_desc', testId: 'tools-link-plate' },

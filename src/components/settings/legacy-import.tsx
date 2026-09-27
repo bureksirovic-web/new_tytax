@@ -8,6 +8,7 @@ import { loadLegacyImportApi } from './export-adapter';
 import { LEGACY_MAX_BYTES, legacyErrorKey, type LegacyImportApi, type LegacyImportPreview } from './legacy-import-api';
 import { LegacyImportDialog } from './legacy-import-dialog';
 import { FieldLabel, Hint } from './settings-section';
+import '@/lib/i18n/packs/settings';
 
 interface Opened {
   text: string;

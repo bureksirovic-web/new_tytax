@@ -10,6 +10,7 @@ import { SlotFilters } from './slot-filters';
 import { SlotResults } from './slot-results';
 import { UnknownSlots } from './unknown-slots';
 import { useSlotEditor } from './use-slot-editor';
+import '@/lib/i18n/packs/programs';
 
 interface SlotEditorProps {
   program: Program;

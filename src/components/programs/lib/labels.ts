@@ -5,6 +5,8 @@ import type { Modality, SplitType } from '@/contracts/domain';
 import type { TranslationKey } from '@/lib/i18n';
 import type { LoadGroup } from '@/lib/programs/load';
 import type { MuscleChip } from '@/lib/programs/session-kind';
+import '@/lib/i18n/packs/programs';
+import '@/lib/i18n/packs/requests';
 
 export const SPLIT_KEYS: Record<SplitType, TranslationKey> = {
   full_body: 'prog_split_full_body',

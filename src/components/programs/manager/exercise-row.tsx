@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { NumberStepper } from '@/components/ui/number-stepper';
 import { useT } from '@/lib/i18n/use-t';
 import { REPS_MAX_LENGTH, REST_MAX, REST_MIN, REST_STEP, SETS_MAX, SETS_MIN, clamp, normalizeReps } from '../lib/session-edit';
+import '@/lib/i18n/packs/programs';
 
 /** Icon glyph (not copy); the button's name comes from aria-label. */
 const REMOVE_GLYPH = '✕';

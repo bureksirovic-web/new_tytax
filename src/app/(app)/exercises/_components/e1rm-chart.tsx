@@ -4,6 +4,7 @@ import { formatDate, formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { parseLocalDay } from '@/lib/utils';
 import { bestPoint, type E1rmPoint } from './history-stats';
+import '@/lib/i18n/packs/exercises';
 
 const W = 300;
 const H = 120;

@@ -8,6 +8,7 @@ import { LoadingState, NotFoundState } from '@/components/programs/manager/page-
 import { SlotEditor } from '@/components/programs/slot-editor/slot-editor';
 import { mapSession, mergeSelection } from '@/components/programs/lib/session-edit';
 import { useMutationRunner, useProgram } from '@/components/programs/use-program';
+import '@/lib/i18n/packs/programs';
 
 type Search = Record<string, string | string[] | undefined>;
 const NO_SEARCH: Promise<Search> = Promise.resolve({});

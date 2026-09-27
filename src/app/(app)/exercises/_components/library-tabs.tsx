@@ -1,5 +1,6 @@
 'use client';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/exercises';
 
 const STAR = '★';
 

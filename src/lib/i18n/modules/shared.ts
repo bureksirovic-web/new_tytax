@@ -1,8 +1,5 @@
-// i18n keys for the shared screen(s). en and hr live side by side; the Record
-// type makes tsc enforce hr/en parity inside this module. Key prefix convention
-// is in modules/README.md; keys must be unique across modules (tested).
-export const sharedEn = {
-} as const;
-
-export const sharedHr: Record<keyof typeof sharedEn, string> = {
-};
+// Both locales of the shared module, for tests and tooling. App code imports
+// the per-locale files (shared.en.ts / shared.hr.ts) so that only the active
+// locale's strings are in first-load JS (see src/lib/i18n/index.ts).
+export { sharedEn } from './shared.en';
+export { sharedHr } from './shared.hr';

@@ -5,6 +5,7 @@
  * itself, so useAuthT() falls back to these values instead of showing a raw key.
  */
 import type { Locale } from '@/lib/i18n';
+import '@/lib/i18n/packs/g5Auth';
 
 export const AUTH_STRINGS = {
   en: {

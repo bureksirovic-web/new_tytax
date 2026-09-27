@@ -7,6 +7,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { useT } from '@/lib/i18n/use-t';
 import { MODALITY_KEYS, SPLIT_KEYS } from './lib/labels';
 import { programProgress } from './lib/rotation';
+import '@/lib/i18n/packs/programs';
 
 const MODALITIES: readonly Modality[] = ['tytax', 'bodyweight', 'kettlebell', 'custom'];
 

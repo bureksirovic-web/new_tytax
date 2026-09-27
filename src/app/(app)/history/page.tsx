@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/dictionaries';
 import HistoryPage from './page-client';
 
 // Server metadata uses the default language (hr), as settings/page.tsx does; the client heading follows the active locale.

@@ -7,6 +7,7 @@ import { rankableE1rm } from '@/lib/training';
 import { StarIcon } from './icons';
 import { formatClock, isTimeSet } from './duration';
 import { countsAsWork, doneWorkingSets, exerciseHoldSeconds, exerciseVolumeKg, hasTimeSets, setRows } from './log-math';
+import '@/lib/i18n/packs/history';
 
 interface Props {
   ex: SessionExercise;

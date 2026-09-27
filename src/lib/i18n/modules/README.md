@@ -1,7 +1,10 @@
 # i18n modules
 
-One file per screen group. Each defines `<name>En` (`as const`) and `<name>Hr: Record<keyof typeof <name>En, string>`.
-`en.ts`/`hr.ts` spread them all. Key prefixes: `dash_` dashboard, `prog_` programs, `ex_` exercises,
+One pair of files per screen group: `<name>.en.ts` defines `<name>En` (`as const`) and `<name>.hr.ts` defines
+`<name>Hr: Record<keyof typeof <name>En, string>` (type-only import, so tsc enforces parity). `en.ts` spreads the
+`.en` files and `hr.ts` the `.hr` files; one locale per file lets the English dictionary be a lazy chunk while hr
+(the default) is in first-load JS (`src/lib/i18n/index.ts`). `<name>.ts` re-exports both for tests and tooling;
+app code never imports it (nor an `.en` file) directly. Key prefixes: `dash_` dashboard, `prog_` programs, `ex_` exercises,
 `hist_` history, `ana_` analytics, `set_` settings, `muscle_`/`mod_`/`common_` in `shared`.
 Keys from other goals: `requests.ts` (G1-i18n.md), `g3Tools.ts` / `g3Picker.ts` / `g3Workout.ts` (G3's local
 `strings/*.ts` + `tools-strings.ts` tables, same key names), `g5Auth.ts` (G5-i18n.md, dotted `auth.*`/`sync.*` keys).

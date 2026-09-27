@@ -3,6 +3,7 @@ import type { Profile } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import type { LegacyImportCounts, LegacyImportResult, LegacyUserResult } from './legacy-import-api';
 import type { Choices } from './legacy-import-model';
+import '@/lib/i18n/packs/settings';
 
 type CountKey = 'set_legacy_result_logs' | 'set_legacy_result_bw' | 'set_legacy_result_programs';
 

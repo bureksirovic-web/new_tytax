@@ -6,6 +6,7 @@ import type { LegacyServiceWarning, LegacyUserPreview } from './legacy-import-ap
 import { choiceFromValue, choiceValue, type TargetChoice } from './legacy-import-model';
 import { SelectField } from './settings-section';
 import { PROFILE_NAME_MAX, type NameProblem } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 const NAME_PROBLEM_KEY = {
   required: 'set_profile_name_required',

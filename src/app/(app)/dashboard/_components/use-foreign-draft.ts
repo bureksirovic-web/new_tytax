@@ -5,6 +5,7 @@ import { useRepo, useRepoQuery } from '@/hooks/use-repo';
 import { useT } from '@/lib/i18n/use-t';
 import { useUIStore } from '@/stores/ui-store';
 import { useWorkoutStore } from '@/stores/workout-store';
+import '@/lib/i18n/packs/dashboard';
 
 /** A draft counts as foreign when it exists and was started by a profile other than the active one. */
 export function isForeignDraft(draft: Pick<WorkoutDraft, 'profileId'> | null | undefined, activeProfileId: string | undefined): boolean {

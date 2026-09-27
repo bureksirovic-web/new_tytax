@@ -154,6 +154,36 @@ describe('check-bundle', () => {
     expect(only.ok).toBe(true);
   });
 
+  it('--budget-all-routes holds every route to the budget', () => {
+    // 300 distinct numbers: little repetition, so gzip stays well above the 100 B budget
+    const heavy = Array.from({ length: 300 }, (_, i) => (i * 7919) % 10007).join(',');
+    const next = fakeBuild({ 'static/chunks/main.js': 'a', 'static/chunks/layout.js': 'b', 'static/chunks/page.js': 'c', 'static/chunks/w.js': heavy });
+    addRoute(next, '/(app)/workout/active/page', { '[project]/src/app/(app)/workout/active/page': ['static/chunks/w.js'] });
+
+    // default: only /dashboard (63 B, see above) is budgeted, so the heavy route passes
+    const budgetRouteOnly = check(next, { route: '/dashboard', budget: 100 });
+    expect(budgetRouteOnly.over).toEqual([]);
+    expect(budgetRouteOnly.ok).toBe(true);
+
+    const all = check(next, { route: '/dashboard', budget: 100, budgetAllRoutes: true });
+    const workout = all.routes.find((x: { route: string }) => x.route === '/workout/active');
+    // main 'a' (21 B) + gzip(w.js) > 100 B
+    expect(workout?.gzipTotal).toBe(21 + gz(heavy));
+    expect(workout?.overBudget).toBe(true);
+    expect(all.budgetRoute.overBudget).toBe(false);
+    expect(all.over).toEqual(['/workout/active']);
+    expect(all.leaks).toEqual([]);
+    expect(all.ok).toBe(false);
+
+    const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'check-bundle.mjs');
+    const run = (...args: string[]) => spawnSync(process.execPath, [script, '--dir', next, '--budget', '100', ...args], { encoding: 'utf8' });
+    const cli = run('--budget-all-routes');
+    expect(cli.status).toBe(1);
+    expect(cli.stdout).toMatch(/^route \/workout\/active: [\d.]+ kB gzip, catalog leak: no {2}budget 0 kB: OVER$/m);
+    expect(cli.stderr).toContain('first-load JS over budget: /workout/active');
+    expect(run().status).toBe(0);
+  });
+
   it('CLI: exit 1 on a leak in any route, 0 with --no-all-routes, 2 for an unknown budget route', () => {
     const next = fakeBuild({ 'static/chunks/main.js': 'a', 'static/chunks/layout.js': 'b', 'static/chunks/page.js': 'c', 'static/chunks/w.js': `"${CATALOG_MARKERS[1]}"` });
     addRoute(next, '/(app)/workout/page', { '[project]/src/app/(app)/workout/page': ['static/chunks/w.js'] });

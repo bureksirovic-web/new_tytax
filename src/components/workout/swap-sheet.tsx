@@ -9,6 +9,7 @@ import { isNameSearch, swapCandidates } from './picker-swap';
 import { PICKER_INPUT_CLASS, PickerDialog, PickerStatus } from './picker-dialog';
 import { PickerList } from './picker-list';
 import { usePickerStrings } from './strings/picker';
+import '@/lib/i18n/packs/g3Picker';
 
 export interface SwapSheetProps {
   exercise: SessionExercise;

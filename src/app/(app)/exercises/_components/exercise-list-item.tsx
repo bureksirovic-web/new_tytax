@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useT } from '@/lib/i18n/use-t';
 import { FavouriteButton } from './favourite-button';
 import { impactMuscleKey, labelOr, modalityKey, muscleGroupKey } from './labels';
+import '@/lib/i18n/packs/exercises';
 
 interface ExerciseListItemProps {
   exercise: Exercise;

@@ -14,6 +14,7 @@ import { ActiveProgramCard } from '@/components/programs/active-program-card';
 import { ProgramCard } from '@/components/programs/program-card';
 import { PresetCard } from '@/components/programs/preset-card';
 import { useMutationRunner } from '@/components/programs/use-program';
+import '@/lib/i18n/packs/programs';
 
 export default function ProgramsPage() {
   const router = useRouter();

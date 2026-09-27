@@ -6,6 +6,7 @@ import { formatWeight, fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { ChoiceChips, FieldLabel } from './settings-section';
 import { parseDecimal } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 const PRESETS_KG = ['20', '15', '10'] as const;
 export const BAR_MAX_KG = 50;

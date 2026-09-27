@@ -8,6 +8,7 @@ import { legacyErrorKey, type LegacyImportApi, type LegacyImportPreview, type Le
 import { checkMapping, defaultChoices, type Choices } from './legacy-import-model';
 import { LegacyImportResultView } from './legacy-import-result';
 import { LegacyUserRow, WarningList } from './legacy-user-row';
+import '@/lib/i18n/packs/settings';
 
 interface LegacyImportDialogProps {
   api: LegacyImportApi;

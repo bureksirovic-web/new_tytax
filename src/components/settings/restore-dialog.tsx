@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import type { BackupCounts } from './backup-io';
 import { backupErrorKey, type BackupService, type InspectedProfile } from './backup-service';
 import { notify } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 export interface PendingRestore {
   text: string;

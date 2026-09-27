@@ -1,5 +1,6 @@
 import type { Repository } from '@/contracts/repo';
 import { parseBackupText } from './backup-io';
+import '@/lib/i18n/packs/settings';
 
 /**
  * JSON backup/restore for the settings UI. G2's service (`@/lib/import/service`:

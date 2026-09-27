@@ -7,6 +7,7 @@ import { PencilIcon, TrashIcon } from './icons';
 import { formatClock } from './duration';
 import { durationMinutes, formatLogDate, logHoldSeconds } from './log-math';
 import { logDisplayName } from './log-name';
+import '@/lib/i18n/packs/history';
 
 interface Props {
   log: WorkoutLog;

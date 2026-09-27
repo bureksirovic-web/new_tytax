@@ -9,6 +9,7 @@ import { backupErrorKey, loadBackupService, type BackupService } from './backup-
 import { RestoreDialog, type PendingRestore } from './restore-dialog';
 import { FieldLabel, Hint, SelectField } from './settings-section';
 import { downloadText, localDay, notify } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 type Scope = 'profile' | 'all';
 

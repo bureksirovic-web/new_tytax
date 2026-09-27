@@ -4,6 +4,7 @@ import type { Exercise } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { SectionCard } from './section-card';
 import { videoLinksFor } from './video-links';
+import '@/lib/i18n/packs/exercises';
 
 const ICON_SEARCH = '⌕';
 const ICON_PLAY = '▶';

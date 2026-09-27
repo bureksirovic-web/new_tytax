@@ -13,6 +13,7 @@ import { localDay } from '@/lib/utils';
 import { EditorExercise } from './editor-exercise';
 import { EditorMetaFields } from './editor-meta-fields';
 import { fromLog, hasErrors, newSet, toPatch, validate, type EditDraft, type EditSet } from './edit-model';
+import '@/lib/i18n/packs/history';
 
 interface Props {
   log: WorkoutLog;

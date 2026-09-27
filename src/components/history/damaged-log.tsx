@@ -8,6 +8,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { isValidLogRow } from '@/components/settings/backup-validate';
 import { TrashIcon } from './icons';
 import { useHistoryUndo } from './undo-store';
+import '@/lib/i18n/packs/history';
 
 /** False for a stored row the history views cannot render (an unvalidated restore). */
 export const isRenderableLog = (log: WorkoutLog): boolean => isValidLogRow(log);

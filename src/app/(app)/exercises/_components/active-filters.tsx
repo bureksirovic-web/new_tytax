@@ -2,6 +2,7 @@
 import { useT } from '@/lib/i18n/use-t';
 import { attachmentKey, labelOr, modalityKey, muscleGroupKey, stationKey } from './labels';
 import { hasActiveFilters, tytaxFiltersApply, type LibraryFilter } from './library-params';
+import '@/lib/i18n/packs/exercises';
 
 const ICON_REMOVE = '✕';
 

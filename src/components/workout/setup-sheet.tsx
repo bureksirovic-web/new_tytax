@@ -5,6 +5,7 @@ import { SETUP_FIELD_MAX, SETUP_FIELDS, type SaveSetupResult } from '@/stores/se
 import { Button } from '@/components/ui/button';
 import { PICKER_INPUT_CLASS, PickerDialog } from './picker-dialog';
 import { useSetupStrings } from './strings/setup';
+import '@/lib/i18n/packs/g3Session';
 
 export interface SetupSheetProps {
   exerciseName: string;

@@ -6,6 +6,8 @@
 import type { Modality, MuscleGroup } from '@/contracts/domain';
 import type { TranslationKey } from '@/lib/i18n';
 import { standardizeMuscle } from '@/lib/constants';
+import '@/lib/i18n/packs/exercises';
+import '@/lib/i18n/packs/requests';
 
 export const MUSCLE_GROUP_OPTIONS: readonly MuscleGroup[] = [
   'CHEST',

@@ -4,12 +4,15 @@
  * normalised to one `pat_` key. A pattern with no key (custom exercises) is
  * shown exactly as the user wrote it.
  */
-import { patternsEn } from './modules/patterns';
-import { patterns2En } from './modules/patterns2';
+import { patternsHr } from './modules/patterns.hr';
+import { patterns2Hr } from './modules/patterns2.hr';
 import type { Locale, TranslationKey } from './types';
 import { t } from '.';
+import '@/lib/i18n/packs/patterns';
+import '@/lib/i18n/packs/patterns2';
 
-const KEYS: ReadonlySet<string> = new Set([...Object.keys(patternsEn), ...Object.keys(patterns2En)]);
+// Keys of the hr modules: tsc keeps them equal to the en keys.
+const KEYS: ReadonlySet<string> = new Set([...Object.keys(patternsHr), ...Object.keys(patterns2Hr)]);
 
 const slug = (raw: string): string =>
   raw.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');

@@ -5,6 +5,7 @@ import { getRepository } from '@/lib/db';
 import { useAuthT } from '@/lib/auth/use-auth-t';
 import { installSyncAdapter } from '@/lib/sync/install';
 import type { E2EBootHooks } from './e2e-hooks';
+import '@/lib/i18n/packs/g5Auth';
 
 /** First-run profile name. User data (renamed in settings), not a UI string. */
 const DEFAULT_PROFILE_NAME = 'Profil 1';

@@ -5,6 +5,7 @@ import { useLocale } from '@/components/providers';
 import { formatDuration } from '@/stores/measure';
 import { summarizeDraft } from '@/stores/workout-selectors';
 import { useFinishStrings } from '@/components/workout/strings/finish';
+import '@/lib/i18n/packs/g3Workout';
 
 /** Whole minutes from `startedAt` to `nowMs`; 0 for an unreadable or future start. */
 export function durationMinutes(startedAt: string, nowMs: number): number {

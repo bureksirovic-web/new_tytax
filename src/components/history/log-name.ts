@@ -1,5 +1,6 @@
 import type { WorkoutLog } from '@/contracts/domain';
 import type { TranslationKey, TranslationVars } from '@/lib/i18n';
+import '@/lib/i18n/packs/history';
 
 type T = (key: TranslationKey, vars?: TranslationVars) => string;
 

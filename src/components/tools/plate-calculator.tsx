@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { calcPlates, parseWeightInput, DEFAULT_BAR_KG, DEFAULT_PLATES_KG, MAX_TARGET_KG } from './plate-math';
 import { NumberField, formatKg } from './number-field';
 import { useToolsT } from './tools-i18n';
+import '@/lib/i18n/packs/g3Tools';
 
 interface PlateCalculatorProps {
   initialTargetKg?: number;

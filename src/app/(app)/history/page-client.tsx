@@ -2,6 +2,7 @@
 import { HistoryList } from '@/components/history/history-list';
 import { UndoSnackbar } from '@/components/history/undo-snackbar';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/history';
 
 export default function HistoryPage() {
   const { t } = useT();

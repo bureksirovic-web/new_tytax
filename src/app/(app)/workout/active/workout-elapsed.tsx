@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useTimerStrings } from '@/components/workout/strings/timer';
+import '@/lib/i18n/packs/g3Tools';
 
 /** Whole seconds between an ISO start and `now`; 0 for bad/future input. */
 export function elapsedSeconds(startedAt: string, now: number): number {

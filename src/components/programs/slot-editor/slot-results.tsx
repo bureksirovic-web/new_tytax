@@ -7,6 +7,7 @@ import { patternKey } from '@/lib/i18n/pattern';
 import { MODALITY_KEYS, MUSCLE_KEYS, stationKey } from '../lib/labels';
 import { stationIdOf } from '@/lib/programs/equipment';
 import type { SlotEditorState } from './use-slot-editor';
+import '@/lib/i18n/packs/programs';
 
 /** Icon glyphs (not copy); the button's name comes from aria-label. */
 const CHECK_GLYPH = '✓';

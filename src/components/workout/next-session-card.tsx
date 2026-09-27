@@ -4,6 +4,7 @@ import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { nextSessionOf } from '@/hooks/use-workout';
 import { useStartStrings } from '@/components/workout/strings/start';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface NextSessionCardProps {
   program: Program;

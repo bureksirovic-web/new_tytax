@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { loadPreMigrationApi, preMigrationFilename, type PreMigrationApi } from './premigration-adapter';
 import { FieldLabel, Hint } from './settings-section';
 import { downloadText, notify } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 type Loaded = { api: PreMigrationApi; data: { exportedAt: string } };
 

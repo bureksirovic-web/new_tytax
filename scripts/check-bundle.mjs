@@ -5,9 +5,11 @@
  * the budget, and no route may ship exercise-catalog data up front (the
  * catalog is lazy).
  *
- *   npm run build && npm run check-bundle            # budget /dashboard 250 kB, leak scan on every route
+ *   npm run build && npm run check-bundle            # budget 250 kB on every route, leak scan on every route
+ *   node scripts/check-bundle.mjs                    # budget /dashboard only, leak scan on every route
  *   node scripts/check-bundle.mjs --route /workout --budget 250000 --json
  *   node scripts/check-bundle.mjs --no-all-routes    # budget route only
+ *   node scripts/check-bundle.mjs --budget-all-routes   # every route held to the budget (npm run check-bundle, CI)
  *
  * First-load set of a route = build-manifest `rootMainFiles`
  *   ∪ every `entryJSFiles` list of the route's client-reference manifest
@@ -21,8 +23,9 @@
  * Routes = every `page_client-reference-manifest.js` under `.next/server/app`.
  * kB = 1000 bytes; gzip at zlib's default level.
  *
- * Exit: 0 within budget and no leak, 1 over budget or catalog leak on any
- * scanned route, 2 no build found / unknown budget route.
+ * Exit: 0 within budget and no leak, 1 over budget (the budget route, or any
+ * route with --budget-all-routes) or catalog leak on any scanned route, 2 no
+ * build found / unknown budget route.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -178,28 +181,31 @@ export function measure(nextDir, route, budget = DEFAULT_BUDGET, { manifests, ca
 /**
  * The full check: budget + leak scan on `route`, and (allRoutes) a leak scan
  * on every other route with a client-reference manifest. Only `route` is held
- * to the budget.
+ * to the budget, unless `budgetAllRoutes` holds every scanned route to it.
  */
-export function check(nextDir, { route = '/dashboard', budget = DEFAULT_BUDGET, allRoutes = true } = {}) {
+export function check(nextDir, { route = '/dashboard', budget = DEFAULT_BUDGET, allRoutes = true, budgetAllRoutes = false } = {}) {
   const manifests = clientManifests(nextDir);
   const cache = new Map();
   const main = measure(nextDir, route, budget, { manifests, cache });
+  const otherBudget = budgetAllRoutes ? budget : Infinity;
   const others = allRoutes
-    ? [...manifests.keys()].filter((r) => r !== route).map((r) => measure(nextDir, r, Infinity, { manifests, cache }))
+    ? [...manifests.keys()].filter((r) => r !== route).map((r) => measure(nextDir, r, otherBudget, { manifests, cache }))
     : [];
   const routes = [main, ...others].sort((a, b) => a.route.localeCompare(b.route));
   const leaks = routes.flatMap((r) => r.leaks.map((file) => ({ route: r.route, file })));
-  return { budgetRoute: main, routes, leaks, ok: !main.overBudget && leaks.length === 0 };
+  const over = routes.filter((r) => r.overBudget).map((r) => r.route);
+  return { budgetRoute: main, routes, leaks, over, ok: over.length === 0 && leaks.length === 0 };
 }
 
 function parseArgs(argv) {
-  const opts = { route: '/dashboard', budget: DEFAULT_BUDGET, json: false, dir: '.next', allRoutes: true };
+  const opts = { route: '/dashboard', budget: DEFAULT_BUDGET, json: false, dir: '.next', allRoutes: true, budgetAllRoutes: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--route') opts.route = argv[++i];
     else if (argv[i] === '--budget') opts.budget = Number(argv[++i]);
     else if (argv[i] === '--dir') opts.dir = argv[++i];
     else if (argv[i] === '--json') opts.json = true;
     else if (argv[i] === '--no-all-routes') opts.allRoutes = false;
+    else if (argv[i] === '--budget-all-routes') opts.budgetAllRoutes = true;
   }
   return opts;
 }
@@ -227,10 +233,12 @@ function main() {
     for (const row of b.inline) if (row.catalogLeak) console.log(`${'-'.padStart(8)}       ${row.file}  <-- CATALOG DATA`);
     console.log(`first-load JS for ${b.route}: ${kB(b.gzipTotal)} kB gzip (budget ${(b.budget / 1000).toFixed(0)} kB), ${b.rows.length} files`);
     for (const x of r.routes) {
-      const budgetNote = x === b ? `  budget ${(b.budget / 1000).toFixed(0)} kB: ${b.overBudget ? 'OVER' : 'ok'}` : '';
+      const budgeted = x === b || x.budget !== Infinity;
+      const budgetNote = budgeted ? `  budget ${(x.budget / 1000).toFixed(0)} kB: ${x.overBudget ? 'OVER' : 'ok'}` : '';
       console.log(`route ${x.route}: ${kB(x.gzipTotal)} kB gzip, catalog leak: ${x.leaks.length ? 'YES' : 'no'}${budgetNote}`);
     }
     for (const l of r.leaks) console.error(`catalog data in first load of ${l.route}: ${l.file}`);
+    for (const route of r.over) console.error(`first-load JS over budget: ${route}`);
     console.log(r.ok ? 'check-bundle: OK' : 'check-bundle: FAIL');
   }
   process.exit(r.ok ? 0 : 1);

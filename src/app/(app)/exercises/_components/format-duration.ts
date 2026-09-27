@@ -1,5 +1,6 @@
 import type { TranslationKey, TranslationVars } from '@/lib/i18n';
 import { durationParts } from './history-stats';
+import '@/lib/i18n/packs/exercises';
 
 type T = (key: TranslationKey, vars?: TranslationVars) => string;
 

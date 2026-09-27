@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot, type Root } from 'react-dom/client';
-import { translations, type Locale } from '@/lib/i18n';
+import type { Locale } from '@/lib/i18n';
+import { translations } from '@/lib/i18n/dictionaries';
 import { DEFAULT_LOCALE, interpolate, LOCALE_STORAGE_KEY, readStoredLocale, translate } from '../locale-core';
 import { LocaleProvider, useLocale } from '../locale-provider';
 

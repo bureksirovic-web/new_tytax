@@ -8,6 +8,7 @@ import { csvFilename, loadCsvApi, type CsvApi } from './export-adapter';
 import { LegacyImport } from './legacy-import';
 import { FieldLabel, Hint } from './settings-section';
 import { downloadText, localDay, notify } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 type Kind = 'workouts' | 'bodyweight';
 

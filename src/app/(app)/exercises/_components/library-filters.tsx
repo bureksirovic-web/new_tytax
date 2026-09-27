@@ -17,6 +17,7 @@ import {
 import { tytaxFiltersApply, type LibraryFilter } from './library-params';
 import type { EquipmentOptions } from './use-equipment-options';
 import { useStationFacets } from './use-station-facets';
+import '@/lib/i18n/packs/exercises';
 
 interface LibraryFiltersProps {
   filter: LibraryFilter;

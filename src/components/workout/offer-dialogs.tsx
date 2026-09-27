@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { useStartStrings } from '@/components/workout/strings/start';
 import { useMuscleName } from '@/components/workout/strings/muscles';
+import '@/lib/i18n/packs/g3Workout';
 
 interface OfferActionsProps {
   prefix: 'deload' | 'weak-point';

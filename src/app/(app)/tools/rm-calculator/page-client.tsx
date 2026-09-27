@@ -1,6 +1,7 @@
 'use client';
 import { RmCalculator } from '@/components/tools/rm-calculator';
 import { useToolsT } from '@/components/tools/tools-i18n';
+import '@/lib/i18n/packs/g3Tools';
 
 export default function RmCalculatorPage() {
   const t = useToolsT();

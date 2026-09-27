@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { useT } from '@/lib/i18n/use-t';
 import type { ForeignDraft } from './use-foreign-draft';
+import '@/lib/i18n/packs/dashboard';
 
 /**
  * A workout draft of another profile (G3-04): never offered as "continue".

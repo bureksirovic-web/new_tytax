@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TranslationKey } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/programs';
 
 /** Loading placeholder for program routes (announced, no endless spinner: `missing` replaces it). */
 export function LoadingState() {

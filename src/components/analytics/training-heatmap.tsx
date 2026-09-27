@@ -7,6 +7,7 @@ import { SectionTitle } from './section-title';
 import { useT } from '@/lib/i18n/use-t';
 import { heatLevel, heatmapWeeks } from './analytics-math';
 import { dayLabel } from './labels';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

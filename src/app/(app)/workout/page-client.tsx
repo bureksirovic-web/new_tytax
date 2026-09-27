@@ -11,6 +11,7 @@ import { foreignInfo } from '@/components/workout/foreign-draft';
 import { useProgramStartFlow } from '@/components/workout/start-program-flow';
 import { useStartStrings } from '@/components/workout/strings/start';
 import { useWorkoutStore } from '@/stores/workout-store';
+import '@/lib/i18n/packs/g3Workout';
 
 export default function WorkoutPage() {
   const router = useRouter();

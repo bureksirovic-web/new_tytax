@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { parseLocalDay } from '@/lib/utils';
 import { formatDuration } from './format-duration';
 import { bestE1rm, doneWorkingSets, isTimedSet, longestHold } from './history-stats';
+import '@/lib/i18n/packs/exercises';
 
 interface HistoryLogItemProps {
   log: WorkoutLog;

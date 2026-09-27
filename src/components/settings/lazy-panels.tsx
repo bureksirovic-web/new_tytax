@@ -2,6 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useT } from '@/lib/i18n/use-t';
 import { SettingsCard } from './settings-section';
+import '@/lib/i18n/packs/settings';
 
 /**
  * The heavy settings panels, split out of the /settings first-load JS (F4:

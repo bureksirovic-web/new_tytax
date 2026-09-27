@@ -1,6 +1,7 @@
 'use client';
 import { useT } from '@/lib/i18n/use-t';
 import { dayLabel } from './labels';
+import '@/lib/i18n/packs/analytics';
 
 export interface ChartPoint {
   /** 'YYYY-MM-DD'. */

@@ -4,6 +4,7 @@ import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClock } from './duration';
 import { averageRir, densityPerMin, durationMinutes, logHoldSeconds } from './log-math';
+import '@/lib/i18n/packs/history';
 
 function Metric({ value, label, testId }: { value: string; label: string; testId: string }) {
   return (

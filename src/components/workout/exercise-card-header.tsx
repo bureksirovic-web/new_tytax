@@ -5,6 +5,8 @@ import { useSetupStrings } from './strings/setup';
 import { VideoButton } from './video-button';
 import { ExerciseRemoveButton } from './exercise-remove-button';
 import { ArrowDownIcon, ArrowUpIcon, SlidersIcon, SwapIcon } from './icons';
+import '@/lib/i18n/packs/g3Session';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface ExerciseCardHeaderProps {
   exercise: SessionExercise;

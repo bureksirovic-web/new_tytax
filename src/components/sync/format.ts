@@ -1,4 +1,5 @@
 import type { AuthKey } from '@/lib/auth/i18n';
+import '@/lib/i18n/packs/g5Auth';
 
 /** Localised date + time of a sync, or null when there was none (or it is unparsable). */
 export function formatSyncedAt(iso: string | null, locale: string): string | null {

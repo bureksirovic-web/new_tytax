@@ -3,6 +3,7 @@ import type { MuscleImpact } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { IMPACT_LEVEL_KEYS, impactLevel, impactMuscleKey, labelOr } from './labels';
 import { SectionCard } from './section-card';
+import '@/lib/i18n/packs/exercises';
 
 const BAR_FILL: Record<string, string> = {
   primary: 'fill-accent',

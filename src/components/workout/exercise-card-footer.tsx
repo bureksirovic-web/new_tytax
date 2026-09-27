@@ -1,6 +1,7 @@
 'use client';
 import { useSetsStrings } from './strings/sets';
 import { FlameIcon, PlusIcon } from './icons';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface ExerciseCardFooterProps {
   exerciseName: string;

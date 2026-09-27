@@ -12,6 +12,7 @@ import { DamagedCard, isRenderableLog } from './damaged-log';
 import { HistoryCard } from './history-card';
 import { groupByMonth } from './log-math';
 import { useHistoryUndo } from './undo-store';
+import '@/lib/i18n/packs/history';
 
 export const HISTORY_PAGE_SIZE = 20;
 const MONTH_FORMAT: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' };

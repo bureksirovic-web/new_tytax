@@ -7,6 +7,7 @@ import { safeNextPath } from '@/lib/auth/redirect';
 import { useAuthT } from '@/lib/auth/use-auth-t';
 import { getSupabaseEnv } from '@/lib/supabase/env';
 import { AuthAlert } from './auth-alert';
+import '@/lib/i18n/packs/g5Auth';
 
 export function LoginForm() {
   const t = useAuthT();

@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/modal';
 import { useT } from '@/lib/i18n/use-t';
 import { useWorkoutHydrated, useWorkoutStore } from '@/stores/workout-store';
 import { repeatBlock, resolveStartFromLog } from './start-from-log';
+import '@/lib/i18n/packs/history';
 
 export const ACTIVE_WORKOUT_PATH = '/workout/active';
 

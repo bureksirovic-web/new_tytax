@@ -3,6 +3,7 @@ import type { Units } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { TrashIcon } from './icons';
 import { RIR_OPTIONS, type EditSet, type SetErrors } from './edit-model';
+import '@/lib/i18n/packs/history';
 
 interface Props {
   set: EditSet;

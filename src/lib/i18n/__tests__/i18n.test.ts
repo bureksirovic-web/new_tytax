@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   t,
-  translations,
   interpolate,
   isLocale,
   readStoredLocale,
@@ -9,6 +8,7 @@ import {
   LOCALES,
   type TranslationKey,
 } from '..';
+import { translations } from '../dictionaries';
 import { en } from '../en';
 import { hr } from '../hr';
 

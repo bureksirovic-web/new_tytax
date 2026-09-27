@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import { SPLIT_KEYS } from './lib/labels';
 import { isIncomplete } from './lib/rotation';
+import '@/lib/i18n/packs/programs';
 
 interface ProgramCardProps {
   program: Program;

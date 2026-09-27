@@ -123,6 +123,24 @@ test('an uncached route offline falls back to the offline page', async ({ page, 
   await goOnline(context);
 });
 
+// The English dictionary is a lazy chunk (src/lib/i18n/index.ts) that an hr
+// session never fetches. After one online visit in hr the worker must still
+// have it (it follows the chunk references in the loader code), so a user
+// whose stored language is English gets English offline, not hr or raw keys.
+test('English loads offline although it was never used online', async ({ page, context, tytax }) => {
+  test.setTimeout(120_000);
+  await tytax.gotoApp('/dashboard');
+  await primeOffline(page, tytax.gotoApp);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'hr');
+
+  await goOffline(context);
+  await page.evaluate(() => localStorage.setItem('locale', 'en'));
+  await page.reload();
+  await expect(page.getByTestId('page-heading-dashboard')).toHaveText(/home/i, { timeout: 30_000 });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await goOnline(context);
+});
+
 // Integration (v2-g3/v2-g4 merge log): restore loads G2's backup service and
 // the BackupV3 row validator lazily (zod stays out of first-load JS), so those
 // chunks are never referenced by a page's HTML. After one online visit they

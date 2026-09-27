@@ -14,6 +14,7 @@ import { useArsenal } from './use-arsenal';
 import { useEquipmentOptions } from './use-equipment-options';
 import { useLibraryFilter } from './use-library-filter';
 import { useLibraryResults } from './use-library-results';
+import '@/lib/i18n/packs/exercises';
 
 export const PAGE_SIZE = 30;
 

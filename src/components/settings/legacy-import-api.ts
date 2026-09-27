@@ -1,4 +1,5 @@
 import type { Repository } from '@/contracts/repo';
+import '@/lib/i18n/packs/settings';
 
 /**
  * Structural mirror of G2's legacy import service (`@/lib/import`, files

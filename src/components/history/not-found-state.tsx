@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/history';
 
 /** Unknown, deleted or foreign log id. */
 export function HistoryNotFound({ testId = 'page-heading-history-detail' }: { testId?: string }) {

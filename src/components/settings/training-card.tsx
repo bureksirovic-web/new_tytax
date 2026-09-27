@@ -9,6 +9,7 @@ import { RestSetting } from './rest-setting';
 import { FieldLabel, SettingsCard } from './settings-section';
 import { useSaveSettings } from './use-save-settings';
 import { WarmupSetting } from './warmup-setting';
+import '@/lib/i18n/packs/settings';
 
 /** Rotation start lives on the active program; Settings only links to it. */
 function RotationRow({ profileId }: { profileId: string }) {

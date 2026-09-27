@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui';
 import type { AccountState } from '@/lib/sync/account';
 import { useAuthT } from '@/lib/auth/use-auth-t';
+import '@/lib/i18n/packs/g5Auth';
 
 interface SyncAccountProps {
   account: AccountState;

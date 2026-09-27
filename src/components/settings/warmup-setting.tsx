@@ -4,6 +4,7 @@ import { formatWeight } from '@/lib/i18n';
 import { training } from '@/lib/training';
 import { useT } from '@/lib/i18n/use-t';
 import { ChoiceChips, FieldLabel, Hint } from './settings-section';
+import '@/lib/i18n/packs/settings';
 
 const STRATEGIES: readonly WarmupStrategy[] = ['standard', 'heavy', 'pyramid', 'none'];
 const LABEL = {

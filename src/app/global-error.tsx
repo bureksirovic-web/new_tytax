@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useSyncExternalStore } from 'react';
-import { DEFAULT_LOCALE, readStoredLocale, t, type Locale } from '@/lib/i18n';
+import { DEFAULT_LOCALE, isLocaleLoaded, loadLocale, readStoredLocale, subscribeLocales, t, type Locale } from '@/lib/i18n';
 import './globals.css';
 
 // global-error replaces the root layout, so no providers exist here: the
@@ -26,11 +26,19 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const locale = useSyncExternalStore(noopSubscribe, getClientLocale, getServerLocale);
+  const stored = useSyncExternalStore(noopSubscribe, getClientLocale, getServerLocale);
+  // A non-default dictionary is a lazy chunk: render the default locale until it is loaded.
+  const storedLoaded = useSyncExternalStore(subscribeLocales, () => isLocaleLoaded(stored), () => true);
+  const locale = storedLoaded ? stored : DEFAULT_LOCALE;
 
   useEffect(() => {
     console.error(error);
   }, [error]);
+
+  useEffect(() => {
+    // On failure (offline, chunk not cached) the page stays in the default locale.
+    if (!storedLoaded) loadLocale(stored).catch(() => {});
+  }, [stored, storedLoaded]);
 
   return (
     <html lang={locale}>

@@ -4,6 +4,7 @@ import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import type { WeeklyVolume } from './dashboard-math';
 import { cardSection, eyebrow } from './styles';
+import '@/lib/i18n/packs/dashboard';
 
 export interface WeeklyVolumeCardProps {
   volume: WeeklyVolume;

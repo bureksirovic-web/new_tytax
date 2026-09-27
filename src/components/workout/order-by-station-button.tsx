@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { StationsIcon } from './icons';
 import { useSetupStrings } from './strings/setup';
+import '@/lib/i18n/packs/g3Session';
 
 export interface OrderByStationButtonProps {
   /** Exercises in the draft; the button is disabled below 2. */

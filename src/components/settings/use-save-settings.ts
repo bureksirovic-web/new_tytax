@@ -5,6 +5,7 @@ import { useRepo } from '@/hooks/use-repo';
 import { useT } from '@/lib/i18n/use-t';
 import { settingsRepairs } from './backup-validate';
 import { notify } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 const isValidation = (e: unknown) => typeof e === 'object' && e !== null && (e as { code?: unknown }).code === 'VALIDATION';
 

@@ -2,6 +2,7 @@
 import { useT } from '@/lib/i18n/use-t';
 import { labelOr, stationKey } from './labels';
 import type { EquipmentOption } from './use-equipment-options';
+import '@/lib/i18n/packs/exercises';
 
 interface StationChipsProps {
   /** Stations from the loaded catalog (`catalog.stations`, those with exercises), in catalog order. */

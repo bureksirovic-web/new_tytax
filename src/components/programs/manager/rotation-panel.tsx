@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useT } from '@/lib/i18n/use-t';
 import { rotationIndexForDate, todayLocal } from '@/lib/programs/calendar';
 import { addRestDay, addTrainingDay, moveSession, removeRestDay, removeTrainingDay, type RotationPatch } from '../lib/rotation';
+import '@/lib/i18n/packs/programs';
 
 /** Icon glyph (not copy); the button's name comes from aria-label. */
 const REMOVE_GLYPH = '✕';

@@ -9,6 +9,7 @@ import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { DISTRIBUTION_WINDOWS, muscleDistribution, type DistributionWindow } from './analytics-math';
 import { exercisesHrefForMuscle, muscleLabel, num, WINDOW_KEYS } from './labels';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

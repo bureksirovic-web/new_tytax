@@ -6,6 +6,7 @@ import { catalog } from '@/lib/catalog';
 import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { SectionCard } from './section-card';
+import '@/lib/i18n/packs/exercises';
 
 const GENDERS = ['male', 'female'] as const;
 const LEVELS = ['beginner', 'intermediate', 'advanced'] as const;

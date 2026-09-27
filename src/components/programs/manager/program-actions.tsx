@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/programs';
 
 interface ProgramActionsProps {
   name: string;

@@ -8,6 +8,7 @@ import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { useStartStrings } from '@/components/workout/strings/start';
 import { useWorkoutStore } from '@/stores/workout-store';
+import '@/lib/i18n/packs/g3Workout';
 
 /**
  * Adds the exercise (prefilled from history, warm-ups included) to the current

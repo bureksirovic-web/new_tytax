@@ -72,8 +72,8 @@ jobs:
       - name: Perf budgets (no coverage)
         run: npx vitest run src/lib/db/__tests__/w2-prs-restore-stamp-perf.test.ts
       - run: npm run build
-      - name: JS budget (scripts/check-bundle.mjs, /dashboard first load < 250 kB gz)
-        run: node scripts/check-bundle.mjs
+      - name: JS budget (scripts/check-bundle.mjs, every route's first load < 250 kB gz)
+        run: node scripts/check-bundle.mjs --budget-all-routes
 
       - name: Upload coverage
         if: always()

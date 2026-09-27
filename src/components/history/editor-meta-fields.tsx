@@ -2,6 +2,7 @@
 import { Input } from '@/components/ui/input';
 import { useT } from '@/lib/i18n/use-t';
 import type { EditDraft, EditErrors } from './edit-model';
+import '@/lib/i18n/packs/history';
 
 interface Props {
   draft: EditDraft;

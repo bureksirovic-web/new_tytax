@@ -1,5 +1,6 @@
 import type { BackupV3 } from '@/contracts/repo';
 import { isValidLogRow, normalizeSettings } from './backup-validate';
+import '@/lib/i18n/packs/settings';
 
 /** 50 MB: far above a realistic family backup, low enough to refuse junk before parsing. */
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;

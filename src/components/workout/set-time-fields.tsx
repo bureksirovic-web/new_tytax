@@ -9,6 +9,7 @@ import { DurationField } from './set-time-duration';
 import { HoldTimerButton } from './hold-timer-button';
 import { canCompleteTimeSet, ghostSecondsOf } from './set-time-rules';
 import { useHoldTimer } from './hold-timer';
+import '@/lib/i18n/packs/g3Session';
 
 export interface SetTimeFieldsProps {
   set: SetEntry;

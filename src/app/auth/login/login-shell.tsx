@@ -1,6 +1,7 @@
 'use client';
 import type { ReactNode } from 'react';
 import { useAuthT } from '@/lib/auth/use-auth-t';
+import '@/lib/i18n/packs/g5Auth';
 
 /** Card frame + heading for the login screen; rendered outside the Suspense boundary. */
 export function LoginShell({ children }: { children: ReactNode }) {

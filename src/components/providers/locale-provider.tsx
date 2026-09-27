@@ -5,7 +5,10 @@ import {
   DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
   interpolate,
+  isLocaleLoaded,
+  loadLocale,
   readStoredLocale,
+  subscribeLocales,
   translate,
   type TranslationVars,
 } from './locale-core';
@@ -48,7 +51,25 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const stored = useSyncExternalStore(noopSubscribe, readClientLocale, serverLocale);
   // A choice made on this page wins, also when storage refuses to save it.
   const [chosen, setChosen] = useState<Locale | null>(null);
-  const locale = chosen ?? stored;
+  const wanted = chosen ?? stored;
+  // Only the default locale's dictionary is in first-load JS; another one is a
+  // lazy chunk. Until it has arrived the provider keeps rendering the default
+  // locale (never raw keys, never a mix), then re-renders in `wanted`. The
+  // server snapshot is true: the server and the hydration pass render
+  // DEFAULT_LOCALE, which is always loaded.
+  const wantedLoaded = useSyncExternalStore(
+    subscribeLocales,
+    () => isLocaleLoaded(wanted),
+    () => true
+  );
+  const locale = wantedLoaded ? wanted : DEFAULT_LOCALE;
+
+  useEffect(() => {
+    if (wantedLoaded) return;
+    // A failed load (offline, chunk not cached) keeps the default locale; the
+    // next switch or reload retries.
+    loadLocale(wanted).catch((err: unknown) => console.error('locale load failed', wanted, err));
+  }, [wanted, wantedLoaded]);
 
   useEffect(() => {
     document.documentElement.lang = locale;

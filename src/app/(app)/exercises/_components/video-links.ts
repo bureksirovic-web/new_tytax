@@ -6,6 +6,7 @@
 import type { Exercise } from '@/contracts/domain';
 import { buildVideoLinks, type VideoLink as CatalogVideoLink, type VideoLinkKind } from '@/lib/catalog';
 import type { TranslationKey, TranslationVars } from '@/lib/i18n';
+import '@/lib/i18n/packs/exercises';
 
 export interface VideoLink extends Pick<CatalogVideoLink, 'href' | 'kind'> {
   labelKey: TranslationKey;

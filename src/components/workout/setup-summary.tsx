@@ -2,6 +2,7 @@
 import type { MachineSetup } from '@/contracts/domain';
 import { SETUP_FIELDS } from '@/stores/setup-adapter';
 import { useSetupStrings } from './strings/setup';
+import '@/lib/i18n/packs/g3Session';
 
 export interface SetupSummaryProps {
   setup: MachineSetup;

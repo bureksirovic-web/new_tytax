@@ -16,6 +16,7 @@ import { NotFoundState, LoadingState } from '@/components/programs/manager/page-
 import { isIncomplete } from '@/components/programs/lib/rotation';
 import { mapSession } from '@/components/programs/lib/session-edit';
 import { useMutationRunner, useProgram } from '@/components/programs/use-program';
+import '@/lib/i18n/packs/programs';
 
 interface Props {
   params: Promise<{ id: string }>;

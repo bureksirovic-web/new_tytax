@@ -6,6 +6,7 @@ import { formatWeight, fromDisplayWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { FieldLabel } from './settings-section';
 import { parseDecimal } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 export const KB_MIN_KG = 2;
 export const KB_MAX_KG = 60;

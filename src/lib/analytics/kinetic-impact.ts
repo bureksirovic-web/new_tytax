@@ -4,6 +4,7 @@ import { computeACWR } from './acwr';
 import { computeVolumeParity } from './volume-parity';
 import { getWeekKey, parseLocalDay } from '@/lib/utils';
 import { dayCutoff, liveLogs, logVolume } from './sets';
+import '@/lib/i18n/packs/requests';
 
 export interface KineticImpactScore {
   score: number; // 0-100

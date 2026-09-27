@@ -4,6 +4,7 @@ import { useLocale } from '@/components/providers/locale-provider';
 import type { AuthKey } from '@/lib/auth/i18n';
 import { useAuthT } from '@/lib/auth/use-auth-t';
 import { formatSyncedAt, syncErrorKey } from './format';
+import '@/lib/i18n/packs/g5Auth';
 
 const STATUS_KEY: Record<SyncState['status'], AuthKey> = {
   disabled: 'sync.status.disabled',

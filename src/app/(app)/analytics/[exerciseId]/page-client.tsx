@@ -5,6 +5,7 @@ import { ExerciseProgress } from '@/components/analytics/exercise-progress';
 import { useExerciseHistory, useExerciseNames } from '@/components/analytics/use-analytics-data';
 import { Card, Skeleton } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   params: Promise<{ exerciseId: string }>;

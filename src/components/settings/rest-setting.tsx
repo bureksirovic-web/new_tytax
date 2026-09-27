@@ -3,6 +3,7 @@ import { Button } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
 import { ChoiceChips, FieldLabel, Hint } from './settings-section';
 import { clampRest, formatRest, REST_MAX, REST_MIN, REST_STEP } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 const QUICK = ['60', '90', '120', '180'] as const;
 

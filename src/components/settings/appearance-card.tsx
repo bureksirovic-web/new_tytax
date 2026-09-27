@@ -4,6 +4,7 @@ import { useTheme } from '@/components/providers';
 import { useT } from '@/lib/i18n/use-t';
 import { useSaveSettings } from './use-save-settings';
 import { SettingsCard, SwitchRow } from './settings-section';
+import '@/lib/i18n/packs/settings';
 
 /** OLED pure black: applied through the theme provider and saved on the profile. */
 export function AppearanceCard({ profile }: { profile: Profile }) {

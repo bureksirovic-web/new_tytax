@@ -7,6 +7,7 @@ import { E1RM_MAX_REPS } from '@/lib/training';
 import { e1rmPoints, exerciseSeries } from './exercise-series';
 import { dayLabel, sessionsLabel } from './labels';
 import { LineChart } from './line-chart';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

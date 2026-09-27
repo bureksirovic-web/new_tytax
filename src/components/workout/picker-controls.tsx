@@ -4,6 +4,7 @@ import { useLocale } from '@/components/providers';
 import { PICKER_MODALITIES, type PickerFilter, type PickerModality } from './picker-filter';
 import { PICKER_INPUT_CLASS } from './picker-dialog';
 import { MUSCLE_GROUP_VALUES, muscleKey, usePickerStrings } from './strings/picker';
+import '@/lib/i18n/packs/g3Picker';
 
 export interface PickerControlsProps {
   filter: PickerFilter;

@@ -7,6 +7,7 @@ import { SectionTitle } from './section-title';
 import { useT } from '@/lib/i18n/use-t';
 import { ACWR_BASELINE_DAYS, acwrSummary, type AcwrZone } from './analytics-math';
 import { muscleLabel, num, ZONE_KEYS } from './labels';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

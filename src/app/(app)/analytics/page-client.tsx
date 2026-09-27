@@ -11,6 +11,7 @@ import { useAnalyticsData } from '@/components/analytics/use-analytics-data';
 import { BestLiftsCard, WeeklyVolumeCard } from '@/components/analytics/volume-and-lifts';
 import { EmptyState, Skeleton } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/analytics';
 
 // Below the fold: split out of the /analytics first-load chunk (budget 250 kB gzip).
 const cardFallback = () => <Skeleton className="h-40 w-full" />;

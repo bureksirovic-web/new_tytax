@@ -11,6 +11,7 @@ import { Hint, SettingsCard } from './settings-section';
 import { notify, sortProfiles } from './settings-utils';
 import { TypeToConfirmDialog } from './type-to-confirm-dialog';
 import { useApplyProfilePrefs } from './use-apply-profile-prefs';
+import '@/lib/i18n/packs/settings';
 
 /** Family profiles: list, switch, create, delete (only that profile's data). */
 export function ProfilesCard({ activeId }: { activeId: string | undefined }) {

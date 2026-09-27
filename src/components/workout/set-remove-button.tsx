@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useSetsStrings } from './strings/sets';
 import { CloseIcon } from './icons';
 import { setHasData } from './set-rules';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface SetRemoveButtonProps {
   set: SetEntry;

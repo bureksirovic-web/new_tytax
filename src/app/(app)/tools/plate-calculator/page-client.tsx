@@ -1,6 +1,7 @@
 'use client';
 import { ProfilePlateCalculator } from '@/components/tools/profile-plate-calculator';
 import { useToolsT } from '@/components/tools/tools-i18n';
+import '@/lib/i18n/packs/g3Tools';
 
 export default function PlateCalculatorPage() {
   const t = useToolsT();

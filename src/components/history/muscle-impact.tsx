@@ -5,6 +5,7 @@ import { useCatalog } from '@/hooks/use-exercises';
 import { useT } from '@/lib/i18n/use-t';
 import { training } from '@/lib/training';
 import { muscleLabel } from '@/components/analytics/labels';
+import '@/lib/i18n/packs/history';
 
 const TOP_N = 6;
 

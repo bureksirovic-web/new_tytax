@@ -4,6 +4,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { MUSCLE_KEYS } from '../lib/labels';
 import { liveLoadByGroup, pushPullRatio } from '@/lib/programs/load';
 import type { SlotEditorState } from './use-slot-editor';
+import '@/lib/i18n/packs/programs';
 
 const BAR_H = 48;
 

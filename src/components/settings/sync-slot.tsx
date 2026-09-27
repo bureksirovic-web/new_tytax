@@ -2,6 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useT } from '@/lib/i18n/use-t';
 import { SettingsCard } from './settings-section';
+import '@/lib/i18n/packs/settings';
 
 /** G5's sync UI, loaded only when sync is enabled (no Supabase code otherwise). */
 const SyncStatus = dynamic(() => import('@/components/sync/sync-status').then((m) => m.SyncStatus), { ssr: false });

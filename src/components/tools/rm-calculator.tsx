@@ -5,6 +5,7 @@ import { parseWeightInput } from './plate-math';
 import { NumberField, formatKg } from './number-field';
 import { PercentTable, RepMaxTable } from './rm-tables';
 import { useToolsT } from './tools-i18n';
+import '@/lib/i18n/packs/g3Tools';
 
 const MAX_PLACEHOLDER = '{max}';
 

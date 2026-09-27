@@ -6,6 +6,7 @@ import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { localDay } from './analytics-dates';
 import { BW_MAX_KG, BW_MIN_KG, parseBodyweight, toInputValue } from './labels';
+import '@/lib/i18n/packs/analytics';
 
 export interface BodyweightSubmit {
   date: string;

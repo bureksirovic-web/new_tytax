@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SearchBar } from '@/components/ui/search-bar';
 import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/exercises';
 
 const DEBOUNCE_MS = 300;
 

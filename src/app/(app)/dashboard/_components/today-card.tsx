@@ -8,6 +8,7 @@ import { ACTIVE_WORKOUT_HREF, type useStartWorkout } from './use-start-workout';
 import { ForeignDraftCard } from './foreign-draft-card';
 import { cardSection, eyebrow, linkPrimary, linkSecondary } from './styles';
 import type { ForeignDraft } from './use-foreign-draft';
+import '@/lib/i18n/packs/dashboard';
 
 type Starter = ReturnType<typeof useStartWorkout>;
 

@@ -10,6 +10,7 @@ import { bestLifts } from './exercise-series';
 import { dayLabel } from './labels';
 import { LineChart } from './line-chart';
 import { SectionTitle } from './section-title';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

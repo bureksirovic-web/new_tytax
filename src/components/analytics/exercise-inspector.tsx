@@ -7,6 +7,7 @@ import { SectionTitle } from './section-title';
 import { useT } from '@/lib/i18n/use-t';
 import { ExerciseProgress } from './exercise-progress';
 import type { TrainedExercise } from './exercise-series';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

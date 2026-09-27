@@ -8,6 +8,7 @@ import { ExerciseRow } from './manager/exercise-row';
 import { MUSCLE_KEYS } from './lib/labels';
 import { projectedFocus } from '@/lib/programs/load';
 import { moveExercise, patchExerciseAt, removeExerciseAt } from './lib/session-edit';
+import '@/lib/i18n/packs/programs';
 
 /** Icon glyph (not copy); the button's name comes from aria-label. */
 const EDIT_GLYPH = '✎';

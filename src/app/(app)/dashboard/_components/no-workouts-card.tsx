@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 import type { useStartWorkout } from './use-start-workout';
 import { cardSection } from './styles';
+import '@/lib/i18n/packs/dashboard';
 
 /** Fresh profile: no logs yet → one card with a start CTA instead of empty stats. */
 export function NoWorkoutsCard({ start }: { start: ReturnType<typeof useStartWorkout> }) {

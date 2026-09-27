@@ -14,6 +14,7 @@ import { durationMinutes, formatLogDate, formatStartTime, splitExercises } from 
 import { logDisplayName } from './log-name';
 import { MuscleImpact } from './muscle-impact';
 import { useHistoryUndo } from './undo-store';
+import '@/lib/i18n/packs/history';
 
 interface Props {
   log: WorkoutLog;

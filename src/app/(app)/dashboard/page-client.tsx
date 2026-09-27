@@ -11,6 +11,7 @@ import { useDashboardData, useNow } from './_components/use-dashboard-data';
 import { useForeignDraft } from './_components/use-foreign-draft';
 import { useStartWorkout } from './_components/use-start-workout';
 import { WeeklyVolumeCard } from './_components/weekly-volume-card';
+import '@/lib/i18n/packs/dashboard';
 
 export default function DashboardPage() {
   const { t } = useT();

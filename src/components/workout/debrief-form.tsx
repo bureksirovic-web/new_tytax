@@ -8,6 +8,7 @@ import { DebriefRpeField, parseRpe } from '@/components/workout/debrief-rpe-fiel
 import { DiscardWorkoutButton } from '@/components/workout/discard-workout-button';
 import { useFinishStrings } from '@/components/workout/strings/finish';
 import { summarizeDraft } from '@/stores/workout-selectors';
+import '@/lib/i18n/packs/g3Workout';
 
 export { parseRpe } from '@/components/workout/debrief-rpe-field';
 

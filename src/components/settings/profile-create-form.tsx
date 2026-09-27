@@ -6,6 +6,7 @@ import { Button, Input } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
 import { SelectField } from './settings-section';
 import { notify, PROFILE_NAME_MAX, validateProfileName, type NameProblem } from './settings-utils';
+import '@/lib/i18n/packs/settings';
 
 const PROBLEM_KEY = {
   required: 'set_profile_name_required',

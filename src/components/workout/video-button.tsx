@@ -4,6 +4,7 @@ import type { Exercise, Modality } from '@/contracts/domain';
 import { buildVideoLinks, type VideoLink } from '@/lib/catalog';
 import { useSetsStrings } from './strings/sets';
 import { PlayIcon } from './icons';
+import '@/lib/i18n/packs/g3Workout';
 
 export interface VideoButtonProps {
   /** Name used for the YouTube search fallback and labels. */

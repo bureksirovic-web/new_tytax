@@ -49,6 +49,7 @@ v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the inten
 ### Changed
 - `/auth/account` first load 209.6 kB → 203.4 kB gzip and `/settings` 217.5 kB → 211.3 kB (sync hooks import the sync leaf modules, not the barrel); `/auth/login` stays at 199.7 kB with supabase-js only behind `import()`.
 - Croatian is the default language; every UI string goes through the hr/en dictionary with a key-parity test.
+- First-load JS under 250 kB gzip on every route (was up to 275.1 kB, `/workout/active`): the browser gets the hr core dictionary up front, each hr screen module through a pack imported by the files that use it (`src/lib/i18n/packs`, checked by `scripts/i18n-packs.ts` in `npm test`), and English as one lazy chunk loaded on switch (hr renders until it arrives; the service worker precaches it for offline). `npm run check-bundle` and CI now hold every route to the budget (`--budget-all-routes`).
 - Workout sessions store `SessionExercise[]` with nested sets (Dexie v2→v3 migration, additive and idempotent).
 - The active program is `activeProgramId` on the profile instead of a boolean index.
 - `src/middleware.ts` renamed to `src/proxy.ts` (Next 16). It refreshes the session only when Supabase is configured and sync is on; otherwise it makes no network call. Its matcher skips static assets, the service worker, the manifest, icons and `/api/health`.

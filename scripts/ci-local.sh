@@ -81,7 +81,7 @@ if want quality; then
   step "quality: tsc --noEmit"        "npx tsc --noEmit"
   step "quality: test:coverage"       "npm run test:coverage"
   step "quality: build"               "npm run build"
-  step "quality: check-bundle"        "node scripts/check-bundle.mjs"
+  step "quality: check-bundle"        "node scripts/check-bundle.mjs --budget-all-routes"
 fi
 
 # ---------------------------------------------------------------- e2e

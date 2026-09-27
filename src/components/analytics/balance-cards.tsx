@@ -8,6 +8,7 @@ import { localDay, shiftDay } from './analytics-dates';
 import { movementParity } from './movement-balance';
 import { num, PATTERN_KEYS } from './labels';
 import { SectionTitle } from './section-title';
+import '@/lib/i18n/packs/analytics';
 
 interface Props {
   logs: readonly WorkoutLog[];

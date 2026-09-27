@@ -15,6 +15,7 @@ import { parseLibraryParams, serializeLibraryParams } from './library-params';
 import { useArsenal } from './use-arsenal';
 import { useExercise } from './use-exercise';
 import { VideoList } from './video-list';
+import '@/lib/i18n/packs/exercises';
 
 const backCls =
   'inline-flex min-h-11 items-center gap-1 self-start rounded-lg text-sm text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400';

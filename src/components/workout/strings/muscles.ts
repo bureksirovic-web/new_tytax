@@ -1,6 +1,7 @@
 'use client';
 import { MUSCLE_GROUPS, type StandardMuscle } from '@/lib/constants';
 import { makeStringsHook, type StringTable } from './make-strings';
+import '@/lib/i18n/packs/g3Picker';
 
 /** Standardised muscle names (`standardizeMuscle` output), e.g. in the weak-point offer. */
 export type MuscleKey = `muscle_name_${string}`;

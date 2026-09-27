@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { patternKey } from '@/lib/i18n/pattern';
 import { FavouriteButton } from './favourite-button';
 import { attachmentKey, labelOr, modalityKey, muscleGroupKey, stationKey } from './labels';
+import '@/lib/i18n/packs/exercises';
 
 interface ExerciseHeaderProps {
   exercise: Exercise;

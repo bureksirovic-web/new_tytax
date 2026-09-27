@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { durationMinutes } from '@/components/history/log-math';
 import { doneWorkingVolume, pluralCategory } from './dashboard-math';
 import { cardSection, eyebrow } from './styles';
+import '@/lib/i18n/packs/dashboard';
 
 export interface LastWorkoutCardProps {
   log: WorkoutLog;

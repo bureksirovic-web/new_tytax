@@ -1,5 +1,6 @@
 import type { MuscleGroup } from '@/contracts/domain';
 import { makeStringsHook, type StringTable } from './make-strings';
+import '@/lib/i18n/packs/g3Picker';
 
 /**
  * Exercise picker + swap sheet strings (G3 area "picker").
