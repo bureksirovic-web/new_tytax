@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-27
+
 ### Changed
 - New default program **TYTAX 6-Day Balanced**: an upper/lower split built around recovery.
   - Every muscle gets 48 h before it is trained again, and no muscle is loaded hard on two consecutive days.
