@@ -38,6 +38,8 @@ export interface SupabaseSyncAdapterOptions {
   pageSize?: number;
   /** Push rounds per run before the pull (default MAX_PUSH_ROUNDS); a backlog left over schedules a follow-up run. */
   maxPushRounds?: number;
+  /** Byte budget per upsert (default MAX_PUSH_BYTES in push.ts). */
+  maxPushBytes?: number;
 }
 
 export interface SupabaseSyncAdapter extends SyncAdapter {
@@ -164,7 +166,7 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
     // waiting for an unrelated trigger.
     let backlog = false;
     for (let round = 0; round < maxRounds; round++) {
-      const push = await pushRun({ repo: r, remote, log }, accountId, round === 0 ? snapshot : null, sent);
+      const push = await pushRun({ repo: r, remote, log, maxPushBytes: opts.maxPushBytes }, accountId, round === 0 ? snapshot : null, sent);
       totals.pushed += push.pushed;
       totals.failed += push.failed;
       totals.deferred = push.deferred;

@@ -36,7 +36,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 export class FakeRemoteStore implements RemoteStore {
   readonly tables = new Map<string, Map<string, RemoteRow>>();
-  readonly calls: Array<{ op: 'upsert' | 'pull' | 'undelete'; table: string; rows: number }> = [];
+  readonly calls: Array<{ op: 'upsert' | 'pull' | 'undelete'; table: string; rows: number; bytes?: number }> = [];
   private account: string | null;
   private clockMs: number;
   private tick = 0;
@@ -93,7 +93,7 @@ export class FakeRemoteStore implements RemoteStore {
   }
 
   async upsert(table: string, input: readonly RemoteRow[]): Promise<UpsertResult> {
-    this.calls.push({ op: 'upsert', table, rows: input.length });
+    this.calls.push({ op: 'upsert', table, rows: input.length, bytes: new TextEncoder().encode(JSON.stringify(input)).length });
     const fail = (code: string): UpsertResult => ({ ok: false, error: { code, retryable: false } });
     const injected = this.injected('upsert', table);
     if (injected) return { ok: false, error: injected };

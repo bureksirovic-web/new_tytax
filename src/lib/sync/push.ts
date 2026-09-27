@@ -17,6 +17,38 @@ export { collectOps, PEEK_LIMIT, type PushOutcome } from './outbox-ops';
 export { BACKUP_KEY } from './backup-keys';
 
 export const CHUNK_SIZE = 100;
+/**
+ * Upper bound on one upsert's JSON body (UTF-8 bytes): half of the server's
+ * `public.request_body_limit()` (4 MiB, migration 005), which rejects a larger
+ * body with HTTP 413 before PostgreSQL parses it. One row at its column caps
+ * is < 1 MiB, so a valid row always fits.
+ */
+export const MAX_PUSH_BYTES = 2 * 1024 * 1024;
+
+const encoder = new TextEncoder();
+
+/**
+ * `[start, end)` ranges over `rows`: at most `maxRows` rows and at most
+ * `maxBytes` bytes of JSON array per range (a single larger row gets a range
+ * of its own; the server's 413 then dead-letters only that row).
+ */
+export function chunkRanges(rows: readonly unknown[], maxRows: number, maxBytes: number): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let start = 0;
+  let bytes = 2; // '[' and ']'
+  for (let i = 0; i < rows.length; i++) {
+    const size = encoder.encode(JSON.stringify(rows[i])).length + (i > start ? 1 : 0); // ',' separator
+    if (i > start && (i - start >= maxRows || bytes + size > maxBytes)) {
+      out.push([start, i]);
+      start = i;
+      bytes = 2 + size - 1; // no separator before the first row of a range
+    } else {
+      bytes += size;
+    }
+  }
+  if (rows.length > start) out.push([start, rows.length]);
+  return out;
+}
 
 /** First-push snapshot: every local record of the account's profiles except those the server already has. */
 export interface SnapshotScope {
@@ -28,6 +60,8 @@ export interface PushDeps {
   repo: Repository;
   remote: RemoteStore;
   log: SyncLogger;
+  /** Byte budget per upsert (default MAX_PUSH_BYTES). */
+  maxPushBytes?: number;
 }
 
 /** Steps in parent-first order. Profiles go twice: without a set `active_program_id` first (its program may not exist yet), with it after programs. */
@@ -209,8 +243,8 @@ export async function pushRun(
       groups.set(sig, g);
     }
     for (const g of groups.values()) {
-      for (let i = 0; i < g.rows.length; i += CHUNK_SIZE) {
-        abort = await send(step.table, g.entries.slice(i, i + CHUNK_SIZE), g.rows.slice(i, i + CHUNK_SIZE));
+      for (const [a, b] of chunkRanges(g.rows, CHUNK_SIZE, deps.maxPushBytes ?? MAX_PUSH_BYTES)) {
+        abort = await send(step.table, g.entries.slice(a, b), g.rows.slice(a, b));
         if (abort) break outer;
       }
     }
