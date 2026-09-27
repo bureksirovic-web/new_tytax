@@ -208,6 +208,9 @@ jobs:
       - name: Database tests (pgTAP)
         run: supabase test db
 
+      - name: Upgrade test (populated 001 -> 002..005, each twice)
+        run: supabase/upgrade_test/run.sh
+
       - name: Export Supabase env (keys masked)
         run: |
           supabase status -o env > "$RUNNER_TEMP/sb.env"

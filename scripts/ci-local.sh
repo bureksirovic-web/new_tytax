@@ -134,6 +134,7 @@ if want sync-e2e && [ "$SKIP_E2E" -eq 0 ]; then
     fi
   fi
   step "sync-e2e: supabase test db"   "$SUPABASE_CLI test db"
+  step "sync-e2e: upgrade test"      "supabase/upgrade_test/run.sh"
   if [ "$JOB_FAILED" -eq 0 ]; then
     SB_ENV="$($SUPABASE_CLI status -o env 2>/dev/null || true)"
     get() { printf '%s\n' "$SB_ENV" | sed -nE "s/^$1=\"?([^\"]*)\"?\$/\1/p" | head -n1; }

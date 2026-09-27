@@ -31,8 +31,8 @@
 -- * public.sync_quota(): the limits. Replace this function to change them on
 --   a deployed project (e.g. `create or replace function public.sync_quota()
 --   ... select 200000, 134217728, 200`); it is not callable by API roles.
--- Not covered here: a request-body limit at the API gateway of the hosted
--- project (Supabase platform setting, outside the repo).
+-- Not covered here: the request-body size. 005_v2_request_limit.sql bounds
+-- it before PostgreSQL parses the body (PostgREST db-pre-request).
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------

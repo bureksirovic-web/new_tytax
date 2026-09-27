@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates supabase/tests/database/*.test.sql (pgTAP) for TYTAX v2 migrations 002-004.
+"""Generates supabase/tests/database/*.test.sql (pgTAP) for TYTAX v2 migrations 002-005.
 
 Run: python3 supabase/tests/generate.py  (then: npx -y supabase@2.118.0 test db).
 The .test.sql files are committed; edit this generator and regenerate rather than
@@ -617,3 +617,42 @@ body.append(T(f"select is({usage(B)}, {actual_rows(B)}, 'a DELETE takes its rows
 body.append(S(f"delete from auth.users where id = '{B}';"))
 body.append(T(f"select is((select count(*) from public.sync_usage where profile_id = '{B}'), 0::bigint, 'deleting the account removes its usage row')"))
 write("08_quotas.test.sql", "004: per-statement row cap and per-account row/byte quotas on every client-writable data table.", body, fixtures_sql())
+
+# ---------------------------------------------------------------- 09 request body limit (005)
+def req(method, headers):
+    return (f"select set_config('request.method', '{method}', true);\n"
+            f"select set_config('request.headers', '{headers}', true);\n")
+
+
+body = []
+body.append(T("select is((select public.request_body_limit()), 4194304::bigint, 'request_body_limit() is 4 MiB')"))
+body.append(T("select ok((select setconfig @> array['pgrst.db_pre_request=public.request_guard'] from pg_db_role_setting where setrole = 'authenticator'::regrole and setdatabase = 0), 'authenticator runs public.request_guard as PostgREST db-pre-request')"))
+for role in ["anon", "authenticated", "service_role"]:
+    body.append(T(f"select ok(has_function_privilege('{role}', 'public.request_guard()', 'execute'), '{role} can execute request_guard (PostgREST calls it as the request role)')"))
+body.append(T("select ok((select proconfig @> array['search_path=\"\"'] from pg_proc where oid = 'public.request_guard()'::regprocedure), 'request_guard pins search_path to empty')"))
+body.append(T("select ok(not (select prosecdef from pg_proc where oid = 'public.request_guard()'::regprocedure), 'request_guard is SECURITY INVOKER')"))
+body.append(S("set local role authenticated;"))
+body.append(S(req("POST", '{"content-length": "4194305"}')))
+body.append(T("select throws_ok('select public.request_guard()', 'PT413', 'request body is 4194305 bytes (max 4194304)', 'POST one byte over the limit: PT413')"))
+body.append(S(req("PATCH", '{"content-length": "99999999999"}')))
+body.append(T("select throws_ok('select public.request_guard()', 'PT413', null, 'PATCH far over the limit: PT413')"))
+body.append(S(req("PUT", '{"content-length": "5000000"}')))
+body.append(T("select throws_ok('select public.request_guard()', 'PT413', null, 'PUT over the limit: PT413')"))
+body.append(S(req("POST", '{"content-length": "4194304"}')))
+body.append(T("select lives_ok('select public.request_guard()', 'POST exactly at the limit passes')"))
+body.append(S(req("POST", '{"content-length": "12"}')))
+body.append(T("select lives_ok('select public.request_guard()', 'a small POST passes')"))
+body.append(S(req("POST", '{}')))
+body.append(T("select throws_ok('select public.request_guard()', 'PT411', null, 'POST without Content-Length: PT411')"))
+body.append(S(req("POST", '{"content-length": "-1"}')))
+body.append(T("select throws_ok('select public.request_guard()', 'PT411', null, 'a non-numeric Content-Length: PT411')"))
+body.append(S(req("post", '{"content-length": "5000000"}')))
+body.append(T("select throws_ok('select public.request_guard()', 'PT413', null, 'the method check is case-insensitive')"))
+body.append(S(req("GET", '{}')))
+body.append(T("select lives_ok('select public.request_guard()', 'GET without Content-Length passes')"))
+body.append(S(req("DELETE", '{}')))
+body.append(T("select lives_ok('select public.request_guard()', 'DELETE passes the guard (no DELETE grant anyway)')"))
+body.append(S("select set_config('request.method', '', true);\nselect set_config('request.headers', '', true);"))
+body.append(T("select lives_ok('select public.request_guard()', 'outside PostgREST (no request settings) the guard is a no-op')"))
+body.append(S("reset role;"))
+write("09_request_limit.test.sql", "005: PostgREST pre-request guard rejects write bodies above request_body_limit() (PT413) or without Content-Length (PT411).", body)

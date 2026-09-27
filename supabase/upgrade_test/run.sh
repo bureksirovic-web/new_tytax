@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Upgrade test: 001 + dirty data -> 002 -> 002 again -> assertions,
 # then -> 003 -> 003 again -> assertions, then -> 004 -> 004 again ->
-# assertions (pgTAP).
+# assertions, then -> 005 -> 005 again -> assertions (pgTAP).
 # Runs in a scratch database inside the LOCAL stack's db container (never a
 # cloud project); the scratch database is dropped at the end.
 #   supabase/upgrade_test/run.sh            # needs `supabase start`
 #   MIGRATION_002=path/to/old.sql run.sh     # test another 002 revision
 #   MIGRATION_003=path/to/old.sql run.sh     # test another 003 revision
 #   MIGRATION_004=path/to/old.sql run.sh     # test another 004 revision
+#   MIGRATION_005=path/to/old.sql run.sh     # test another 005 revision
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
@@ -16,6 +17,7 @@ db=tytax_upgrade_scratch
 m002="${MIGRATION_002:-$root/migrations/002_v2_hardening.sql}"
 m003="${MIGRATION_003:-$root/migrations/003_v2_sync_tables.sql}"
 m004="${MIGRATION_004:-$root/migrations/004_v2_quotas.sql}"
+m005="${MIGRATION_005:-$root/migrations/005_v2_request_limit.sql}"
 psqlc() { docker exec -i "$container" psql -U postgres -X -q -v ON_ERROR_STOP=1 "$@"; }
 
 psqlc -d postgres -c "drop database if exists $db" -c "create database $db"
@@ -51,4 +53,9 @@ psqlc -d "$db" -1 < "$m004" >/dev/null
 echo "== 004 again (idempotent)"
 psqlc -d "$db" -1 < "$m004" >/dev/null
 assert 004 "$here/assert_004.test.sql"
+echo "== 005 on upgraded 004"
+psqlc -d "$db" -1 < "$m005" >/dev/null
+echo "== 005 again (idempotent)"
+psqlc -d "$db" -1 < "$m005" >/dev/null
+assert 005 "$here/assert_005.test.sql"
 echo "UPGRADE TEST: PASS"

@@ -87,7 +87,18 @@ App env for local sync: `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54421` and
     `public.sync_usage` (RLS on, no grants). Over a limit the statement rolls
     back with SQLSTATE `PT413` (HTTP 413). Change the limits on a deployed
     project by replacing `public.sync_quota()`.
-  - Not in the repo: a request-body limit at the hosted project's API gateway.
+  - The request body itself is bounded by 005 (below).
+- `005_v2_request_limit.sql` is idempotent and bounds a write request before
+  PostgreSQL parses its body: `public.request_guard()` runs as PostgREST's
+  `db-pre-request` (set on the `authenticator` role, so it applies on a hosted
+  project too) and refuses a POST/PATCH/PUT above `public.request_body_limit()`
+  (4 MiB) with `PT413` (HTTP 413), or without `Content-Length` with `PT411`
+  (HTTP 411). Reads pass. The sync client splits each upsert at 2 MiB
+  (`MAX_PUSH_BYTES`, `src/lib/sync/push.ts`). Change the limit by replacing
+  `request_body_limit()` (keep it at least twice `MAX_PUSH_BYTES`). Proven by
+  pgTAP `09_request_limit` and the live `request-limit.sync.test.ts`. Still
+  outside the repo: the gateway and PostgREST receive the body before the
+  guard runs; a byte cap at that layer is a Supabase platform setting.
 - Upgrading a populated 001 database: over-long user text (names, notes,
   content) is truncated to the caps. Cross-account references are set to
   null. Every rewritten value is first copied, in full, to
