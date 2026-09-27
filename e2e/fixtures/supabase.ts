@@ -78,13 +78,17 @@ export async function magicLinkIn(env: SyncE2EEnv, id: string): Promise<string> 
  * Types `email` into the magic-link form and waits until the form has taken it.
  * A fill that lands before hydration stays in the DOM but not in React state,
  * so the submit button stays disabled (seen in the full parallel run after the
- * v2-g5 merge: 120 s timeout on a disabled "Nastavi s e-mailom"). Retries the
- * fill until the button is enabled.
+ * v2-g5 merge: 120 s timeout on a disabled "Nastavi s e-mailom"). Filling the
+ * same text again does not help: React's value tracker adopted the DOM value at
+ * hydration and drops an input event that leaves it unchanged. So clear first,
+ * then fill, until the button is enabled.
  */
 export async function fillLoginEmail(page: Page, email: string, submitName: string): Promise<void> {
+  const input = page.locator('#auth-email');
   const submit = page.getByRole('button', { name: submitName });
   await expect(async () => {
-    await page.locator('#auth-email').fill(email);
+    await input.fill('');
+    await input.fill(email);
     await expect(submit).toBeEnabled({ timeout: 1_000 });
   }).toPass({ timeout: 30_000 });
 }
