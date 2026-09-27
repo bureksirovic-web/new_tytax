@@ -35,8 +35,12 @@ export function SyncDetails({ state }: { state: SyncState }) {
     <dl className="space-y-2">
       <div className={ROW}>
         <dt className={LABEL}>{t('sync.status.label')}</dt>
-        <dd data-testid="sync-status" data-status={state.status} role="status" aria-live="polite" className={VALUE}>
-          {t(STATUS_KEY[state.status])}
+        {/* role="status" on an inner span: on the <dd> it replaced the definition
+            role and axe flagged the <dl> (definition-list, serious). */}
+        <dd data-testid="sync-status" data-status={state.status} className={VALUE}>
+          <span role="status" aria-live="polite">
+            {t(STATUS_KEY[state.status])}
+          </span>
         </dd>
       </div>
       <div className={ROW}>
