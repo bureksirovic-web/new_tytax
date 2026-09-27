@@ -414,3 +414,65 @@ All files          |   97.31 |    93.04 |   97.11 |    98.4 |   # test:coverage
 
 ### Deferred / Unfixed (step 3)
 - None new. Option for later: a relative (not wall-clock) edit-cost check would drop the coverage multiplier.
+
+## 10. INTEGRATION step 4: Final gate (2026-09-27)
+Base 2f9a72c. No code changed in this step (only this log). Port: 3100 is still held by a non-TYTAX process (paperclip, pid 2326947, not touched), so every e2e run used `PORT=3110`. Sync env from `npx -y supabase@2.118.0 status -o env` in `app/` (project tytax-v2, API 127.0.0.1:54421).
+
+### Final gate
+1. `npm ci && npm run lint && npx tsc --noEmit && npm test && npm run build`: ci=0 lint=0 tsc=0 test=0 build=0.
+   ```
+   5 vulnerabilities (1 low, 4 moderate)                 # npm ci notice
+   (lint: no problems; only the Babel >500KB note on scripts/data/source)
+    Test Files  315 passed (315)
+         Tests  2423 passed (2423)
+   ✓ Compiled successfully in 533ms
+   ```
+2. `npm run test:coverage`: exit 0, 2423 passed. `All files` 97.33 stmts / 93.09 branch / 97.15 funcs / 98.43 lines.
+   - Aggregate (json-summary): `src/lib/**` lines 98.97, stmts 98.25, funcs 98.36, branches 94.43; `src/stores/**` lines 99.49, stmts 97.96, funcs 98.45, branches 95.40 (thresholds 70/70/70/60).
+   - Per dir (stmts/branch/funcs/lines): `src/lib` (root files) 94.11/92.5/92.85/96.42; analytics 95.58/83.97/97.95/95.67; auth 98.92/93.42/100/100; catalog 94.44/90.6/94/98.05; db 96.39/97.29/91.66/96.77; db/repo 99.38/96.23/99.65/99.77; export 100/100/100/100; i18n 97.82/96.29/100/100; import 98.51/95.39/100/99.22; programs 100/98.9/100/100; supabase 100/100/100/100; sync 96.18/89.43/95.7/97.72; training 98.39/96.08/100/100; workout 100/100/100/100; `src/stores` 97.96/95.4/98.44/99.48.
+3. `npm run check-bundle`: **exit 1**.
+   ```
+   first-load JS for /dashboard: 262.2 kB gzip (budget 250 kB), 17 files
+   check-bundle: FAIL
+   ```
+   No catalog leak on any of 24 routes. Over 250 kB: /workout/active 275.1, /exercises/[id] 268.9, /workout 264.1, /workout/debrief 264.0, /analytics 263.0, /history/[id] 262.7, /settings 262.4, /dashboard 262.2, /analytics/[exerciseId] 259.6, /programs/[id] 258.0, /programs/[id]/session/[sessionId] 258.0, /exercises 254.9. Same cause as steps 6/7/8 (see Unfixed); not fixed here.
+4. `npm audit --audit-level=high`: exit 0 (`5 vulnerabilities (1 low, 4 moderate)`, none high; moderate = @vitest/mocker GHSA-82fw-gwwq-j7x9 chain, dev only).
+5. `PORT=3110 npx playwright test --project=chromium --project=mobile` (dev server, sync env): exit 1; 128 passed, 2 failed, 6 did not run.
+   - chromium: 64 passed, 1 failed, 3 did not run. mobile: 64 passed, 1 failed, 3 did not run.
+   - Both failures are `offline.spec.ts:53` "offline.spec needs E2E_SERVER=prod" (expected "prod", received undefined): by design under `next dev`; the did-not-run are its 3 serial siblings per project. Every other spec, all @sync specs included, passes in both projects.
+6. `PORT=3110 npm run test:e2e:offline` (prod build with E2E hooks, `E2E_SERVER=prod`): exit 0, chromium 4 passed. Extra: same spec `--project=mobile` against the same build: exit 0, 4 passed.
+7. Database and sync:
+   - `npx -y supabase@2.118.0 db reset`: exit 0 (`Finished supabase db reset on branch v2.`).
+   - `npx -y supabase@2.118.0 test db`: exit 0, `Files=9, Tests=789 ... Result: PASS`.
+   - `bash supabase/upgrade_test/run.sh`: exit 0, 7 ok, `UPGRADE TEST: PASS`.
+   - `npm run test:sync`: exit 0, `Test Files 2 passed (2)`, `Tests 16 passed (16)`, 0 skipped.
+8. `PORT=3110 bash scripts/ci-local.sh`: exit 1 (`CI-LOCAL: FAIL`, only check-bundle). e2e job 122 passed; e2e-offline 4 passed; sync-e2e playwright 6 passed.
+   ```
+   STEP                                     RESULT
+   quality: guard .only/.skip               PASS
+   quality: npm ci                          PASS
+   quality: lint                            PASS
+   quality: tsc --noEmit                    PASS
+   quality: test:coverage                   PASS
+   quality: build                           PASS
+   quality: check-bundle                    FAIL
+   e2e: playwright install                  PASS
+   e2e: playwright chromium+mobile          PASS
+   e2e-offline: build (E2E hooks)           PASS
+   e2e-offline: playwright install          PASS
+   e2e-offline: offline.spec.ts on next start (zero skips) PASS
+   sync-e2e: supabase start                 PASS (reused)
+   sync-e2e: supabase test db               PASS
+   sync-e2e: export env                     PASS
+   sync-e2e: test:sync (zero skips)         PASS
+   sync-e2e: build (sync on)                PASS
+   sync-e2e: playwright install             PASS
+   sync-e2e: playwright sync+auth (zero skips) PASS
+   security: gitleaks (history)             PASS
+   security: npm audit high                 PASS
+   CI-LOCAL: FAIL
+   ```
+9. Zero-skip evidence: `grep -rnE '\b(test|it|describe|suite|bench)(\.(describe|serial|parallel|concurrent|sequential))?\.(only|skip|fixme|todo|skipIf|runIf|fail|fails)\b'` → src 0 hits, e2e 0 hits; `grep -rnE '\.(skip|only|fixme|todo)\('` over src and e2e → 0 hits (a looser `xit\(` pattern only matches `onExit(` in slot-editor.tsx).
+
+### Unfixed (step 4)
+- check-bundle `/dashboard` 262.2 kB > 250 kB (PLAN §10.2 AC8; a CI step, so CI `quality` fails). What: same as steps 6/7/8. Evidence: 217.0 kB at 04e4ce5, 259.2 kB after the G4 merge; source-map attribution puts most of it in the i18n dictionary chunk (en + hr and all `modules/*`, ~37.7 kB gzip) that every route loads through `LocaleProvider`/`useT`. Tried: nothing new in this step (the step brief allows code changes only for a real failure; this one is known, and the fix changes locale loading). Proposed fix: load only the active locale up front and import the other one lazily in `LocaleProvider` (the sync `t(key, locale)` in `src/lib/i18n/index.ts` and its English fallback have to become async or be preloaded; roughly 18 kB saved). File as debt S3.
