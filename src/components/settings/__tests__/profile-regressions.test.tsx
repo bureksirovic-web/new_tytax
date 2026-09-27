@@ -78,4 +78,20 @@ describe('ProfileEditForm', () => {
     await waitFor(() => expect(toastMessages()).toContain('Profile saved'));
     expect((await stored()).bodyweightKg).toBeUndefined();
   });
+
+  it('saves a birth year and shows the youth badge under 16; an out-of-range year blocks save', async () => {
+    renderWithProviders(<ProfileEditForm profile={me} />);
+    const field = screen.getByTestId('settings-profile-edit-birth-year');
+    expect(screen.queryByTestId('settings-profile-youth-badge')).toBeNull();
+
+    fireEvent.change(field, { target: { value: '1900' } });
+    expect(screen.getByText('Enter a year between 1920 and 2026.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.change(field, { target: { value: '2015' } });
+    expect(screen.getByTestId('settings-profile-youth-badge')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(toastMessages()).toContain('Profile saved'));
+    expect((await stored()).birthYear).toBe(2015);
+  });
 });

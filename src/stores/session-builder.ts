@@ -80,6 +80,8 @@ export interface BuildProgramSessionInput {
   lookup: ExerciseLookup;
   /** Owned kettlebells (kg), passed to kettlebell prefill. */
   availableKg?: readonly number[];
+  /** Youth mode: caps the automatic load increase (see `@/lib/training/youth`). */
+  maxIncrementKg?: number;
 }
 
 export interface BuiltProgramSession {
@@ -109,6 +111,7 @@ export function buildProgramSession(input: BuildProgramSessionInput): BuiltProgr
       history: historyByExercise[slot.exerciseId] ?? [],
       settings,
       availableKg: input.availableKg,
+      maxIncrementKg: input.maxIncrementKg,
     }),
   );
   return { sessionName: session.name, programId: program.id, programSessionId: session.id, sessionIndex: idx, exercises };

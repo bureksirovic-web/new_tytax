@@ -11,6 +11,7 @@ import { useAnalyticsData } from '@/components/analytics/use-analytics-data';
 import { BestLiftsCard, WeeklyVolumeCard } from '@/components/analytics/volume-and-lifts';
 import { EmptyState, Skeleton } from '@/components/ui';
 import { useT } from '@/lib/i18n/use-t';
+import { isYouth } from '@/lib/training/youth';
 import '@/lib/i18n/packs/analytics';
 
 // Below the fold: split out of the /analytics first-load chunk (budget 250 kB gzip).
@@ -31,7 +32,7 @@ const TrainingHeatmap = dynamic(
 export default function AnalyticsPage() {
   const { t } = useT();
   const router = useRouter();
-  const { loading: dataLoading, catalogLoading, profileId, units, logs, lookup, nameOf, now } = useAnalyticsData();
+  const { loading: dataLoading, catalogLoading, profileId, profile, units, logs, lookup, nameOf, now } = useAnalyticsData();
   // Wait for the lazy catalog too: without it every muscle-based card would flash "no data".
   const loading = dataLoading || catalogLoading;
   const inCatalog = useCallback((id: string) => lookup(id) !== undefined, [lookup]);
@@ -65,7 +66,7 @@ export default function AnalyticsPage() {
       ) : (
         <>
           <PinnedMetrics logs={logs} exercises={exercises} nameOf={nameOf} units={units} />
-          <AcwrCard logs={logs} lookup={lookup} now={now} />
+          <AcwrCard logs={logs} lookup={lookup} now={now} hideSpikeWarnings={isYouth(profile, now)} />
           <MuscleDistribution logs={logs} lookup={lookup} now={now} units={units} />
           <TrainingHeatmap logs={logs} now={now} units={units} />
           <ExerciseInspector logs={logs} exercises={exercises} units={units} inCatalog={inCatalog} />

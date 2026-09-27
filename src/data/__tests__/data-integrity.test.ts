@@ -116,13 +116,14 @@ describe('data integrity (AC8)', () => {
     const timed = (m: string) => cat.exercises.filter((e) => e.modality === m && e.measure === 'time').length;
     // 74 TYTAX = 41 × '30-60s' + 30 × '2-5 min' + 2 × '20-40s' + 1 × '15-30s hold'
     expect(timed('tytax')).toBe(74);
-    // 12 bodyweight: 7 plain ranges ('20-60s', '10-30s' ×2, '20-45s' ×2, '5-20s', '30-60s') + 5 '/side' ranges
-    expect(timed('bodyweight')).toBe(12);
+    // 13 bodyweight: 8 plain ranges ('20-60s', '10-30s' ×3, '20-45s' ×2, '5-20s', '30-60s') + 5 '/side' ranges
+    // ('10-30s' ×3 since the youth preset's Tuck L-Sit, family-profiles plan 2026-09-27)
+    expect(timed('bodyweight')).toBe(13);
     // 6 kettlebell, all '40s'
     expect(timed('kettlebell')).toBe(6);
     const doc = read('docs/v2/time-measured.md');
-    // 92 = 74 + 12 + 6
-    expect(doc).toContain('| **Total** | **92** |');
+    // 93 = 74 + 13 + 6
+    expect(doc).toContain('| **Total** | **93** |');
   });
 
   it('accounts for all 1,436 source entries: catalog + excluded non-exercises', () => {

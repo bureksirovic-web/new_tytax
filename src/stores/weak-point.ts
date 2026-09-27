@@ -96,6 +96,8 @@ export interface WeakPointInput {
   settings: ProfileSettings;
   inventory?: Inventory | null;
   now: Date;
+  /** Youth mode (under 16): the injector is never offered, whatever `settings.weakPointInjector` says. */
+  youth?: boolean;
 }
 
 export interface WeakPointPick {
@@ -109,7 +111,7 @@ export interface WeakPointPick {
 
 export function weakPoint(input: WeakPointInput): WeakPointPick | null {
   const { history, lookup, settings, now } = input;
-  if (!settings.weakPointInjector) return null;
+  if (!settings.weakPointInjector || input.youth) return null;
   if (training.recoveryStatus(history, lookup, now).overall !== 'fresh') return null;
   const from = localDay(new Date(now.getTime() - (WEAK_POINT_WINDOW_DAYS - 1) * DAY_MS));
   const distribution = training.impactDistribution(history, lookup, { from, to: localDay(now) });

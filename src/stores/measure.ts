@@ -4,7 +4,7 @@
  * - `measureOf(ex)` → `ex.measure` (G1 tags every time-target exercise of the
  *   catalog 'time'); untagged or unknown → 'reps' (the contract default). The
  *   former `defaultReps` heuristic is gone: on G1's catalog it agreed with the
- *   tag on all 1566 exercises (92 time, 0 disagreements; see measure.test.ts).
+ *   tag on all 1569 exercises (93 time, 0 disagreements; see measure.test.ts).
  * - `isTimeSet(set, measure?)` → true for a set of a 'time' exercise. Without a
  *   measure (the store and selectors do not see the catalog), a set that carries
  *   a `durationSeconds` number is a time set.

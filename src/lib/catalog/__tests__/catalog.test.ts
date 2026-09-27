@@ -12,16 +12,17 @@ describe('loadCatalog', () => {
   it('loads each chunk with its full exercise count', async () => {
     // 1409 = 1436 source entries − 27 promo/delivery videos (docs/v2/station-unresolved.md)
     expect((await loadCatalog(['tytax'])).exercises).toHaveLength(1409);
-    // 82 = objects with an `id: 'bw_…'` key in src/data/bodyweight/exercises.ts
-    expect((await loadCatalog(['bodyweight'])).exercises).toHaveLength(82);
+    // 85 = objects with an `id: 'bw_…'` key in src/data/bodyweight/exercises.ts
+    // (82 + 3 youth-preset entries: negative-dip, tuck-l-sit, dip-bar-knee-raise, 2026-09-27)
+    expect((await loadCatalog(['bodyweight'])).exercises).toHaveLength(85);
     // 75 = objects with an `id: 'kb_…'` key in src/data/kettlebell/exercises.ts
     expect((await loadCatalog(['kettlebell'])).exercises).toHaveLength(75);
   });
 
   it('defaults to every chunk, in canonical order', async () => {
     const all = await loadCatalog();
-    // 1409 + 82 + 75 = 1566
-    expect(all.exercises).toHaveLength(1566);
+    // 1409 + 85 + 75 = 1569
+    expect(all.exercises).toHaveLength(1569);
     expect(all.chunks).toEqual(['tytax', 'bodyweight', 'kettlebell']);
     expect(all.exercises[0].modality).toBe('tytax');
     expect(all.exercises.at(-1)?.modality).toBe('kettlebell');
@@ -112,8 +113,8 @@ describe('search', () => {
     const kb = await search({ modality: 'kettlebell' });
     // 75 kettlebell entries (see chunk count above)
     expect(kb).toHaveLength(75);
-    // 1566 = all chunks
-    expect(await search({ modality: 'all' })).toHaveLength(1566);
+    // 1569 = all chunks
+    expect(await search({ modality: 'all' })).toHaveLength(1569);
     expect(await search({ modality: 'custom' })).toHaveLength(0);
   });
 

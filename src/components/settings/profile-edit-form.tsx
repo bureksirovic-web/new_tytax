@@ -2,12 +2,16 @@
 import { useState } from 'react';
 import type { Profile } from '@/contracts/domain';
 import { useRepo, useRepoQuery } from '@/hooks/use-repo';
-import { Button, Input } from '@/components/ui';
+import { Badge, Button, Input } from '@/components/ui';
 import { fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
+import { isYouth } from '@/lib/training/youth';
 import { SettingsCard } from './settings-section';
 import { localDay, notify, parseDecimal, PROFILE_NAME_MAX, validateProfileName, type NameProblem } from './settings-utils';
 import '@/lib/i18n/packs/settings';
+import '@/lib/i18n/packs/youth';
+
+const MIN_BIRTH_YEAR = 1920;
 
 const NAME_PROBLEM_KEY = {
   required: 'set_profile_name_required',
@@ -20,6 +24,15 @@ const NAME_PROBLEM_KEY = {
  * display unit, stored in kg, and upserted as today's bodyweight entry (the
  * same log Analytics reads). Remount with `key` on profile or unit change.
  */
+/** '' (empty), an in-range integer year, or `undefined` (unparsable/out of range). */
+function parseBirthYear(text: string, maxYear: number): number | null | undefined {
+  const s = text.trim();
+  if (s === '') return null;
+  if (!/^\d{4}$/.test(s)) return undefined;
+  const n = Number(s);
+  return n >= MIN_BIRTH_YEAR && n <= maxYear ? n : undefined;
+}
+
 export function ProfileEditForm({ profile }: { profile: Profile }) {
   const { t } = useT();
   const repo = useRepo();
@@ -27,12 +40,17 @@ export function ProfileEditForm({ profile }: { profile: Profile }) {
   const { data: others } = useRepoQuery((r) => r.profiles.list(), []);
   const [name, setName] = useState(profile.name);
   const [bw, setBw] = useState(profile.bodyweightKg != null ? String(toDisplayWeight(profile.bodyweightKg, units)) : '');
+  const [birthYearText, setBirthYearText] = useState(profile.birthYear != null ? String(profile.birthYear) : '');
   const [saving, setSaving] = useState(false);
+  const maxYear = new Date().getFullYear();
 
   const nameProblem = validateProfileName(name, others ?? [], profile.id);
   const parsedBw = parseDecimal(bw);
   const bwValid = parsedBw === null || (parsedBw !== undefined && parsedBw > 0 && parsedBw < 1000);
-  const valid = nameProblem === null && bwValid;
+  const parsedBirthYear = parseBirthYear(birthYearText, maxYear);
+  const birthYearValid = parsedBirthYear !== undefined;
+  const previewYouth = typeof parsedBirthYear === 'number' && isYouth({ birthYear: parsedBirthYear });
+  const valid = nameProblem === null && bwValid && birthYearValid;
 
   async function save() {
     if (!valid || saving) return;
@@ -50,7 +68,8 @@ export function ProfileEditForm({ profile }: { profile: Profile }) {
       }
       // An emptied field clears the profile's bodyweight; past bodyweight entries stay in the log.
       const bodyweightKg = parsedBw === null ? undefined : (kg ?? profile.bodyweightKg);
-      await repo.profiles.update(profile.id, { name: name.trim(), bodyweightKg });
+      const birthYear = parsedBirthYear === null ? undefined : parsedBirthYear;
+      await repo.profiles.update(profile.id, { name: name.trim(), bodyweightKg, birthYear });
       notify(t('set_profile_saved'));
     } catch (error: unknown) {
       console.error('[settings] save profile failed', error);
@@ -85,6 +104,24 @@ export function ProfileEditForm({ profile }: { profile: Profile }) {
           error={bwValid ? undefined : t('set_invalid_number')}
           onChange={(e) => setBw(e.target.value)}
         />
+        <div>
+          <Input
+            label={t('youth_birth_year_label')}
+            inputMode="numeric"
+            value={birthYearText}
+            maxLength={4}
+            data-testid="settings-profile-edit-birth-year"
+            error={birthYearValid ? undefined : t('youth_birth_year_error', { min: MIN_BIRTH_YEAR, max: maxYear })}
+            onChange={(e) => setBirthYearText(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-fg-muted">{t('youth_birth_year_hint')}</p>
+          {previewYouth && (
+            <div className="mt-2 flex items-center gap-2" data-testid="settings-profile-youth-badge">
+              <Badge variant="warning">{t('youth_mode_badge')}</Badge>
+              <span className="text-xs text-fg-muted">{t('youth_mode_hint')}</span>
+            </div>
+          )}
+        </div>
         <Button type="submit" size="sm" loading={saving} disabled={!valid}>
           {t('save')}
         </Button>

@@ -18,9 +18,11 @@ import '@/lib/i18n/packs/history';
 interface Props {
   log: WorkoutLog;
   units: Units;
+  /** Youth mode (profile under 16): drop and failure are not offered in the set-type picker. */
+  hideDropFailure?: boolean;
 }
 
-export function HistoryEditor({ log, units }: Props) {
+export function HistoryEditor({ log, units, hideDropFailure }: Props) {
   const { t } = useT();
   const repo = useRepo();
   const router = useRouter();
@@ -99,6 +101,7 @@ export function HistoryEditor({ log, units }: Props) {
             onRemoveSet={(setId) => mapExercise(ex.source.uid, (sets) => sets.filter((s) => s.id !== setId))}
             onAddSet={() => mapExercise(ex.source.uid, (sets) => [...sets, newSet({ ...ex, sets }, newUuid())])}
             onRemoveExercise={() => setRemoveUid(ex.source.uid)}
+            hideDropFailure={hideDropFailure}
           />
         ))}
 

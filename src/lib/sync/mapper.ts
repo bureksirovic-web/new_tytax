@@ -44,6 +44,13 @@ function requireUuid(v: unknown, field: string): string {
 
 const LOCAL_ONLY = new Set(['syncedAt']);
 
+/**
+ * Fields that must never reach the wire, not even through `extra`'s jsonb
+ * fallback (family-profiles plan: a child's birth year is local-only data).
+ * Checked on both directions, so a legacy remote row cannot reintroduce one.
+ */
+const NEVER_SYNC = new Set(['birthYear']);
+
 const knownCache = new Map<SyncTable, ReadonlySet<string>>();
 
 /** Every camelCase key the table map owns (never copied into or out of `extra`). */
@@ -86,7 +93,7 @@ export function toRemote(table: SyncTable, record: LocalRecord, accountId: strin
   const known = knownKeys(table, spec);
   const extra: Record<string, unknown> = {};
   for (const [key, v] of Object.entries(record)) {
-    if (!known.has(key) && v !== undefined) extra[key] = v;
+    if (!known.has(key) && v !== undefined && !NEVER_SYNC.has(key)) extra[key] = v;
   }
   row.extra = extra;
   return row;
@@ -116,7 +123,7 @@ export function fromRemote(table: SyncTable, row: RemoteRow): LocalRecord {
   if (isPlainObject(row.extra)) {
     const known = knownKeys(table, spec);
     for (const [key, v] of Object.entries(row.extra)) {
-      if (!known.has(key) && !(key in out)) out[key] = v;
+      if (!known.has(key) && !(key in out) && !NEVER_SYNC.has(key)) out[key] = v;
     }
   }
   if (table === 'profiles') {

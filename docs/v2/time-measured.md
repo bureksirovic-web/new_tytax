@@ -10,9 +10,9 @@ in `src/data/{bodyweight,kettlebell}/exercises.ts`, and the data-integrity test 
 | Chunk | Time-measured | Of |
 |---|---|---|
 | TYTAX | 74 | 1409 |
-| Bodyweight | 12 | 82 |
+| Bodyweight | 13 | 85 |
 | Kettlebell | 6 | 75 |
-| **Total** | **92** | **1566** |
+| **Total** | **93** | **1569** |
 
 ## TYTAX (74)
 
@@ -93,22 +93,23 @@ in `src/data/{bodyweight,kettlebell}/exercises.ts`, and the data-integrity test 
 | 73 | `tytax_tytax_ergo-ski-machine-workout` | Ergo Ski Machine Workout | 2-5 min |
 | 74 | `tytax_tytax_chest-stretch` | Chest Stretch | 30-60s |
 
-## Bodyweight (12)
+## Bodyweight (13)
 
 | # | Id | Exercise | defaultReps |
 |---|---|---|---|
 | 1 | `bw_pull_dead-hang` | Dead Hang | 20-60s |
 | 2 | `bw_pull_active-hang` | Active Hang | 10-30s |
 | 3 | `bw_upper_dip-support-hold` | Dip Support Hold | 10-30s |
-| 4 | `bw_core_hollow-body` | Hollow Body Hold | 20-45s |
-| 5 | `bw_core_l-sit` | L-Sit | 5-20s |
-| 6 | `bw_plank_forearm-plank` | Forearm Plank | 30-60s |
-| 7 | `bw_plank_long-lever-plank` | Long-Lever Plank | 20-45s |
-| 8 | `bw_side_side-plank` | Side Plank | 20-45s/side |
-| 9 | `bw_side_copenhagen-plank` | Copenhagen Plank | 15-30s/side |
-| 10 | `bw_grip_dead-hang-one-arm` | One-Arm Dead Hang | 5-15s/side |
-| 11 | `bw_lower_hip-90-90` | Hip 90/90 Stretch | 30-60s/side |
-| 12 | `bw_core_pallof-press-iso` | Bodyweight Anti-Rotation Hold | 20-30s/side |
+| 4 | `bw_core_tuck-l-sit` | Tuck L-Sit | 10-30s |
+| 5 | `bw_core_hollow-body` | Hollow Body Hold | 20-45s |
+| 6 | `bw_core_l-sit` | L-Sit | 5-20s |
+| 7 | `bw_plank_forearm-plank` | Forearm Plank | 30-60s |
+| 8 | `bw_plank_long-lever-plank` | Long-Lever Plank | 20-45s |
+| 9 | `bw_side_side-plank` | Side Plank | 20-45s/side |
+| 10 | `bw_side_copenhagen-plank` | Copenhagen Plank | 15-30s/side |
+| 11 | `bw_grip_dead-hang-one-arm` | One-Arm Dead Hang | 5-15s/side |
+| 12 | `bw_lower_hip-90-90` | Hip 90/90 Stretch | 30-60s/side |
+| 13 | `bw_core_pallof-press-iso` | Bodyweight Anti-Rotation Hold | 20-30s/side |
 
 ## Kettlebell (6)
 

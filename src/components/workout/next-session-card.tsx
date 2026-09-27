@@ -13,6 +13,8 @@ export interface NextSessionCardProps {
   onStart: () => void;
   /** Advances the rotation past a rest session (legacy bug 14: a rest day is not startable). */
   onSkipRest: () => void;
+  /** Youth mode (profile under 16): no "skip rest" action on a rest day. */
+  hideSkipRest?: boolean;
 }
 
 /** The session the rotation pointer names, wrapped into range. */
@@ -20,7 +22,7 @@ export function nextSession(program: Program) {
   return nextSessionOf(program)?.session;
 }
 
-export function NextSessionCard({ program, starting, disabled, onStart, onSkipRest }: NextSessionCardProps) {
+export function NextSessionCard({ program, starting, disabled, onStart, onSkipRest, hideSkipRest }: NextSessionCardProps) {
   const locale = useLocale();
   const t = useStartStrings();
   const next = nextSessionOf(program);
@@ -65,7 +67,7 @@ export function NextSessionCard({ program, starting, disabled, onStart, onSkipRe
         </div>
       )}
 
-      {next && next.isRest && (
+      {next && next.isRest && !hideSkipRest && (
         <Button
           data-testid="complete-rest-day"
           fullWidth

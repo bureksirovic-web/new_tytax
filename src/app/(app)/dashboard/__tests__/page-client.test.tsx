@@ -108,6 +108,17 @@ describe('Dashboard — active program', () => {
     expect(screen.getByText('1 exercise')).toBeInTheDocument();
     expect(useWorkoutStore.getState().draft).toBeNull();
   });
+
+  it('youth mode (profile under 16): no "skip rest" action on a rest day', async () => {
+    const repo = installRepo(holder);
+    const me = await repo.profiles.ensureActive('Me');
+    await repo.profiles.update(me.id, { birthYear: 2015 }); // 11 in 2026
+    await repo.programs.create(me.id, { ...TEMPLATE, currentSessionIndex: 1 }, { activate: true });
+    render(<DashboardPage />);
+
+    expect(await screen.findByTestId('dash-session-name')).toHaveTextContent('Rest day');
+    expect(screen.queryByTestId('dash-skip-rest')).toBeNull();
+  });
 });
 
 describe('Dashboard — history widgets', () => {

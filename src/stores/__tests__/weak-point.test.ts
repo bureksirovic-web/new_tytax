@@ -55,6 +55,11 @@ describe('weakPoint', () => {
     expect(pick?.sessionExercise.sets.map((s) => s.kg)).toEqual([42.5, 42.5]);
   });
 
+  it('never offered in youth mode, even when the injector setting is on', () => {
+    expect(weakPoint({ ...base, youth: true })).toBeNull();
+    expect(weakPoint({ ...base, youth: false })?.exercise.id).toBe('leg-ext');
+  });
+
   it('null when off, not fresh, nothing trained or no candidate', () => {
     expect(weakPoint({ ...base, settings: settings() })).toBeNull();
     const recent = [log(1, [{ exerciseId: 'bench', sets: [{ kg: 80, reps: 8 }] }])];

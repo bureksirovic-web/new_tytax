@@ -42,6 +42,7 @@ export const PROGRESSION_CHAINS: ProgressionChain[] = [
     exercises: [
       'bw_dip_bench-dip',
       'bw_upper_dip-support-hold',
+      'bw_dip_negative-dip',
       'bw_dip_parallel-bar-dip',
       'bw_dip_ring-dip',
       'bw_dip_korean-dip',

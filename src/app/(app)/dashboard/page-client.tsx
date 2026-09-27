@@ -11,6 +11,7 @@ import { useDashboardData, useNow } from './_components/use-dashboard-data';
 import { useForeignDraft } from './_components/use-foreign-draft';
 import { useStartWorkout } from './_components/use-start-workout';
 import { WeeklyVolumeCard } from './_components/weekly-volume-card';
+import { isYouth } from '@/lib/training/youth';
 import '@/lib/i18n/packs/dashboard';
 
 export default function DashboardPage() {
@@ -41,7 +42,7 @@ export default function DashboardPage() {
         </p>
       ) : (
         <>
-          <TodayCard program={data.program} start={start} foreign={foreign} />
+          <TodayCard program={data.program} start={start} foreign={foreign} hideSkipRest={isYouth(data.profile, now)} />
           <PinnedCard units={units} />
           {data.lastLog ? (
             <div className="grid gap-4 md:grid-cols-2">

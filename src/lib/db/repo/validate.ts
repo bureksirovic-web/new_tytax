@@ -49,6 +49,17 @@ export function assertPositive(v: unknown, field: string): asserts v is number {
   }
 }
 
+/** Earliest accepted `Profile.birthYear` (family-profiles plan, setup-link payload cap). */
+export const MIN_BIRTH_YEAR = 1920;
+
+/** An integer year, `MIN_BIRTH_YEAR`..the current calendar year (`now`). */
+export function assertBirthYear(v: unknown, field: string, now: Date = new Date()): asserts v is number {
+  const max = now.getFullYear();
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < MIN_BIRTH_YEAR || v > max) {
+    throw new RepoError('VALIDATION', `${field} must be an integer year ${MIN_BIRTH_YEAR}-${max}`);
+  }
+}
+
 export function assertNonEmpty(v: unknown, field: string): asserts v is string {
   if (typeof v !== 'string' || v.trim() === '') throw new RepoError('VALIDATION', `${field} must not be empty`);
 }

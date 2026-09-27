@@ -5,9 +5,11 @@ import { loadCatalog } from '@/lib/catalog';
 describe('built-in presets', () => {
   it('every preset has a unique stable presetId and no install-time fields', () => {
     const ids = ALL_PRESETS.map((p) => p.presetId);
-    expect(ids).toEqual(['tytax-balanced-6day', 'tytax-original-6day', 'tytax-elite-v3', 'bw-fundamentals', 'kb-simple-sinister', 'kb-hypertrophy', 'kb-conditioning']);
-    // 7 presets, 7 distinct ids
-    expect(new Set(ids).size).toBe(7);
+    expect(ids).toEqual([
+      'tytax-balanced-6day', 'tytax-original-6day', 'tytax-elite-v3', 'bw-fundamentals', 'bw-youth-dipbar-start', 'kb-simple-sinister', 'kb-hypertrophy', 'kb-conditioning',
+    ]);
+    // 8 presets, 8 distinct ids
+    expect(new Set(ids).size).toBe(8);
     for (const p of ALL_PRESETS) {
       expect(Object.keys(p)).not.toContain('isActive');
       expect(Object.keys(p)).not.toContain('id');

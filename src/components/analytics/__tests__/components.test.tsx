@@ -79,6 +79,15 @@ describe('AcwrCard', () => {
     renderEn(<AcwrCard logs={logsAt(NOW, [{ daysAgo: 60, exercises: [bench] }])} lookup={lookup} now={NOW} />);
     expect(screen.getByText('No training in the last 28 days.')).toBeInTheDocument();
   });
+
+  it('youth mode: no danger/caution zone badge (hideSpikeWarnings)', () => {
+    const logs = logsAt(NOW, [{ daysAgo: 2, exercises: [bench] }, { daysAgo: 10, exercises: [bench] }, { daysAgo: 40, exercises: [bench] }]);
+    renderEn(<AcwrCard logs={logs} lookup={lookup} now={NOW} hideSpikeWarnings />);
+    const row = screen.getByRole('row', { name: /Chest/ });
+    expect(within(row).queryByText('Danger')).toBeNull();
+    // acute/chronic/ratio numbers still shown, only the zone is suppressed
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['2', '1', '2', '—']);
+  });
 });
 
 describe('MuscleDistribution', () => {

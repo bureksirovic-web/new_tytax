@@ -17,10 +17,12 @@ export interface TodayCardProps {
   start: Starter;
   /** The persisted draft when it belongs to another profile (G3-04): replaces "continue". */
   foreign?: ForeignDraft | null;
+  /** Youth mode (profile under 16): no "skip rest" action on a rest day. */
+  hideSkipRest?: boolean;
 }
 
 /** Today's predicted session from the active program (or a rest day), with the start actions. */
-export function TodayCard({ program, start, foreign }: TodayCardProps) {
+export function TodayCard({ program, start, foreign, hideSkipRest }: TodayCardProps) {
   const { t } = useT();
 
   return (
@@ -33,7 +35,7 @@ export function TodayCard({ program, start, foreign }: TodayCardProps) {
       ) : start.draft ? (
         <InProgress name={start.draft.sessionName} />
       ) : program ? (
-        <ProgramToday program={program} start={start} />
+        <ProgramToday program={program} start={start} hideSkipRest={hideSkipRest} />
       ) : (
         <NoProgram start={start} />
       )}
@@ -64,7 +66,7 @@ function QuickButton({ start }: { start: Starter }) {
   );
 }
 
-function ProgramToday({ program, start }: { program: Program; start: Starter }) {
+function ProgramToday({ program, start, hideSkipRest }: { program: Program; start: Starter; hideSkipRest?: boolean }) {
   const { t, locale } = useT();
   const predicted = predictSession(program);
   const session = predicted?.session;
@@ -94,9 +96,11 @@ function ProgramToday({ program, start }: { program: Program; start: Starter }) 
             </p>
             <p className="text-sm text-fg-2">{t('dash_rest_day_hint')}</p>
           </div>
-          <Button variant="secondary" fullWidth data-testid="dash-skip-rest" disabled={start.busy} onClick={() => void start.skipRest(program)}>
-            {t('dash_skip_rest')}
-          </Button>
+          {!hideSkipRest && (
+            <Button variant="secondary" fullWidth data-testid="dash-skip-rest" disabled={start.busy} onClick={() => void start.skipRest(program)}>
+              {t('dash_skip_rest')}
+            </Button>
+          )}
           <QuickButton start={start} />
         </>
       ) : (

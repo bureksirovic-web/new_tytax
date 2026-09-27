@@ -5,7 +5,7 @@ import { removeProfile } from './profile-remove';
 import { firstLiveProfile, getLiveProfile, putProfile, readActiveId, writeActiveId } from './profile-store';
 import { asc, compact, paginate, stripKeys, visible } from './rows';
 import { defaultSettings, mergeSettings } from './settings';
-import { assertNonEmpty, assertPositive, notFound } from './validate';
+import { assertBirthYear, assertNonEmpty, assertPositive, notFound } from './validate';
 
 export { ACTIVE_PROFILE_KEY, getLiveProfile, putProfile } from './profile-store';
 export { mergeSettings } from './settings';
@@ -33,6 +33,7 @@ async function cleanPatch(ctx: RepoContext, id: string, patch: ProfilePatch): Pr
     clean.name = clean.name.trim();
   }
   if (clean.bodyweightKg !== undefined) assertPositive(clean.bodyweightKg, 'bodyweightKg');
+  if (clean.birthYear !== undefined) assertBirthYear(clean.birthYear, 'birthYear', ctx.now());
   assertOneOf(clean.gender, GENDERS, 'gender');
   assertOneOf(clean.experienceLevel, LEVELS, 'experienceLevel');
   assertOptionalString(clean.avatarColor, 'avatarColor');
@@ -50,6 +51,8 @@ export function createProfilesRepo(ctx: RepoContext): ProfilesRepo {
     assertNonEmpty(input?.name, 'name');
     assertOptionalString(input.avatarColor, 'avatarColor');
     assertOptionalString(input.accountId, 'accountId');
+    if (input.birthYear !== undefined) assertBirthYear(input.birthYear, 'birthYear', ctx.now());
+    assertOneOf(input.experienceLevel, LEVELS, 'experienceLevel');
     const stamp = ctx.stamp();
     const profile: Profile = compact({
       id: ctx.newId(),
@@ -58,6 +61,8 @@ export function createProfilesRepo(ctx: RepoContext): ProfilesRepo {
       avatarColor: input.avatarColor,
       activeProgramId: null,
       settings: mergeSettings(defaultSettings(), input.settings),
+      birthYear: input.birthYear,
+      experienceLevel: input.experienceLevel,
       createdAt: stamp,
       updatedAt: stamp,
     });

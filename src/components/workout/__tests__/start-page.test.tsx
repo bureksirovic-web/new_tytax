@@ -107,6 +107,14 @@ describe('workout start page', () => {
     expect(h.prepareProgramStart).not.toHaveBeenCalled();
   });
 
+  it('youth mode (profile under 16): no "skip rest" action on a rest day', async () => {
+    const h = makeHook({ activeProgram: program(1), profile: { birthYear: 2015 } as UseWorkoutResult['profile'] });
+    hook.current = h;
+    render(<WorkoutPage />);
+    expect(screen.getByTestId('next-session-rest')).toHaveTextContent('Rest day');
+    expect(screen.queryByTestId('complete-rest-day')).toBeNull();
+  });
+
   it('starts a program session without offers straight away', async () => {
     const h = makeHook({ activeProgram: program(0) });
     hook.current = h;

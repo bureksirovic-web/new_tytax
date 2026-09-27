@@ -71,6 +71,26 @@ describe('workout orchestrator', () => {
     expect(await o.swapExercise(profileId, 'missing', row)).toBeNull();
   });
 
+  it('youth profile (birthYear set): addExercise caps the automatic increase to +1.25 kg', async () => {
+    await repo.profiles.update(profileId, { birthYear: NOW.getUTCFullYear() - 11 });
+    await seedBench(72, working(100, 3, 3));
+    const o = orch();
+    o.startQuick(profileId, 'Quick');
+    await o.addExercise(profileId, bench);
+    // 100 RIR 3: adult would be 102.5 (+2.5); youth caps the increase to +1.25 -> 101.25.
+    expect(draft().exercises[0].sets.filter((s) => s.type === 'working').map((s) => s.kg)).toEqual([101.25, 101.25, 101.25]);
+  });
+
+  it('youth profile: starting a program session also caps the increase (full path: profile -> draft prefill)', async () => {
+    await repo.profiles.update(profileId, { birthYear: NOW.getUTCFullYear() - 11 });
+    await seedBench(72, working(100, 3, 3));
+    await repo.programs.create(profileId, template, { activate: true });
+    const o = orch();
+    const prepared = await o.prepareProgramStart(profileId);
+    o.startProgram(prepared!, { deload: false, weakPoint: false });
+    expect(draft().exercises[0].sets.filter((s) => s.type === 'working').map((s) => s.kg)).toEqual([101.25, 101.25, 101.25]);
+  });
+
   it('add and swap in a deload draft are deloaded; a swap after done sets takes only the sets still to do', async () => {
     await seedBench(72, working(100, 3, 3));
     const o = orch();

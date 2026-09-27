@@ -37,14 +37,28 @@ function doneSetsFor(log: WorkoutLog, exerciseId: string): { sets: SetEntry[]; m
  * - bodyweight sets (base 0 kg) progress on ghost reps only (+0 kg);
  * - kettlebells jump between real bells: with `availableKg` the result snaps
  *   up to the lightest bell ≥ base + inc (or stays at base when none is);
- *   without it the weight holds.
+ *   without it the weight holds;
+ * - `maxIncrementKg` (youth mode, e.g. 1.25): the increase before any
+ *   `availableKg` snap never exceeds it, and if snapping up to the nearest
+ *   available weight would still land more than `maxIncrementKg` above
+ *   `base`, the weight holds instead (no jump straight to the next kettlebell
+ *   or plate combination).
  */
-export function nextKg(base: number, inc: number, modality: Modality | undefined, availableKg?: readonly number[]): number {
+export function nextKg(
+  base: number,
+  inc: number,
+  modality: Modality | undefined,
+  availableKg?: readonly number[],
+  maxIncrementKg?: number,
+): number {
   if (!(inc > 0) || !(base > 0)) return clean(base);
-  const target = clean(base + inc);
+  const cappedInc = maxIncrementKg !== undefined ? Math.min(inc, maxIncrementKg) : inc;
+  const target = clean(base + cappedInc);
   if (availableKg && availableKg.length) {
     const up = [...availableKg].filter((k) => k >= target).sort((a, b) => a - b)[0];
-    return up ?? clean(base);
+    if (up === undefined) return clean(base);
+    if (maxIncrementKg !== undefined && up - base > maxIncrementKg) return clean(base);
+    return up;
   }
   if (modality === 'kettlebell') return clean(base);
   return target;
@@ -86,6 +100,12 @@ function blankSet(kg: number): SetEntry {
  * `ghostDurationSeconds` = that set's seconds ("beat it" for holds, also for
  * 0 kg bodyweight holds); prefilled sets carry no `durationSeconds` (the user
  * records the new hold). Extra sets beyond last time's count get no ghost.
+ *
+ * Youth mode (`opts.maxIncrementKg` set, e.g. 1.25 kg): a RIR-3+ increase is
+ * capped at `maxIncrementKg` (see `nextKg`), and a RIR-2 basis never
+ * increases at all — only RIR >=3 progresses the load. Hand-derived: last
+ * 20 kg at RIR 3 → adult 22.5 kg, youth 21.25 kg (2.5 capped to 1.25); at
+ * RIR 2 → adult 21.25 kg, youth holds at 20 kg.
  */
 export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, opts) => {
   // A non-finite targetSets (NaN, Infinity) is treated as not given.
@@ -101,12 +121,13 @@ export const prefillFromHistory: PrefillFromHistoryFn = (exerciseId, history, op
   }
   const last = source.sets;
   const basis = basisFor(last);
-  const inc = PREFILL_INCREMENT_KG[basis];
+  // Youth mode (`maxIncrementKg` set): never increase on a RIR-2 basis, only RIR >=3.
+  const inc = opts?.maxIncrementKg !== undefined && basis === 'rir2' ? 0 : PREFILL_INCREMENT_KG[basis];
   const n = requested ?? last.length;
   const tail = last[last.length - 1];
   const sets: SetEntry[] = Array.from({ length: n }, (_, i) => {
     const prev: SetEntry | undefined = last[i];
-    const set = blankSet(nextKg((prev ?? tail).kg, inc, source.modality, opts?.availableKg));
+    const set = blankSet(nextKg((prev ?? tail).kg, inc, source.modality, opts?.availableKg, opts?.maxIncrementKg));
     if (prev) {
       set.ghostKg = prev.kg;
       if (isTimeSet(prev)) set.ghostDurationSeconds = prev.durationSeconds;
