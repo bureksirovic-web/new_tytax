@@ -1,7 +1,9 @@
 /**
  * Pull: per table in push order, page from the cursor (5 s overlap on the
  * first page, keyset after that), map, apply, and only then advance the
- * cursor.
+ * cursor. A row that does not map is skipped (logged as `invalid_row`) and
+ * holds the persisted cursor before it for the rest of the run, so it is
+ * re-read on every run rather than lost.
  *
  * Applying a page (docs/v2/sync-schema.md "Pull"): the server row wins for
  * every record without a queued local op. Device clocks never decide:
@@ -134,21 +136,32 @@ async function pullTable(deps: PullDeps, accountId: string, table: SyncTable, lo
   let since = opts.full ? null : pullSince(cursors.get(accountId, table));
   let afterId: string | null = null;
   let pulled = 0;
+  // Set by the first row this client cannot map: from there on the run keeps
+  // paging and applying, but the persisted cursor stays before that row, so
+  // every later run re-reads it (it lands once it maps) instead of losing it.
+  let held = false;
   for (let page = 0; page < MAX_PAGES; page++) {
     const res = await remote.pull(remoteTable, since, afterId, limit);
     if (!res.ok) return { pulled, abort: res.error };
     const rows = res.rows;
     const records: LocalRecord[] = [];
     let invalid = 0;
+    /** Last row of this page the persisted cursor may move to. */
+    let lastSafe: (typeof rows)[number] | undefined;
     for (const row of rows) {
       const id = String(row.id);
       opts.seen?.add(keyOf(table, id));
-      if (seen.has(id)) continue;
+      if (seen.has(id)) {
+        if (!held) lastSafe = row;
+        continue;
+      }
       seen.add(id);
       try {
         records.push(fromRemote(table, row));
+        if (!held) lastSafe = row;
       } catch {
         invalid += 1;
+        held = true;
       }
     }
     if (invalid > 0) log({ event: 'skip', table, code: 'invalid_row', count: invalid });
@@ -159,10 +172,12 @@ async function pullTable(deps: PullDeps, accountId: string, table: SyncTable, lo
         return { pulled, abort: APPLY_FAILED };
       }
     }
+    if (lastSafe && typeof lastSafe.updated_at === 'string') {
+      const current = cursors.get(accountId, table).lastPulledAt;
+      if (later(current, lastSafe.updated_at)) cursors.set(accountId, table, { lastPulledAt: lastSafe.updated_at, lastPulledId: String(lastSafe.id) });
+    }
     const last = rows[rows.length - 1];
     if (last && typeof last.updated_at === 'string') {
-      const current = cursors.get(accountId, table).lastPulledAt;
-      if (later(current, last.updated_at)) cursors.set(accountId, table, { lastPulledAt: last.updated_at, lastPulledId: String(last.id) });
       since = last.updated_at;
       afterId = String(last.id);
     }
