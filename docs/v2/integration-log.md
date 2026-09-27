@@ -476,3 +476,74 @@ Base 2f9a72c. No code changed in this step (only this log). Port: 3100 is still 
 
 ### Unfixed (step 4)
 - check-bundle `/dashboard` 262.2 kB > 250 kB (PLAN §10.2 AC8; a CI step, so CI `quality` fails). What: same as steps 6/7/8. Evidence: 217.0 kB at 04e4ce5, 259.2 kB after the G4 merge; source-map attribution puts most of it in the i18n dictionary chunk (en + hr and all `modules/*`, ~37.7 kB gzip) that every route loads through `LocaleProvider`/`useT`. Tried: nothing new in this step (the step brief allows code changes only for a real failure; this one is known, and the fix changes locale loading). Proposed fix: load only the active locale up front and import the other one lazily in `LocaleProvider` (the sync `t(key, locale)` in `src/lib/i18n/index.ts` and its English fallback have to become async or be preloaded; roughly 18 kB saved). File as debt S3.
+
+## 11. INTEGRATION step 5: first-load JS budget on every route (2026-09-27)
+Base 28f88cb. Commits: `4178790` perf(i18n), `14c7fe8` test(e2e). Port 3110 (3100 is still paperclip, pid 2326947, not touched). Sync env from `npx -y supabase@2.118.0 status -o env` (API_URL, ANON_KEY, SERVICE_ROLE_KEY, MAILPIT_URL, `NEXT_PUBLIC_SYNC_ENABLED=true`, `NEXT_PUBLIC_APP_URL=http://localhost:3110`).
+
+### Measured first (before any change)
+- `npm run build && node scripts/check-bundle.mjs` on 28f88cb: exit 1, `/dashboard 262.2 kB`, 12 routes over 250, max `/workout/active 275.1 kB`.
+- Per-chunk: one 37.0 kB gzip chunk (`0j2ogcwit9l8u.js`, contains both "Započni trening" and "Start Workout") was in the first load of **all 24 routes**, `/_global-error` included.
+- Source-map attribution (scratch build with `productionBrowserSourceMaps`, not committed; each chunk's gzip split over its source files by the mapped bytes) for `/workout/active` (275.6 kB in that build): next + react-dom 136.3, dexie 30.8, `src/lib/i18n/modules/*` 30.8, `src/lib/i18n/*` 6.3 (en.ts/hr.ts core), db/repo 12.4, components/workout 12.2, stores 8.0, rest < 4 each. Dictionary size check (JSON of the objects, gzip): hr 19.7 kB, en 17.8 kB, both 37.0 kB (1478 keys, keys ~8 kB per locale, no cross-locale dedup). So the active-locale-only fix alone (~ -17 kB) would leave `/workout/active` at ~258 kB: not enough.
+- Intermediate builds: lazy `en.ts` only, modules still holding both locales → `/workout/active` 273.1 (turbopack kept the en exports of the shared module files); modules split per locale → 259.0 (/dashboard 246.0, still over: `/workout/active`, `/exercises/[id]` 252.8); plus hr packs per screen → 246.1.
+
+### What changed (4178790)
+- `src/lib/i18n/index.ts`: first load has only `modules/core.hr.ts` (nav, workout basics, common, errors). English is one lazy chunk (`loadLocale('en')` → `import('./en')`, 17.9 kB gzip). `t()` stays synchronous; for a locale not loaded yet it falls back to hr, then the key (never blank). `registerLocale`, `isLocaleLoaded`, `subscribeLocales` for the provider.
+- Every module split into `<m>.en.ts` / `<m>.hr.ts` (hr has a type-only import of en: tsc parity per module); `<m>.ts` re-exports both for tests/tooling. The `core` objects of `en.ts`/`hr.ts` moved to `modules/core.{en,hr}.ts`; `en.ts`/`hr.ts` still export the full dictionaries (server, tests).
+- hr packs: `src/lib/i18n/packs/<m>.ts` registers `<m>Hr`; every file that uses a key of that module imports the pack (157 files, added by `npx tsx scripts/i18n-packs.ts --fix`). `scripts/i18n-packs.ts` finds usage with the TypeScript AST: exact literals, plural bases (`L` with `L_other`), prefix literals (`'muscle_'`), template literals (`` `dash_sets_${cat}` ``), ignoring type positions and import specifiers. `src/lib/i18n/__tests__/packs.test.ts` runs it in `npm test` (missing or unneeded pack import = fail), checks that core + packs own every hr key once, and that each pack registers its strings. Red check: deleting the g3Workout pack import from `set-row.tsx` fails the test with `components/workout/set-row.tsx: missing [g3Workout]`.
+- `LocaleProvider`: `locale` = stored/chosen locale only once its dictionary is loaded (`useSyncExternalStore(subscribeLocales, …)`, server snapshot true), otherwise hr; an effect loads it; a failed load keeps hr and logs `locale load failed`. SSR and the hydration pass render hr (DEFAULT_LOCALE) as before, so no English flash and no hydration mismatch. `global-error.tsx` does the same. Server metadata (`page.tsx` files) uses `src/lib/i18n/dictionaries.ts` (both locales, server/tests only).
+- `src/test-setup.ts` registers the full hr and en dictionaries (unit tests render single components in either language synchronously, as before). New tests with a fresh module registry: `src/lib/i18n/__tests__/lazy-locale.test.ts` (only hr at start, fallback, one shared request, subscribers notified, failure rejects and retry works, index.ts imports no full dictionary), `src/components/providers/__tests__/locale-provider-lazy.test.tsx` (stored en: SSR + hydrate with 0 recoverable errors, then en; switch persists at once and stays hr until the held-back chunk arrives; failing chunk keeps hr and logs). Red check: `const locale = wanted;` in the provider fails all 3 lazy provider tests. The hr/en key-parity tests are unchanged (they import `translations` from `dictionaries.ts` now).
+- `scripts/check-bundle.mjs --budget-all-routes`: every scanned route is held to the budget (new test in `scripts/__tests__/check-bundle.test.ts`); `npm run check-bundle`, `.github/workflows/ci.yml` and `scripts/ci-local.sh` use it. Default CLI behaviour (budget route only) is unchanged.
+- `e2e/offline.spec.ts` (14c7fe8): "switching to English works offline although English was never used online": prime online in hr, go offline, switch language in Settings, heading "Settings" + `lang=en`, offline reload keeps English. The first version set `localStorage.locale='en'` and reloaded; it failed on the prod build because `ProfilePrefsSync` re-applies the active profile's language (hr) at boot (instrumented build: `setLocale('hr')` ~20 ms after en rendered). Red check (scratch spec, not committed): with the en chunk deleted from the worker cache the heading stays "Postavke". `public/sw.js` needed no change: the en chunk is named in the loader code of a first-load chunk (`"static/chunks/<en>.js"`), which `cacheChunksDeep` follows.
+- CHANGELOG (Unreleased, Changed) and `src/lib/i18n/modules/README.md` updated.
+
+### Gate on 14c7fe8
+`npm run lint && npx tsc --noEmit && npm test && npm run build`: lint=0 tsc=0 test=0 build=0.
+```
+ Test Files  318 passed (318)
+      Tests  2451 passed (2451)
+✓ Compiled successfully in 589ms
+```
+`npm run test:coverage`: exit 0, `All files 97.34 / 93.05 / 97.12 / 98.42`; `src/lib/i18n` 97.43 / 91.89 / 96.29 / 98.57.
+
+### `npm run check-bundle` on 14c7fe8: exit 0 (`--budget-all-routes`)
+| route | before 28f88cb (kB gz) | after 14c7fe8 (kB gz) | Δ |
+|---|---|---|---|
+| `/` | 233.9 | 200.9 | -33.0 |
+| `/_global-error` | 170.9 | 138.1 | -32.8 |
+| `/_not-found` | 233.9 | 200.9 | -33.0 |
+| `/analytics` | 263.0 | 232.3 | -30.7 |
+| `/analytics/[exerciseId]` | 259.6 | 228.9 | -30.7 |
+| `/auth/account` | 245.0 | 212.0 | -33.0 |
+| `/auth/login` | 241.1 | 208.1 | -33.0 |
+| `/dashboard` | 262.2 | 230.8 | -31.4 |
+| `/exercises` | 254.9 | 225.3 | -29.6 |
+| `/exercises/[id]` | 268.9 | 242.0 | -26.9 |
+| `/history` | 250.5 | 219.2 | -31.3 |
+| `/history/[id]` | 262.7 | 233.5 | -29.2 |
+| `/history/[id]/edit` | 252.9 | 221.6 | -31.3 |
+| `/programs` | 253.5 | 224.1 | -29.4 |
+| `/programs/[id]` | 258.0 | 228.4 | -29.6 |
+| `/programs/[id]/session/[sessionId]` | 258.0 | 229.6 | -28.4 |
+| `/programs/new` | 248.0 | 218.3 | -29.7 |
+| `/settings` | 262.5 | 233.9 | -28.6 |
+| `/tools` | 245.4 | 213.1 | -32.3 |
+| `/tools/plate-calculator` | 247.2 | 214.9 | -32.3 |
+| `/tools/rm-calculator` | 247.5 | 215.2 | -32.3 |
+| `/workout` | 264.1 | 233.1 | -31.0 |
+| `/workout/active` | 275.1 | 245.6 | -29.5 |
+| `/workout/debrief` | 264.0 | 232.4 | -31.6 |
+```
+first-load JS for /dashboard: 230.8 kB gzip (budget 250 kB), 16 files
+check-bundle: OK        # every route "budget 250 kB: ok", catalog leak: no on all 24
+```
+Largest route `/workout/active` 245.6 kB (4.4 kB headroom).
+
+### E2E on 14c7fe8 (sync env, `PORT=3110`)
+- `npx playwright test --project=chromium --project=mobile` (dev server): exit 1; 128 passed, 2 failed, 8 did not run. Both failures are `offline.spec.ts:53` "offline.spec needs E2E_SERVER=prod" (by design under `next dev`); did-not-run = its 4 serial siblings per project (one more than step 4: the new English test). All @sync specs pass.
+- `npm run test:e2e:offline` (prod build, E2E hooks): exit 0, chromium 5 passed (new English test included). Extra: `E2E_SERVER=prod npx playwright test e2e/offline.spec.ts --project=mobile` on the same build: exit 0, 5 passed.
+- On 4178790 the same dev run was done twice: first run 127 passed, 3 failed: the 2 by-design offline failures plus `[mobile] profiles.spec.ts:114` "two profiles see only their own history" (`window.__tytaxE2E is missing` in `tytax.snapshot()` right after a bare `page.reload()`). Not reproduced: `profiles.spec.ts --repeat-each=5` both projects 20/20 passed, second full run and the 14c7fe8 run clean. See Unfixed.
+
+### Unfixed (step 5)
+- Flake (S3, test): `profiles.spec.ts:114` calls `tytax.snapshot()` after `page.reload()` without waiting for `__tytaxE2E` (`gotoApp`/`waitReady` do wait); 1 failure in 3 full dev runs, 0 in 20 isolated runs. Proposed fix: `snapshot()` (and the other hook calls) wait for the hooks the way `waitReady` does, or the spec uses `waitReady` after reload. Not changed here: not reproducible on demand and outside this step.
+- Observed once, not reproduced: `legacy-import.integration.test.tsx` and `restore-confirm.test.tsx` timed out (`toBeEnabled`) in a partial `vitest run src/lib/i18n src/components` under load; passed on rerun and in all 4 full `npm test` runs.
+- Headroom is 4.4 kB on `/workout/active`. Next levers if it shrinks: `src/lib/auth/i18n.ts` still ships `AUTH_STRINGS` (en + hr, ~1.2 kB gz on every route) as a fallback although every auth key is in the dictionary; `next/dynamic` for closed workout sheets (picker, swap, setup).
