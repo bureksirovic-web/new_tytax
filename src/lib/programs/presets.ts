@@ -1,13 +1,14 @@
 import type { ProgramTemplate } from '@/contracts/domain';
-import { TYTAX_ELITE_V3, TYTAX_ORIGINAL_6DAY, TYTAX_ORIGINAL_6DAY_PRESET_ID } from '@/data/tytax/presets';
+import { TYTAX_BALANCED_6DAY, TYTAX_BALANCED_6DAY_PRESET_ID, TYTAX_ELITE_V3, TYTAX_ORIGINAL_6DAY } from '@/data/tytax/presets';
 import { BW_FUNDAMENTALS } from '@/data/bodyweight/presets';
 import { KB_SIMPLE_SINISTER, KB_HYPERTROPHY, KB_CONDITIONING } from '@/data/kettlebell/presets';
 
-/** Stable preset id of the default TYTAX program: the original 6-day split + rest day. */
-export const DEFAULT_TYTAX_PRESET_ID = TYTAX_ORIGINAL_6DAY_PRESET_ID;
+/** Stable preset id of the default TYTAX program: the recovery-balanced 6-day split + rest day. */
+export const DEFAULT_TYTAX_PRESET_ID = TYTAX_BALANCED_6DAY_PRESET_ID;
 
 /** Every built-in program template; each has a stable, unique `presetId`. */
 export const ALL_PRESETS: ProgramTemplate[] = [
+  TYTAX_BALANCED_6DAY,
   TYTAX_ORIGINAL_6DAY,
   TYTAX_ELITE_V3,
   BW_FUNDAMENTALS,

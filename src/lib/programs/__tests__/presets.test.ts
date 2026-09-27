@@ -5,9 +5,9 @@ import { loadCatalog } from '@/lib/catalog';
 describe('built-in presets', () => {
   it('every preset has a unique stable presetId and no install-time fields', () => {
     const ids = ALL_PRESETS.map((p) => p.presetId);
-    expect(ids).toEqual(['tytax-original-6day', 'tytax-elite-v3', 'bw-fundamentals', 'kb-simple-sinister', 'kb-hypertrophy', 'kb-conditioning']);
-    // 6 presets, 6 distinct ids
-    expect(new Set(ids).size).toBe(6);
+    expect(ids).toEqual(['tytax-balanced-6day', 'tytax-original-6day', 'tytax-elite-v3', 'bw-fundamentals', 'kb-simple-sinister', 'kb-hypertrophy', 'kb-conditioning']);
+    // 7 presets, 7 distinct ids
+    expect(new Set(ids).size).toBe(7);
     for (const p of ALL_PRESETS) {
       expect(Object.keys(p)).not.toContain('isActive');
       expect(Object.keys(p)).not.toContain('id');
@@ -17,16 +17,25 @@ describe('built-in presets', () => {
   });
 
   it('getPresetById resolves stable ids only', () => {
-    expect(DEFAULT_TYTAX_PRESET_ID).toBe('tytax-original-6day');
-    expect(getPresetById(DEFAULT_TYTAX_PRESET_ID)?.name).toBe('TYTAX 6-Day Split (Original)');
-    expect(getPresetById('tytax-elite-v3')?.name).toBe('Tytax Elite v3.0');
+    expect(DEFAULT_TYTAX_PRESET_ID).toBe('tytax-balanced-6day');
+    expect(getPresetById(DEFAULT_TYTAX_PRESET_ID)?.name).toBe('TYTAX 6-Day Balanced');
+    expect(getPresetById('tytax-original-6day')?.name).toBe('TYTAX 6-Day Split (Original)');
+    expect(getPresetById('tytax-elite-v3')?.name).toBe('Tytax Elite v3.1');
     expect(getPresetById('kb-hypertrophy')?.modalitiesUsed).toEqual(['kettlebell']);
     expect(getPresetById('preset_tytax_elite_v3')).toBeUndefined();
     expect(KB_PRESET_IDS).toEqual(['kb-simple-sinister', 'kb-hypertrophy', 'kb-conditioning']);
   });
 
-  it('the default TYTAX split is the original Upper/Lower A–C plus a flagged rest day', () => {
+  it('the default TYTAX split is the balanced Upper/Lower A–C plus a flagged rest day', () => {
     const tytax = getPresetById(DEFAULT_TYTAX_PRESET_ID);
+    expect(tytax?.sessions.map((s) => s.name)).toEqual(['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Upper C', 'Lower C', 'Rest']);
+    expect(tytax?.sessions.at(-1)?.isRest).toBe(true);
+    expect(tytax?.sessions.filter((s) => s.isRest)).toHaveLength(1);
+    expect(tytax?.sessions[0].exercises[0].exerciseId).toBe('tytax_smith-machine_smith-flat-bench-press');
+  });
+
+  it('the original tytax-autonomous split is kept unchanged', () => {
+    const tytax = getPresetById('tytax-original-6day');
     // INITIAL_ORDER of tytax-autonomous (scripts/data/source/initial-plan.json)
     expect(tytax?.sessions.map((s) => s.name)).toEqual(['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Upper C', 'Lower C', 'Rest Day']);
     const rest = tytax?.sessions.at(-1);
