@@ -1,50 +1,42 @@
 'use client';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
-import type { PRRecord } from '@/types/workout';
+import type { PRRecord, PRType } from '@/contracts/domain';
+import { training } from '@/lib/training';
+import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
 
+export type BestPRs = Partial<Record<PRType, PRRecord>>;
+
+const NO_PRS: BestPRs = {};
+
+/** Best stored PR per type for one exercise of the active profile (live). */
 export function usePR(exerciseId: string) {
-  const prs = useLiveQuery<PRRecord[]>(
-    () => db.prRecords.where('exerciseId').equals(exerciseId).toArray(),
-    [exerciseId]
+  const { profileId } = useActiveProfile();
+  const { data, loading, error } = useRepoQuery(
+    (repo): Promise<BestPRs> =>
+      profileId && exerciseId ? repo.prs.best(profileId, exerciseId) : Promise.resolve(NO_PRS),
+    [profileId, exerciseId],
   );
-
-  const isLoading = prs === undefined;
-  const records = prs ?? [];
-
-  const weightPR = records
-    .filter((p) => p.prType === 'weight')
-    .reduce<number>((best, p) => Math.max(best, p.value), 0);
-
-  const repsPR = records
-    .filter((p) => p.prType === 'reps')
-    .reduce<number>((best, p) => Math.max(best, p.value), 0);
-
-  const volumePR = records
-    .filter((p) => p.prType === 'volume')
-    .reduce<number>((best, p) => Math.max(best, p.value), 0);
-
+  const best = data ?? NO_PRS;
   return {
-    prs: records,
-    bestWeight: weightPR,
-    bestReps: repsPR,
-    bestVolume: volumePR,
-    isLoading,
+    best,
+    bestE1rm: best.e1rm?.value ?? 0,
+    bestWeight: best.weight?.value ?? 0,
+    bestReps: best.reps?.value ?? 0,
+    bestVolume: best.volume?.value ?? 0,
+    isLoading: loading,
+    error,
   };
 }
 
-export function usePRCheck(exerciseId: string, weight: number, reps: number) {
-  const { bestWeight, bestReps, bestVolume, isLoading } = usePR(exerciseId);
-
-  if (isLoading || (weight === 0 && reps === 0)) {
-    return { isPR: false, prType: null as null };
-  }
-
-  const volume = weight * reps;
-
-  if (weight > bestWeight) return { isPR: true, prType: 'weight' as const };
-  if (reps > bestReps) return { isPR: true, prType: 'reps' as const };
-  if (volume > bestVolume) return { isPR: true, prType: 'volume' as const };
-
-  return { isPR: false, prType: null as null };
+/**
+ * Would this set beat a stored PR? Mirrors `training.detectPRs`, which only
+ * produces `e1rm` and `weight` PRs. A first-ever record is a baseline, not a PR.
+ */
+export function usePRCheck(exerciseId: string, kg: number, reps: number) {
+  const { best, isLoading } = usePR(exerciseId);
+  if (isLoading || kg <= 0 || reps <= 0) return { isPR: false, prType: null };
+  const weight = best.weight?.value;
+  const e1rm = best.e1rm?.value;
+  if (weight !== undefined && kg > weight) return { isPR: true, prType: 'weight' as const };
+  if (e1rm !== undefined && training.e1rm(kg, reps) > e1rm) return { isPR: true, prType: 'e1rm' as const };
+  return { isPR: false, prType: null };
 }

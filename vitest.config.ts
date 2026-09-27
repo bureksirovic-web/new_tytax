@@ -6,7 +6,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
-    exclude: ['e2e/**', '**/e2e/**', 'node_modules/**', '.next/**'],
+    // *.sync.test.ts needs a local Supabase; it runs only via `npm run test:sync` (vitest.sync.config.ts).
+    exclude: ['e2e/**', '**/e2e/**', 'node_modules/**', '.next/**', '**/*.sync.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

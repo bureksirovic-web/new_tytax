@@ -7,9 +7,9 @@ const mockSyncQueue = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/db/dexie', () => ({
-  db: {
+  getDb: () => ({
     syncQueue: mockSyncQueue,
-  },
+  }),
 }));
 
 vi.mock('@/lib/utils', () => ({
@@ -29,15 +29,16 @@ describe('enqueue', () => {
       first: vi.fn().mockResolvedValue(undefined),
     });
 
-    const payload = { id: 'rec-1', name: 'Test' };
+    const payload = { id: 'rec-1', profileId: 'profile-1', name: 'Test' };
     await enqueue('workout_logs', 'create', 'rec-1', payload);
 
+    expect(mockSyncQueue.where).toHaveBeenCalledWith({ recordId: 'rec-1', table: 'workout_logs' });
     expect(mockSyncQueue.add).toHaveBeenCalledWith({
       id: 'generated-id-123',
-      tableName: 'workout_logs',
-      operationType: 'create',
+      table: 'workout_logs',
+      op: 'upsert',
       recordId: 'rec-1',
-      payload,
+      profileId: 'profile-1',
       createdAt: expect.any(String),
       retryCount: 0,
     });
@@ -46,10 +47,10 @@ describe('enqueue', () => {
   it('deduplicates by updating an existing entry instead of creating a duplicate', async () => {
     const existingEntry = {
       id: 'existing-id',
-      tableName: 'workout_logs',
-      operationType: 'create',
+      table: 'workout_logs',
+      op: 'upsert',
       recordId: 'rec-1',
-      payload: { id: 'rec-1', name: 'Old' },
+      profileId: 'profile-1',
       createdAt: '2024-01-01T00:00:00.000Z',
       retryCount: 0,
     };
@@ -58,13 +59,12 @@ describe('enqueue', () => {
       first: vi.fn().mockResolvedValue(existingEntry),
     });
 
-    const newPayload = { id: 'rec-1', name: 'Updated' };
-    await enqueue('workout_logs', 'update', 'rec-1', newPayload);
+    await enqueue('workout_logs', 'update', 'rec-1', { id: 'rec-1', name: 'Updated' });
 
     expect(mockSyncQueue.add).not.toHaveBeenCalled();
     expect(mockSyncQueue.update).toHaveBeenCalledWith('existing-id', {
-      operationType: 'update',
-      payload: newPayload,
+      op: 'upsert',
+      profileId: 'profile-1',
       createdAt: expect.any(String),
     });
   });
@@ -72,10 +72,10 @@ describe('enqueue', () => {
   it('delete supersedes create/update', async () => {
     const existingEntry = {
       id: 'existing-id',
-      tableName: 'programs',
-      operationType: 'create',
+      table: 'programs',
+      op: 'upsert',
       recordId: 'prog-1',
-      payload: { id: 'prog-1', name: 'Test Program' },
+      profileId: 'profile-1',
       createdAt: '2024-01-01T00:00:00.000Z',
       retryCount: 0,
     };
@@ -87,19 +87,19 @@ describe('enqueue', () => {
     await enqueue('programs', 'delete', 'prog-1', { id: 'prog-1' });
 
     expect(mockSyncQueue.update).toHaveBeenCalledWith('existing-id', {
-      operationType: 'delete',
-      payload: { id: 'prog-1' },
+      op: 'delete',
+      profileId: 'profile-1',
       createdAt: expect.any(String),
     });
   });
 
-  it('delete supersedes an existing delete entry', async () => {
+  it('an existing delete entry stays a delete', async () => {
     const existingDelete = {
       id: 'del-id',
-      tableName: 'profiles',
-      operationType: 'delete',
+      table: 'profiles',
+      op: 'delete',
       recordId: 'prof-1',
-      payload: { id: 'prof-1' },
+      profileId: 'prof-1',
       createdAt: '2024-01-01T00:00:00.000Z',
       retryCount: 0,
     };
@@ -111,8 +111,8 @@ describe('enqueue', () => {
     await enqueue('profiles', 'update', 'prof-1', { id: 'prof-1', name: 'New' });
 
     expect(mockSyncQueue.update).toHaveBeenCalledWith('del-id', {
-      operationType: 'delete',
-      payload: { id: 'prof-1', name: 'New' },
+      op: 'delete',
+      profileId: 'prof-1',
       createdAt: expect.any(String),
     });
   });
@@ -131,9 +131,9 @@ describe('enqueue', () => {
     ];
 
     for (const table of tables) {
-      await enqueue(table, 'create', 'rec-1', { id: 'rec-1' });
+      await enqueue(table, 'upsert', 'rec-1', { id: 'rec-1' });
       expect(mockSyncQueue.add).toHaveBeenCalledWith(
-        expect.objectContaining({ tableName: table }),
+        expect.objectContaining({ table, op: 'upsert', profileId: '' }),
       );
     }
   });

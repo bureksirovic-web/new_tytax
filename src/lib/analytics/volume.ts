@@ -1,6 +1,7 @@
-import type { WorkoutLog } from '@/types/workout';
-import { getWeekKey } from '@/lib/utils';
-import { MUSCLE_NAME_MAP } from '@/lib/constants';
+import type { WorkoutLog } from '@/contracts/domain';
+import { getWeekKey, parseLocalDay } from '@/lib/utils';
+import { standardizeMuscle } from '@/lib/constants';
+import { countedSets, exerciseVolume, liveLogs, logVolume } from './sets';
 
 export interface VolumeDataPoint {
   weekKey: string;
@@ -10,31 +11,28 @@ export interface VolumeDataPoint {
   sessionCount: number;
 }
 
-export function computeWeeklyVolume(logs: WorkoutLog[]): VolumeDataPoint[] {
+/** Weekly (ISO week of the local `date`) volume over done working sets of live logs. */
+export function computeWeeklyVolume(logs: readonly WorkoutLog[]): VolumeDataPoint[] {
   const map = new Map<string, VolumeDataPoint>();
 
-  for (const log of logs) {
-    const wk = getWeekKey(new Date(log.date));
-    if (!map.has(wk)) {
-      map.set(wk, { weekKey: wk, totalVolume: 0, byModality: {}, byMuscle: {}, sessionCount: 0 });
+  for (const log of liveLogs(logs)) {
+    const wk = getWeekKey(parseLocalDay(log.date));
+    let point = map.get(wk);
+    if (!point) {
+      point = { weekKey: wk, totalVolume: 0, byModality: {}, byMuscle: {}, sessionCount: 0 };
+      map.set(wk, point);
     }
-    const point = map.get(wk)!;
     point.sessionCount += 1;
 
     for (const ex of log.exercises) {
-      for (const set of ex.sets) {
+      for (const set of countedSets(ex)) {
         const vol = set.kg * set.reps;
         point.totalVolume += vol;
-
         const mod = ex.modality ?? 'custom';
         point.byModality[mod] = (point.byModality[mod] ?? 0) + vol;
-
-        if (ex.muscleImpactSnapshot) {
-          for (const impact of ex.muscleImpactSnapshot) {
-            const muscle = MUSCLE_NAME_MAP[impact.muscle] ?? impact.muscle;
-            const share = vol * (impact.score / 100);
-            point.byMuscle[muscle] = (point.byMuscle[muscle] ?? 0) + share;
-          }
+        for (const impact of ex.muscleImpactSnapshot ?? []) {
+          const muscle = standardizeMuscle(impact.muscle);
+          point.byMuscle[muscle] = (point.byMuscle[muscle] ?? 0) + vol * (impact.score / 100);
         }
       }
     }
@@ -45,35 +43,31 @@ export function computeWeeklyVolume(logs: WorkoutLog[]): VolumeDataPoint[] {
     .map(([, v]) => v);
 }
 
-export function volumeByMuscle(logs: WorkoutLog[]): Record<string, number> {
+/** Impact-weighted volume per standardised muscle (from each log's snapshot), largest first. */
+export function volumeByMuscle(logs: readonly WorkoutLog[]): Record<string, number> {
   const totals: Record<string, number> = {};
 
-  for (const log of logs) {
+  for (const log of liveLogs(logs)) {
     for (const ex of log.exercises) {
       if (!ex.muscleImpactSnapshot) continue;
-      const exVol = ex.sets.reduce((s, set) => s + set.kg * set.reps, 0);
+      const exVol = exerciseVolume(ex);
       for (const impact of ex.muscleImpactSnapshot) {
-        const muscle = MUSCLE_NAME_MAP[impact.muscle] ?? impact.muscle;
+        const muscle = standardizeMuscle(impact.muscle);
         totals[muscle] = (totals[muscle] ?? 0) + exVol * (impact.score / 100);
       }
     }
   }
 
-  return Object.fromEntries(
-    Object.entries(totals).sort(([, a], [, b]) => b - a)
-  );
+  return Object.fromEntries(Object.entries(totals).sort(([, a], [, b]) => b - a));
 }
 
-export function computeMonthlyTrend(logs: WorkoutLog[]): { month: string; volume: number }[] {
+/** Volume per calendar month ('YYYY-MM'). */
+export function computeMonthlyTrend(logs: readonly WorkoutLog[]): { month: string; volume: number }[] {
   const map = new Map<string, number>();
 
-  for (const log of logs) {
+  for (const log of liveLogs(logs)) {
     const month = log.date.slice(0, 7);
-    const vol = log.exercises.reduce(
-      (s, ex) => s + ex.sets.reduce((ss, set) => ss + set.kg * set.reps, 0),
-      0
-    );
-    map.set(month, (map.get(month) ?? 0) + vol);
+    map.set(month, (map.get(month) ?? 0) + logVolume(log));
   }
 
   return Array.from(map.entries())

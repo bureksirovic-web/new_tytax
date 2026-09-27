@@ -1,89 +1,70 @@
 'use client';
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
-import { useWorkoutStore } from '@/stores/workout-store';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import type { SessionExercise, SetEntry } from '@/contracts/domain';
+import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
+import { useLocale } from '@/components/providers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDuration, formatWeight } from '@/lib/utils';
-import { useLocale } from '@/components/providers';
-import type { WorkoutLog, ExerciseLog } from '@/types/workout';
+import { countsAsWork, exerciseVolumeKg } from '@/stores/workout-selectors';
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-type ModalityBadge = 'tytax' | 'bodyweight' | 'kettlebell' | 'custom' | 'default';
-
-function modalityVariant(mod: string): ModalityBadge {
-  if (mod === 'tytax') return 'tytax';
-  if (mod === 'bodyweight') return 'bodyweight';
-  if (mod === 'kettlebell') return 'kettlebell';
-  return 'default';
+function SetLine({ set, index }: { set: SetEntry; index: number }) {
+  const { t } = useLocale();
+  const tone = countsAsWork(set) ? 'bg-[var(--bg-primary)] text-[var(--text-primary)]' : 'text-[var(--text-muted)]';
+  return (
+    <li data-testid="history-set" className={`flex items-center gap-3 rounded px-2 py-1 text-xs ${tone}`}>
+      <span className="w-6 text-center font-mono text-[var(--text-muted)]">{index}</span>
+      <span className="font-medium">{formatWeight(set.kg)}</span>
+      <span className="text-[var(--text-muted)]" aria-hidden="true">
+        ×
+      </span>
+      <span className="font-medium">
+        {set.reps} {t('workout_reps').toLowerCase()}
+      </span>
+      {set.type === 'warmup' && <span className="text-[var(--text-muted)]">{t('workout_warmup')}</span>}
+      {set.isPR && <span className="font-bold text-[var(--highlight)]">{t('workout_pr')}</span>}
+      {set.e1rm !== undefined && set.e1rm > 0 && (
+        <span className="ml-auto font-mono text-[var(--text-muted)]">{Math.round(set.e1rm)}</span>
+      )}
+    </li>
+  );
 }
 
-function ExerciseCard({ ex }: { ex: ExerciseLog }) {
+function ExerciseBlock({ ex }: { ex: SessionExercise }) {
   const { t } = useLocale();
-  const workingSets = ex.sets.filter((s) => s.done);
-  const exVol = workingSets.reduce((s, set) => s + set.kg * set.reps, 0);
-
+  const doneSets = ex.sets.filter(countsAsWork).length;
   return (
-    <Card className="mb-3">
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <div
-            className="font-semibold text-sm uppercase tracking-wide"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-          >
-            {ex.exerciseName}
-          </div>
-          <div className="flex gap-1 mt-1">
-            <Badge variant={modalityVariant(ex.modality)}>{ex.modality}</Badge>
-            {ex.supersetGroup && (
-              <Badge variant="default">{t('superset')} {ex.supersetGroup}</Badge>
-            )}
-          </div>
-        </div>
-        <div className="text-xs text-right" style={{ color: 'var(--text-muted)' }}>
-          <div>{formatWeight(exVol)}</div>
-          <div>{workingSets.length} {t('sets').toLowerCase()}</div>
+    <section data-testid="history-exercise" className="mb-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">
+          {ex.exerciseName}
+        </h2>
+        <div className="shrink-0 text-right text-xs text-[var(--text-muted)]">
+          <p>{formatWeight(exerciseVolumeKg(ex))}</p>
+          <p>
+            {doneSets} {t('sets').toLowerCase()}
+          </p>
         </div>
       </div>
-
-      <div className="space-y-1">
-        {ex.sets.map((set) => (
-          <div
-            key={set.id}
-            className="flex items-center gap-3 text-xs py-1 px-2 rounded"
-            style={{
-              backgroundColor: set.done ? 'var(--bg-primary)' : 'transparent',
-              color: set.done ? 'var(--text-primary)' : 'var(--text-muted)',
-            }}
-          >
-            <span className="w-6 text-center font-mono" style={{ color: 'var(--text-muted)' }}>
-              {set.setNumber}
-            </span>
-            <span className="font-medium">{formatWeight(set.kg)}</span>
-            <span style={{ color: 'var(--text-muted)' }}>&times;</span>
-            <span className="font-medium">{set.reps} {t('workout_reps').toLowerCase()}</span>
-            {set.rir !== undefined && (
-              <span style={{ color: 'var(--text-muted)' }}>RIR {set.rir}</span>
-            )}
-            {set.isPersonalRecord && (
-              <Badge variant="warning">{t('workout_pr')}</Badge>
-            )}
-            {set.e1rm && set.e1rm > 0 && (
-              <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>
-                e1RM {Math.round(set.e1rm)}
-              </span>
-            )}
-          </div>
+      <ol className="space-y-1">
+        {ex.sets.map((set, i) => (
+          <SetLine key={set.id} set={set} index={i + 1} />
         ))}
-      </div>
-    </Card>
+      </ol>
+    </section>
+  );
+}
+
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="text-center">
+      <p className="font-display text-xl font-bold text-[var(--accent)]">{value}</p>
+      <p className="text-xs text-[var(--text-muted)]">{label}</p>
+    </div>
   );
 }
 
@@ -91,114 +72,68 @@ export default function HistoryDetailPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
   const { t } = useLocale();
-  const startWorkout = useWorkoutStore((s) => s.startWorkout);
-
-  const log = useLiveQuery<WorkoutLog | undefined>(
-    () => db.workoutLogs.get(id),
-    [id]
+  const { profileId, loading: profileLoading } = useActiveProfile();
+  const { data: log, loading } = useRepoQuery(
+    (repo) => (profileId ? repo.logs.get(profileId, id) : Promise.resolve(undefined)),
+    [profileId, id],
   );
 
-  if (log === undefined) {
+  if (profileLoading || (loading && !log)) {
     return (
-      <div className="p-4 space-y-4">
+      <div className="space-y-4 p-4" aria-busy="true">
         <Skeleton className="h-10 w-48 rounded" />
         <Skeleton className="h-24 w-full rounded-xl" />
         <Skeleton className="h-40 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
       </div>
     );
   }
 
-  if (log === null) {
+  if (!log) {
     return (
-      <div className="p-4 text-center pt-20" style={{ color: 'var(--text-muted)' }}>
+      <p data-testid="history-not-found" className="p-4 pt-20 text-center text-[var(--text-muted)]">
         {t('workout_not_found')}
-      </div>
+      </p>
     );
   }
-
-  const handleRepeat = async () => {
-    await startWorkout({ modality: log.modalitiesUsed?.[0] || 'custom' });
-    router.push('/workout/active');
-  };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
+    <div data-testid="history-detail" data-log-id={log.id} className="mx-auto max-w-2xl p-4 pb-24">
       <button
+        type="button"
         onClick={() => router.back()}
-        className="text-sm mb-4 block pt-2"
-        style={{ color: 'var(--text-muted)' }}
+        className="mb-4 flex min-h-11 items-center pt-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"
       >
-        &larr; {t('history')}
+        {t('history')}
       </button>
 
-      <Card className="mb-4">
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <h1
-              className="text-xl font-bold uppercase tracking-wider"
-              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-            >
-              {log.sessionName}
-            </h1>
-            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              {log.date} &mdash; {formatDuration(log.durationSeconds)}
-            </div>
-          </div>
-          {log.prCount > 0 && (
-            <Badge variant="warning">{log.prCount} PR{log.prCount > 1 ? 's' : ''}</Badge>
-          )}
+      <section className="mb-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+        <h1 className="font-display text-xl font-bold uppercase tracking-wider text-[var(--text-primary)]">
+          {log.sessionName}
+        </h1>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <time dateTime={log.date}>{log.date}</time> · {formatDuration(log.durationSeconds)}
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <Metric value={formatWeight(Math.round(log.totalVolumeKg))} label={t('volume')} />
+          <Metric value={String(log.totalSets)} label={t('sets')} />
+          <Metric value={String(log.exercises.length)} label={t('exercise_plural')} />
         </div>
-        <div className="grid grid-cols-3 gap-3 mt-3">
-          <div className="text-center">
-            <div
-              className="text-xl font-bold"
-              style={{ color: 'var(--accent)', fontFamily: 'var(--font-display)' }}
-            >
-              {formatWeight(log.totalVolumeKg)}
-            </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('volume')}</div>
-          </div>
-          <div className="text-center">
-            <div
-              className="text-xl font-bold"
-              style={{ color: 'var(--accent)', fontFamily: 'var(--font-display)' }}
-            >
-              {log.totalSets}
-            </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('sets')}</div>
-          </div>
-          <div className="text-center">
-            <div
-              className="text-xl font-bold"
-              style={{ color: 'var(--accent)', fontFamily: 'var(--font-display)' }}
-            >
-              {log.exercises.length}
-            </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('exercise_plural')}</div>
-          </div>
-        </div>
-        {log.rpe && (
-          <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-            RPE: {log.rpe}/10
-          </div>
+        {log.rpe !== undefined && (
+          // i18n: `debrief_rpe` requested in docs/v2/requests/G1-i18n.md.
+          <p data-testid="history-rpe" className="mt-2 text-xs text-[var(--text-muted)]">
+            {t('debrief_title')}: {log.rpe}/10
+          </p>
         )}
         {log.notes && (
-          <div className="mt-2 text-xs p-2 rounded" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
+          <p data-testid="history-notes" className="mt-2 rounded bg-[var(--bg-primary)] p-2 text-xs text-[var(--text-secondary)]">
             {log.notes}
-          </div>
+          </p>
         )}
-      </Card>
+      </section>
 
-      {log.exercises.map((ex, i) => (
-        <ExerciseCard key={`${ex.exerciseRef}-${i}`} ex={ex} />
+      {log.exercises.map((ex) => (
+        <ExerciseBlock key={ex.uid} ex={ex} />
       ))}
-
-      <div className="mt-4 pb-6">
-        <Button fullWidth onClick={handleRepeat} size="lg">
-          {t('repeat_workout')}
-        </Button>
-      </div>
     </div>
   );
 }
