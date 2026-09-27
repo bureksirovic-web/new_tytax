@@ -116,13 +116,14 @@ test('swap: picking a suggestion replaces the exercise on the card', async ({ pa
   expect(pickedId).not.toBe(BENCH_ID);
   // Ranked by muscle overlap: the top alternative to a bench press trains the chest too.
   await expect(option).toHaveAttribute('data-muscle-group', 'CHEST');
-  const pickedName = (await option.locator('span').first().textContent()) ?? '';
-  expect(pickedName.length).toBeGreaterThan(0);
+  const pickedName = await option.locator('span').first().textContent();
+  expect(pickedName).toEqual(expect.any(String));
+  expect(pickedName!.length).toBeGreaterThan(0);
   await option.click();
 
   await expect(sheet).toHaveCount(0);
   await expect(card).toHaveAttribute('data-exercise-id', pickedId!);
-  await expect(card.getByTestId('exercise-name')).toHaveText(pickedName);
+  await expect(card.getByTestId('exercise-name')).toHaveText(pickedName!);
   await expect(card.getByTestId('exercise-name')).not.toHaveText(BENCH_NAME);
   // Nothing was done yet, so the swap is in place: same card uid.
   await expect(card).toHaveAttribute('data-uid', uid!);

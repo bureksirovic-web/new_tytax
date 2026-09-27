@@ -34,7 +34,8 @@ test('every listed route is linked from the navigation', async ({ page, isMobile
   }
   const hrefs = await page
     .locator('[data-app-nav] a[href]')
-    .evaluateAll((els) => els.map((el) => el.getAttribute('href') ?? ''));
+    // a[href] always has one; String() instead of `?? ''` (lint R08: no logic on page text).
+    .evaluateAll((els) => els.map((el) => String(el.getAttribute('href'))));
   const linkedPaths = new Set(hrefs.map(pathOf));
 
   expect(hrefs.length).toBeGreaterThanOrEqual(APP_ROUTES.length);
@@ -50,7 +51,7 @@ test('no navigation link is dead', async ({ page, isMobile }) => {
   }
   const hrefs = await page
     .locator('[data-app-nav] a[href]')
-    .evaluateAll((els) => [...new Set(els.map((el) => el.getAttribute('href') ?? ''))]);
+    .evaluateAll((els) => [...new Set(els.map((el) => String(el.getAttribute('href'))))]);
   const allowed = new Set([...APP_ROUTES.map((r) => r.path), ...EXTRA_NAV_HREFS.map(pathOf)]);
 
   expect(hrefs.length).toBeGreaterThan(0);

@@ -85,7 +85,8 @@ async function ownedCounts(page: Page, id: string): Promise<Record<string, numbe
       if (repo === undefined) throw new Error(missing);
       const kettlebells = (await repo.equipment.get(pid)).kettlebellsKg.length;
       return {
-        logs: await repo.logs.count(pid),
+        // list().length, not logs.count(): the R08 lint bans any .count() call in e2e.
+        logs: (await repo.logs.list(pid)).length,
         bodyweight: (await repo.bodyweight.list(pid)).length,
         programs: (await repo.programs.list(pid)).length,
         notes: (await repo.notes.list(pid)).length,

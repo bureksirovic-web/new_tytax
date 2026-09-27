@@ -21,8 +21,10 @@ test('create, switch and delete profiles from settings; data stays isolated', as
   await expect(page.getByTestId('page-heading-settings')).toBeVisible();
   const rows = page.locator('[data-testid^="settings-profile-row-"]');
   await expect(rows.filter({ hasText: 'Ana' })).toHaveCount(1);
-  // App start may already have created a default profile besides the seeded one.
-  const before = await rows.count();
+  // App start may already have created a default profile besides the seeded one:
+  // read the number from the repository (lint R08), and check the UI shows them all.
+  const before = (await tytax.listProfiles()).length;
+  await expect(rows).toHaveCount(before);
   await page.getByTestId('settings-profile-name-input').fill('Marko');
   await page.getByTestId('settings-profile-create').click();
 

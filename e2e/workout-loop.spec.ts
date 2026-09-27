@@ -27,13 +27,15 @@ async function startQuick(page: Page, tytax: TytaxFixture) {
   await expect(page).toHaveURL(/\/workout\/active$/);
 }
 
-async function addExercise(page: Page, query: string, id: string): Promise<void> {
+/** Adds one exercise; `cardsAfter` is the card count it must produce (one more than before). */
+async function addExercise(page: Page, query: string, id: string, cardsAfter: number): Promise<void> {
   const cards = page.getByTestId('session-exercise');
-  const before = await cards.count();
+  // The expected counts are explicit: the R08 lint bans reading count() into logic.
+  await expect(cards).toHaveCount(cardsAfter - 1);
   await page.getByTestId('add-exercise-button').click();
   await page.getByTestId('exercise-search').fill(query);
   await page.locator(`[data-testid="exercise-option"][data-exercise-id="${id}"]`).click();
-  await expect(cards).toHaveCount(before + 1);
+  await expect(cards).toHaveCount(cardsAfter);
 }
 
 async function logSet(row: Locator, kg: string, reps: string) {
@@ -45,8 +47,8 @@ async function logSet(row: Locator, kg: string, reps: string) {
 
 test('the same exercise added twice logs independently', async ({ page, tytax }) => {
   await startQuick(page, tytax);
-  await addExercise(page, 'Smith Flat Bench', BENCH_ID);
-  await addExercise(page, 'Smith Flat Bench', BENCH_ID);
+  await addExercise(page, 'Smith Flat Bench', BENCH_ID, 1);
+  await addExercise(page, 'Smith Flat Bench', BENCH_ID, 2);
 
   const cards = page.locator(`[data-testid="session-exercise"][data-exercise-id="${BENCH_ID}"]`);
   await expect(cards).toHaveCount(2);
@@ -73,8 +75,8 @@ test('the same exercise added twice logs independently', async ({ page, tytax })
 
 test('reordering moves the card and survives a reload', async ({ page, tytax }) => {
   await startQuick(page, tytax);
-  await addExercise(page, 'Smith Flat Bench', BENCH_ID);
-  await addExercise(page, 'Smith Back Squat', SQUAT_ID);
+  await addExercise(page, 'Smith Flat Bench', BENCH_ID, 1);
+  await addExercise(page, 'Smith Back Squat', SQUAT_ID, 2);
 
   const cards = page.getByTestId('session-exercise');
   await expect(cards.first()).toHaveAttribute('data-exercise-id', BENCH_ID);
@@ -99,7 +101,7 @@ test('reordering moves the card and survives a reload', async ({ page, tytax }) 
 
 test('deleting sets: an empty set goes at once, a logged one asks first', async ({ page, tytax }) => {
   await startQuick(page, tytax);
-  await addExercise(page, 'Smith Flat Bench', BENCH_ID);
+  await addExercise(page, 'Smith Flat Bench', BENCH_ID, 1);
   const rows = page.getByTestId('session-exercise').getByTestId('set-row');
   await expect(rows).toHaveCount(3);
 
@@ -125,9 +127,9 @@ test('deleting sets: an empty set goes at once, a logged one asks first', async 
 
 test('video button: app.tytax link, YouTube links in a menu, YouTube search fallback', async ({ page, tytax }) => {
   await startQuick(page, tytax);
-  await addExercise(page, 'Dumbbell Fly', ONE_VIDEO_ID);
-  await addExercise(page, 'Smith Floor Press', FLOOR_PRESS_ID);
-  await addExercise(page, 'Smith Flat Bench', BENCH_ID);
+  await addExercise(page, 'Dumbbell Fly', ONE_VIDEO_ID, 1);
+  await addExercise(page, 'Smith Floor Press', FLOOR_PRESS_ID, 2);
+  await addExercise(page, 'Smith Flat Bench', BENCH_ID, 3);
   const card = (id: string) => page.locator(`[data-testid="session-exercise"][data-exercise-id="${id}"]`);
 
   // One link → a direct <a> to app.tytax.com.
@@ -157,7 +159,7 @@ test('video button: app.tytax link, YouTube links in a menu, YouTube search fall
 test('a draft survives a reload with its rest timer still running', async ({ page, tytax }) => {
   await page.clock.install({ time: new Date('2026-09-20T10:00:00Z') });
   await startQuick(page, tytax);
-  await addExercise(page, 'Smith Flat Bench', BENCH_ID);
+  await addExercise(page, 'Smith Flat Bench', BENCH_ID, 1);
   const row = page.getByTestId('set-row').first();
   // Freeze time so every displayed value is exact.
   await page.clock.pauseAt(new Date('2026-09-20T11:00:00Z'));

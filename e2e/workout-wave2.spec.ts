@@ -219,8 +219,8 @@ test.describe('360 px phone', () => {
 
     const rows = page.getByTestId('set-row');
     // 2 exercises × 3 first-ever working sets.
-    await expect(rows).toHaveCount(6);
-    const count = await rows.count();
+    const count = 6;
+    await expect(rows).toHaveCount(count);
     for (let i = 0; i < count; i++) {
       const row = rows.nth(i);
       await row.getByTestId('set-kg').fill('102.5');
