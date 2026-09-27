@@ -383,3 +383,34 @@ Every file under `docs/v2/requests/` was read (61 request files, plus the `repro
 - G4-17 hard `programs.remove` + preset descriptions, G4-21 usage counts, G4-37 §3 onboarding wizard: product features. File as debt S3.
 - G3-W2-03 format: History `mm:ss` vs workout `m:ss`. Cosmetic; S3 if wanted.
 - G4-35 step 4 (2 `data-card.test.tsx` lines): unchanged, the test passes (step 6).
+
+## 9. INTEGRATION step 3: coverage thresholds + `no-literal-string` error (2026-09-27)
+Base c8fb638. Commits: e16cca1 (coverage), 34eee1b (lint), this log.
+
+### Coverage (e16cca1)
+- `vitest.config.ts`: per-glob thresholds `src/lib/**` and `src/stores/**` = lines 70, statements 70, functions 70, **branches 60** (lower on purpose: defensive `??`/`?.` fallbacks on IndexedDB rows count as branches). Global floor unchanged (20/20/15/20). `include` names `src/lib/**/*.ts`, `src/stores/**/*.ts` plus `src/**/*.ts` as before (.tsx still excluded; none live under lib/stores). Newly excluded: `*.test.ts` and `__tests__/**` helpers (test code, e.g. `src/stores/__tests__/g3-helpers.ts`). No product file excluded; no tests needed, every dir was already above 70 %. `json-summary` reporter added.
+- Measured (`npm run test:coverage`, exit 0): `src/lib/` lines 98.97, stmts 98.25, funcs 98.36, branches 94.43; `src/stores/` lines 99.49, stmts 97.96, funcs 98.45, branches 95.40; all files 97.31 / 93.04 / 97.11 / 98.40 (stmts/branch/funcs/lines). Lowest dir: `src/lib/sync` lines 90.4, branches 81.1.
+- Red check: `src/stores/**` lines set to 99.9 → `ERROR: Coverage for lines (99.48%) does not meet "src/stores/**" threshold (99.9%)`, exit 1; reverted.
+- Broke under coverage: `w2-prs-restore-stamp-perf.test.ts` "editing the first of 1000 logs … < 2 s": `expected 2639.92 to be less than 2000` (2 of 2 full coverage runs; passes alone). Measured same edit 427 ms plain, 1499 ms instrumented alone; the CPU profile is dominated by fake-indexeddb (`_findRecords`, `valueToKeyWithoutThrowing`), not app code. Correction (commented in the test): budget stays 2000 ms uninstrumented (`npm test`/gate, and a new plain CI step `npx vitest run …perf.test.ts` after `test:coverage`, since CI runs only the coverage run); under `--coverage` (`TYTAX_COVERAGE` env set by vitest.config.ts from argv) it is 8000 ms, still catching a quadratic regression.
+
+### Lint (34eee1b)
+- `i18next/no-literal-string` → `"error"` for `src/**/*.tsx`. The 3 remaining hits were not UI text (DOM ids `sidebar-section-…`, `settings-profile-block-…`, route `/programs/…/session/…`): hoisted to module-level helpers, so no dictionary keys and no per-line disables (`grep no-literal-string src` = 0). Red check: a temp `<p title="Hi">Hello</p>` gives 2 errors, exit 1.
+- `coverage/**` added to `globalIgnores` (the v8 HTML report gave an "unused eslint-disable" warning after a coverage run).
+
+### Gate on 34eee1b
+ci=0 lint=0 tsc=0 test=0 build=0, test:coverage=0.
+```
+5 vulnerabilities (1 low, 4 moderate)                # npm ci notice
+(lint: no problems; only the Babel >500KB note on scripts/data/source)
+ Test Files  315 passed (315)
+      Tests  2423 passed (2423)
+✓ Compiled successfully
+All files          |   97.31 |    93.04 |   97.11 |    98.4 |   # test:coverage
+```
+
+### E2E on 34eee1b (sync env, `PORT=3110`: 3100 is held by a non-TYTAX process, paperclip pid 2326947, not touched)
+- `PORT=3110 npx playwright test --project=chromium`: 64 passed, 1 failed, 3 did not run, exit 1. Only failure `offline.spec.ts:53` "offline.spec needs E2E_SERVER=prod" (by design under `next dev`; 3 serial siblings did not run), same as step 2.
+- Prod step `PORT=3110 npm run test:e2e:offline`: 4 passed, exit 0.
+
+### Deferred / Unfixed (step 3)
+- None new. Option for later: a relative (not wall-clock) edit-cost check would drop the coverage multiplier.
