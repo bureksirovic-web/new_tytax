@@ -204,7 +204,7 @@ describe('applyProgressionSwap', () => {
     expect(slot?.reps).toBe('6-12'); // hold -> reps: reset to the child's own default
   });
 
-  it('keeps the prescribed reps when the measure unit does not change', async () => {
+  it('resets the target to the next step default even when the measure unit does not change', async () => {
     catalogData = {
       ...catalogData,
       [HOLD_CHILD]: exercise({ id: HOLD_CHILD, defaultReps: '20-40s', measure: 'time', name: 'Longer Hold' }),
@@ -213,7 +213,9 @@ describe('applyProgressionSwap', () => {
     const repo = fakeRepo({ programs: { get: async () => program(), update } } as unknown as Partial<Repository>);
     await applyProgressionSwap(repo, 'p1', { ...candidate, nextExerciseName: 'Longer Hold' });
     const [, , patch] = update.mock.calls[0];
-    expect(patch.sessions?.[0].exercises[0].reps).toBe('10-30s'); // kept: same measure unit (time)
+    // Plan (critic round 1): a promoted slot always starts at the child's own default target.
+    expect(patch.sessions?.[0].exercises[0].reps).toBe('20-40s');
+    expect(patch.sessions?.[0].exercises[0].exerciseId).toBe(HOLD_CHILD);
   });
 
   it('throws when the program is gone', async () => {

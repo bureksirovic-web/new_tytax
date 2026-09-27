@@ -44,9 +44,13 @@ export default function DebriefPage() {
       // finishing: `finish` + `discard` drop the draft, and a quick workout
       // (no `programSessionId`) never has a program session to offer a swap in.
       const liveDraft = useWorkoutStore.getState().draft;
+      // Best effort: a failed readiness check (e.g. a catalog chunk that cannot
+      // load offline) must never block saving the workout.
       const candidate =
         liveDraft && profileId
-          ? await computeProgressionCandidate(repo, profileId, profileBirthYear(profile), liveDraft, new Date())
+          ? await computeProgressionCandidate(repo, profileId, profileBirthYear(profile), liveDraft, new Date()).catch(
+              () => null,
+            )
           : null;
       // Throws without a draft; `finishWorkout` is idempotent per draft id.
       const result = await finish(debrief);

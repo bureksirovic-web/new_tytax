@@ -152,6 +152,22 @@ describe('workout orchestrator', () => {
     expect(advanced?.currentSessionIndex).toBe(0);
   });
 
+  it('youth: skipRestDay refuses a rest day reached the same calendar day, allows it the next day', async () => {
+    await repo.profiles.update(profileId, { birthYear: NOW.getFullYear() - 11 });
+    // The program advanced "today" (relative to the injected clock).
+    const p = await repo.programs.create(profileId, { ...template, currentSessionIndex: 1 }, { activate: true });
+    await repo.programs.update(profileId, p.id, { name: p.name });
+    const stamped = await repo.programs.getActive(profileId);
+    const sameDay = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => new Date(stamped!.updatedAt) });
+    const refused = await sameDay.skipRestDay(profileId);
+    expect(refused?.currentSessionIndex).toBe(1);
+    expect((await repo.programs.getActive(profileId))?.currentSessionIndex).toBe(1);
+    const nextDay = new Date(new Date(stamped!.updatedAt).getTime() + 26 * 3600 * 1000);
+    const later = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => nextDay });
+    const advanced = await later.skipRestDay(profileId);
+    expect(advanced?.currentSessionIndex).toBe(0);
+  });
+
   it('skipRestDay never skips a training session: concurrent taps land on the next one', async () => {
     const three: ProgramTemplate = {
       ...template,

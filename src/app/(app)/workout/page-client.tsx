@@ -11,7 +11,7 @@ import { foreignInfo } from '@/components/workout/foreign-draft';
 import { useProgramStartFlow } from '@/components/workout/start-program-flow';
 import { useStartStrings } from '@/components/workout/strings/start';
 import { useWorkoutStore } from '@/stores/workout-store';
-import { isYouth } from '@/lib/training/youth';
+import { restDayLocked } from '@/lib/training/youth';
 import '@/lib/i18n/packs/g3Workout';
 
 export default function WorkoutPage() {
@@ -119,7 +119,7 @@ export default function WorkoutPage() {
                 void flow.begin();
               }}
               onSkipRest={() => void handleSkipRest()}
-              hideSkipRest={isYouth(workout.profile)}
+              restLocked={restDayLocked(workout.profile, activeProgram)}
             />
           ) : (
             <p className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 text-center text-sm text-[var(--text-muted)]">

@@ -4,6 +4,8 @@ import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { nextSessionOf } from '@/hooks/use-workout';
 import { useStartStrings } from '@/components/workout/strings/start';
+import { useT } from '@/lib/i18n/use-t';
+import '@/lib/i18n/packs/youth';
 import '@/lib/i18n/packs/g3Workout';
 
 export interface NextSessionCardProps {
@@ -13,8 +15,8 @@ export interface NextSessionCardProps {
   onStart: () => void;
   /** Advances the rotation past a rest session (legacy bug 14: a rest day is not startable). */
   onSkipRest: () => void;
-  /** Youth mode (profile under 16): no "skip rest" action on a rest day. */
-  hideSkipRest?: boolean;
+  /** Youth mode: the rest day was reached today, so it can only be marked done tomorrow. */
+  restLocked?: boolean;
 }
 
 /** The session the rotation pointer names, wrapped into range. */
@@ -22,9 +24,11 @@ export function nextSession(program: Program) {
   return nextSessionOf(program)?.session;
 }
 
-export function NextSessionCard({ program, starting, disabled, onStart, onSkipRest, hideSkipRest }: NextSessionCardProps) {
+export function NextSessionCard({ program, starting, disabled, onStart, onSkipRest, restLocked }: NextSessionCardProps) {
   const locale = useLocale();
   const t = useStartStrings();
+  const { t: youthT } = useT();
+  const restLockedHint = youthT('youth_rest_locked');
   const next = nextSessionOf(program);
 
   return (
@@ -67,12 +71,17 @@ export function NextSessionCard({ program, starting, disabled, onStart, onSkipRe
         </div>
       )}
 
-      {next && next.isRest && !hideSkipRest && (
+      {next && next.isRest && restLocked && (
+        <p data-testid="rest-day-locked" className="text-xs text-[var(--text-muted)]">
+          {restLockedHint}
+        </p>
+      )}
+      {next && next.isRest && (
         <Button
           data-testid="complete-rest-day"
           fullWidth
           variant="ghost"
-          disabled={disabled}
+          disabled={disabled || restLocked}
           loading={starting}
           onClick={onSkipRest}
           className="border-[var(--border-color)] uppercase tracking-widest"

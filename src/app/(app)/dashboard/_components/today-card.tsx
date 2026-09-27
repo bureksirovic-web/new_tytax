@@ -1,4 +1,5 @@
 'use client';
+import '@/lib/i18n/packs/youth';
 import Link from 'next/link';
 import type { Program } from '@/contracts/domain';
 import { Button } from '@/components/ui/button';
@@ -18,11 +19,11 @@ export interface TodayCardProps {
   /** The persisted draft when it belongs to another profile (G3-04): replaces "continue". */
   foreign?: ForeignDraft | null;
   /** Youth mode (profile under 16): no "skip rest" action on a rest day. */
-  hideSkipRest?: boolean;
+  restLocked?: boolean;
 }
 
 /** Today's predicted session from the active program (or a rest day), with the start actions. */
-export function TodayCard({ program, start, foreign, hideSkipRest }: TodayCardProps) {
+export function TodayCard({ program, start, foreign, restLocked }: TodayCardProps) {
   const { t } = useT();
 
   return (
@@ -35,7 +36,7 @@ export function TodayCard({ program, start, foreign, hideSkipRest }: TodayCardPr
       ) : start.draft ? (
         <InProgress name={start.draft.sessionName} />
       ) : program ? (
-        <ProgramToday program={program} start={start} hideSkipRest={hideSkipRest} />
+        <ProgramToday program={program} start={start} restLocked={restLocked} />
       ) : (
         <NoProgram start={start} />
       )}
@@ -66,7 +67,7 @@ function QuickButton({ start }: { start: Starter }) {
   );
 }
 
-function ProgramToday({ program, start, hideSkipRest }: { program: Program; start: Starter; hideSkipRest?: boolean }) {
+function ProgramToday({ program, start, restLocked }: { program: Program; start: Starter; restLocked?: boolean }) {
   const { t, locale } = useT();
   const predicted = predictSession(program);
   const session = predicted?.session;
@@ -96,11 +97,14 @@ function ProgramToday({ program, start, hideSkipRest }: { program: Program; star
             </p>
             <p className="text-sm text-fg-2">{t('dash_rest_day_hint')}</p>
           </div>
-          {!hideSkipRest && (
-            <Button variant="secondary" fullWidth data-testid="dash-skip-rest" disabled={start.busy} onClick={() => void start.skipRest(program)}>
-              {t('dash_skip_rest')}
-            </Button>
+          {restLocked && (
+            <p data-testid="dash-rest-locked" className="text-sm text-fg-muted">
+              {t('youth_rest_locked')}
+            </p>
           )}
+          <Button variant="secondary" fullWidth data-testid="dash-skip-rest" disabled={start.busy || restLocked} onClick={() => void start.skipRest(program)}>
+            {t('dash_skip_rest')}
+          </Button>
           <QuickButton start={start} />
         </>
       ) : (

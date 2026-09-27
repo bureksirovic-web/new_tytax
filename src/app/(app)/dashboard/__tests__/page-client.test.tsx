@@ -109,15 +109,17 @@ describe('Dashboard — active program', () => {
     expect(useWorkoutStore.getState().draft).toBeNull();
   });
 
-  it('youth mode (profile under 16): no "skip rest" action on a rest day', async () => {
+  it('youth mode: a rest day reached today is locked (disabled + hint), not hidden', async () => {
     const repo = installRepo(holder);
     const me = await repo.profiles.ensureActive('Me');
-    await repo.profiles.update(me.id, { birthYear: 2015 }); // 11 in 2026
+    await repo.profiles.update(me.id, { birthYear: new Date().getFullYear() - 11 });
+    // Created (so last advanced) today -> the rest day cannot be completed until tomorrow.
     await repo.programs.create(me.id, { ...TEMPLATE, currentSessionIndex: 1 }, { activate: true });
     render(<DashboardPage />);
 
     expect(await screen.findByTestId('dash-session-name')).toHaveTextContent('Rest day');
-    expect(screen.queryByTestId('dash-skip-rest')).toBeNull();
+    expect(screen.getByTestId('dash-skip-rest')).toBeDisabled();
+    expect(screen.getByTestId('dash-rest-locked')).toBeInTheDocument();
   });
 });
 

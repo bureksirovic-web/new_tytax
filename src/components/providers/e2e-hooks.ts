@@ -97,7 +97,7 @@ export function createE2EHooks(repo: Repository, options: E2EHooksOptions): AppE
     },
 
     async seedProfile(input) {
-      const profile = await repo.profiles.create({ name: input?.name ?? 'Test', settings: input?.settings });
+      const profile = await repo.profiles.create({ name: input?.name ?? 'Test', settings: input?.settings, birthYear: input?.birthYear });
       if (input?.activate !== false) await repo.profiles.setActive(profile.id);
       return profile;
     },

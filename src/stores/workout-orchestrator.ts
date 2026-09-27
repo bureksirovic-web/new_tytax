@@ -52,7 +52,7 @@ import { DEFAULT_PROFILE_SETTINGS } from '@/contracts/domain';
 import type { Catalog } from '@/contracts/exercise-catalog';
 import type { FinishResult, Repository } from '@/contracts/repo';
 import type { RecoverySummary } from '@/contracts/training';
-import { isYouth, youthPrefillOptions } from '@/lib/training/youth';
+import { isYouth, youthPrefillOptions, restDayLocked } from '@/lib/training/youth';
 import {
   applyDeload,
   buildProgramSession,
@@ -282,6 +282,8 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       const index = wrapIndex(program.currentSessionIndex, program.sessions.length);
       const session = program.sessions[index];
       if (session.isRest !== true && session.exercises.length > 0) return program;
+      // Youth mode: a rest day is completed on a later calendar day, never rushed.
+      if (restDayLocked(await repo.profiles.get(profileId), program, now())) return program;
       const next = (index + 1) % program.sessions.length;
       return repo.programs.update(profileId, program.id, { currentSessionIndex: next });
     },

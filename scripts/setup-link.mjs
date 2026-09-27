@@ -5,9 +5,11 @@
  * argument). The owner's actual link is generated this way and shared in a
  * private chat, never committed (PLAN-family-profiles.md, Piece 1).
  *
- *   echo '{"v":1,"profiles":[{"name":"Tomi","presetId":"tytax-balanced-6day"}]}' \
- *     | node scripts/setup-link.mjs
- *   ... | node scripts/setup-link.mjs --origin https://staging.example
+ *   node scripts/setup-link.mjs < family.json
+ *   node scripts/setup-link.mjs --origin https://staging.example < family.json
+ *
+ * Keep the payload in a file (or type it into stdin interactively): an
+ * `echo '{...}' | node ...` line would put the names in shell history.
  *
  * Validation here is minimal (shape only, no catalog lookups): the app runs
  * the full strict zod schema (src/lib/setup-link/schema.ts) when the link is

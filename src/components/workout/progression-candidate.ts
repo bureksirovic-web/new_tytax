@@ -109,8 +109,6 @@ export async function applyProgressionSwap(
   const catalog = await loadCatalog(['bodyweight']);
   const nextExercise = catalog.getById(candidate.nextExerciseId);
   if (!nextExercise) throw new Error('progression swap: next exercise not found');
-  const fromExercise = catalog.getById(candidate.exerciseId);
-  const unitChanged = (fromExercise?.measure === 'time') !== (nextExercise.measure === 'time');
 
   const sessions = program.sessions.map((session) => {
     if (session.id !== candidate.programSessionId) return session;
@@ -123,7 +121,9 @@ export async function applyProgressionSwap(
           exerciseId: nextExercise.id,
           exerciseName: nextExercise.name,
           modality: nextExercise.modality,
-          reps: unitChanged ? nextExercise.defaultReps : slot.reps,
+          // A new step starts at its own default target (plan: the promoted slot's
+          // target resets to the child exercise's default), never the old step's range.
+          reps: nextExercise.defaultReps,
         };
       }),
     };
