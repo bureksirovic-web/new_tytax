@@ -29,7 +29,9 @@ export const SETUP_FIELDS = ['seat', 'pin', 'backrest', 'benchAngle', 'cable', '
 /**
  * Longest stored value per field (free text such as "4" or "30°, rope").
  * Matches G2's `MAX_SETUP_FIELD_LENGTH` (g2/src/lib/db/repo/notes.ts), whose
- * `normalizeSetup` rejects longer values; import it at integration.
+ * `normalizeSetup` rejects longer values. Kept as a copy so the workout
+ * bundle does not import the repo module; setup-adapter.test.ts asserts it
+ * equals `MAX_SETUP_FIELD_LENGTH` (integration, v2-g2 + v2-g3).
  */
 export const SETUP_FIELD_MAX = 40;
 

@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { MachineSetup } from '@/contracts/domain';
 import type { Repository } from '@/contracts/repo';
 import { createRepository, TytaxDatabase } from '@/lib/db';
-import { canSaveSetup, cleanSetup, loadSetup, saveSetup, SETUP_FIELD_MAX } from '../setup-adapter';
+import { MACHINE_SETUP_KEYS, MAX_SETUP_FIELD_LENGTH } from '@/lib/db/repo/notes';
+import { canSaveSetup, cleanSetup, loadSetup, saveSetup, SETUP_FIELD_MAX, SETUP_FIELDS } from '../setup-adapter';
 
 let n = 0;
 let repo: Repository;
@@ -36,6 +37,18 @@ describe('setup adapter', () => {
     n += 1;
     repo = createRepository({ db: new TytaxDatabase(`setup-${n}`) });
     profileId = (await repo.profiles.ensureActive('Me')).id;
+  });
+
+  it('integration (v2-g2 + v2-g3): the real repository has the setup writer and shares its limits', async () => {
+    // setup-adapter keeps its own copies so the workout bundle does not import the
+    // repo module; these asserts keep them in lock-step with G2's notes repo.
+    expect(SETUP_FIELD_MAX).toBe(MAX_SETUP_FIELD_LENGTH);
+    expect([...SETUP_FIELDS]).toEqual([...MACHINE_SETUP_KEYS]);
+    expect(canSaveSetup(repo)).toBe(true);
+    await expect(saveSetup(repo, profileId, 'ex-int', { seat: ' 4 ', pin: '' })).resolves.toEqual({ saved: true, setup: { seat: '4' } });
+    await expect(loadSetup(repo, profileId, 'ex-int')).resolves.toEqual({ seat: '4' });
+    await expect(saveSetup(repo, profileId, 'ex-int', { seat: '' })).resolves.toEqual({ saved: true, setup: undefined });
+    await expect(loadSetup(repo, profileId, 'ex-int')).resolves.toBeUndefined();
   });
 
   it('cleanSetup trims, caps and drops empty fields', () => {

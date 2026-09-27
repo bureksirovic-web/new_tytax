@@ -154,25 +154,57 @@ test('order by station puts the Smith exercise before the leg curl and survives 
   await expect(cards.nth(1)).toHaveAttribute('data-exercise-id', LEG_CURL_ID);
 });
 
-test('machine setup: this branch has no setup writer, so the sheet is read-only with a notice', async ({ page, tytax }) => {
+// Corrected at integration (G5, merge of v2-g3 after v2-g2): on v2-g3 alone the
+// notes repo had no setup writer, so this test asserted the read-only sheet.
+// With G2's `repo.notes.getSetup/setSetup` merged the sheet is writable, and
+// docs/v2/requests/G3-W2-01.md asks for exactly this flip: edit -> save ->
+// shown on the card -> survives a reload -> clearing removes it.
+test('machine setup: saved from the sheet, shown on the card, survives a reload and clears', async ({ page, tytax }) => {
   await tytax.gotoApp('/workout');
   await tytax.reset();
   await startQuick(page);
   await addExercise(page, 'smith flat bench', BENCH_ID);
 
+  // Nothing stored yet: no summary on the card.
+  await expect(card(page, BENCH_ID).getByTestId('exercise-setup')).toHaveCount(0);
+
   const opener = card(page, BENCH_ID).getByTestId('edit-setup');
   await opener.click();
   const sheet = page.getByTestId('setup-sheet');
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByTestId('setup-readonly')).toBeVisible();
-  await expect(sheet.getByTestId('setup-seat')).toHaveAttribute('readonly', '');
-  await expect(sheet.getByTestId('setup-save')).toBeDisabled();
-  // Nothing stored: no summary on the card.
+  await expect(sheet.getByTestId('setup-readonly')).toHaveCount(0);
+  await expect(sheet.getByTestId('setup-seat')).not.toHaveAttribute('readonly', '');
+  await sheet.getByTestId('setup-seat').fill('  4  ');
+  await sheet.getByTestId('setup-pin').fill('7');
+  await sheet.getByTestId('setup-save').click();
+  await expect(sheet).toHaveCount(0);
+
+  const summary = card(page, BENCH_ID).getByTestId('exercise-setup');
+  await expect(summary.getByTestId('exercise-setup-seat')).toContainText('4');
+  await expect(summary.getByTestId('exercise-setup-pin')).toContainText('7');
+  await expect(summary.getByTestId('exercise-setup-backrest')).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByTestId('active-workout')).toBeVisible();
+  await expect(summary.getByTestId('exercise-setup-seat')).toContainText('4');
+  await expect(summary.getByTestId('exercise-setup-pin')).toContainText('7');
+
+  // Reopening shows the stored (trimmed) values; emptying every field clears it.
+  await card(page, BENCH_ID).getByTestId('edit-setup').click();
+  await expect(sheet.getByTestId('setup-seat')).toHaveValue('4');
+  await sheet.getByTestId('setup-seat').fill('');
+  await sheet.getByTestId('setup-pin').fill('');
+  await sheet.getByTestId('setup-save').click();
+  await expect(sheet).toHaveCount(0);
   await expect(card(page, BENCH_ID).getByTestId('exercise-setup')).toHaveCount(0);
 
+  // Escape still closes the sheet and returns focus to the opener.
+  const reopener = card(page, BENCH_ID).getByTestId('edit-setup');
+  await reopener.click();
+  await expect(sheet).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
-  await expect(opener).toBeFocused();
+  await expect(reopener).toBeFocused();
 });
 
 test.describe('360 px phone', () => {
