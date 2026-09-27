@@ -14,6 +14,17 @@ import { T0, draft, exercise, fakeSync, freshRepo, type TestRepo } from './helpe
 
 const DAY = 86_400_000;
 
+/**
+ * The edit budget is 2 s of product code. Under `vitest --coverage` (CI's only
+ * unit run) v8 instrumentation slows the same edit ~3.5x (measured 2026-09-27:
+ * 427 ms plain, 1499 ms instrumented, 2640 ms instrumented with the full suite
+ * in parallel), so the 2 s wall-clock assertion measured the instrumentation.
+ * The plain budget stays 2 s and is enforced by `npm test` (the gate) and by CI's
+ * uninstrumented re-run of this file; the coverage run keeps a 4x budget so it still
+ * catches a quadratic regression (1000 logs -> 1000x).
+ */
+const EDIT_BUDGET_MS = process.env.TYTAX_COVERAGE ? 8000 : 2000;
+
 async function finish(t: TestRepo, id: string, pid: string, kg: number) {
   t.tick(DAY);
   return t.repo.finishWorkout(draft(id, pid, [exercise(`u-${id}`, 'bench', [{ kg, reps: 5 }])], { startedAt: t.now().toISOString() }));
@@ -94,6 +105,6 @@ describe('edit cost over 1000 logs', () => {
     await setKg(dst, pid, 'L0000', 5000); // L0000 beats every later log: all 999 lose both PRs
     const ms = performance.now() - t0;
     expect((await dst.repo.logs.get(pid, 'L0999'))?.prCount).toBe(0);
-    expect(ms).toBeLessThan(2000);
+    expect(ms).toBeLessThan(EDIT_BUDGET_MS);
   }, 60_000);
 });

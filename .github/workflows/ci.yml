@@ -68,6 +68,9 @@ jobs:
       - run: npm run lint
       - run: npx tsc --noEmit
       - run: npm run test:coverage
+      # Wall-clock budgets hold for uninstrumented code: re-run them without coverage.
+      - name: Perf budgets (no coverage)
+        run: npx vitest run src/lib/db/__tests__/w2-prs-restore-stamp-perf.test.ts
       - run: npm run build
       - name: JS budget (scripts/check-bundle.mjs, /dashboard first load < 250 kB gz)
         run: node scripts/check-bundle.mjs
