@@ -377,6 +377,12 @@ export interface Profile {
   bodyweightKg?: number;
   gender?: Gender;
   experienceLevel?: ExperienceLevel;
+  /**
+   * Birth year, for youth mode (age = current year - birthYear, so +-1 year).
+   * Under 16: smaller auto load increases, no drop/failure sets, no weak-point
+   * injector, no rest-day skipping. Local only: never synced. (2026-09-27)
+   */
+  birthYear?: number;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
