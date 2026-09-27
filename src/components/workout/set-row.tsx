@@ -104,7 +104,7 @@ export function SetRow({ set, number, modality, units, onChange, onToggleDone, o
             label={`${setLabel}: ${t('set_weight', { unit: units })}`}
             value={set.kg > 0 ? kgToDisplay(set.kg, units) : set.kg}
             zeroIsEmpty
-            matchTolerance={units === 'lb' ? 0.05 : 0}
+            matchTolerance={units === 'lb' ? 0.05 : 0.005}
             className={KG_FLEX}
             placeholder={set.ghostKg !== undefined ? formatNumber(kgToDisplay(set.ghostKg, units)) : undefined}
             inputMode="decimal"

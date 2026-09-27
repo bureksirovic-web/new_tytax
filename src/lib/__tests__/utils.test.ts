@@ -117,6 +117,14 @@ describe('kgToDisplay / displayToKg', () => {
     expect(LB_PER_KG).toBe(2.20462);
   });
 
+  // Refuter R2 (2026-09-27): 135 lb stored as kg showed as 61.235042773811365 in kg mode.
+  it('kg display is rounded to 0.01 (a weight entered in lb, shown after a switch to kg)', () => {
+    expect(kgToDisplay(displayToKg(135, 'lb'), 'kg')).toBe(61.24);
+    expect(kgToDisplay(61.25, 'kg')).toBe(61.25);
+    expect(kgToDisplay(0.1 + 0.2, 'kg')).toBe(0.3);
+    expect(kgToDisplay(102.5, 'kg')).toBe(102.5);
+  });
+
   it('round-trips an entered lb value through kg storage', () => {
     // 225 lb → 102.058… kg → 225.0 lb
     expect(kgToDisplay(displayToKg(225, 'lb'), 'lb')).toBe(225);

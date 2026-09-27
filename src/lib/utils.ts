@@ -6,10 +6,14 @@ export { localDay } from '@/contracts/fixtures';
 /** Kilograms per pound factor used for display: 1 kg = 2.20462 lb. */
 export const LB_PER_KG = 2.20462;
 
-/** Stored kg → display value in `units` (lb rounded to 0.1; kg passes through). */
+/**
+ * Stored kg → display value in `units`: lb rounded to 0.1, kg to 0.01 (1.25 kg
+ * plates stay exact). A weight entered in lb is stored unrounded, so without
+ * the kg rounding it showed as a 17-digit float once the profile unit was kg.
+ */
 export function kgToDisplay(kg: number, units: Units): number {
   if (units === 'lb') return Math.round(kg * LB_PER_KG * 10) / 10;
-  return kg;
+  return Math.round(kg * 100) / 100;
 }
 
 /** Entered value in `units` → kg to store (lb ÷ 2.20462, unrounded; kg passes through). */
