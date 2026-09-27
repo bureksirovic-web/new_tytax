@@ -74,7 +74,8 @@ describe('finishWorkout', () => {
     expect(undone.e1rm).toBeUndefined();
     // Brzycki 60·36/(37−10) = 80
     expect(s60.e1rm).toBeCloseTo(80, 6);
-    expect(s70.e1rm).toBeCloseTo(training.e1rm(70, 8), 10);
+    // 70 x 36 / (37 - 8) = 86.8966 -> stored rounded to 0.01 by G1 rankableE1rm = 86.9
+    expect(s70.e1rm).toBe(86.9);
     expect(log.exercises[0].sets.some((s) => s.isPR)).toBe(false);
   });
 

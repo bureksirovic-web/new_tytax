@@ -3,7 +3,7 @@ import type { Table } from 'dexie';
 import type { PRRecord, PRType, SessionExercise, SetEntry, WorkoutLog } from '@/contracts/domain';
 import type { ListOptions } from '@/contracts/repo';
 import type { ExistingBests, PRCandidate } from '@/contracts/training';
-import { training } from '@/lib/training';
+import { E1RM_MAX_REPS, isTimeSet, rankableE1rm, training } from '@/lib/training';
 
 // ─── Records and lists ───────────────────────────────────────────────────────
 
@@ -67,17 +67,12 @@ export function stripKeys<T extends object>(patch: T, keys: readonly string[]): 
 
 // ─── Set and history rules ───────────────────────────────────────────────────
 
-/** TODO(G1): import E1RM_MAX_REPS from @/lib/training once G1 merges (same value, 12). */
-export const E1RM_MAX_REPS = 12;
+/** Set rules owned by G1 (`src/lib/training`), re-exported for the repo modules. */
+export { E1RM_MAX_REPS, isTimeSet, rankableE1rm } from '@/lib/training';
 
 /** A set that counts as training: done and not a warm-up (contract rule). */
 export function countsAsWork(s: SetEntry): boolean {
   return s.done && s.type !== 'warmup';
-}
-
-/** Time set: the repo only sees the set, so any set carrying `durationSeconds` is time-measured. */
-export function isTimeSet(s: SetEntry): boolean {
-  return s.durationSeconds !== undefined && s.durationSeconds !== null;
 }
 
 /** Best (max value) live record per PR type; ties keep the earliest achieved. */
@@ -133,8 +128,7 @@ export async function upsertRows<T extends { id: string }>(table: Table<T, strin
 
 /** e1RM stored on a set: counting reps sets with reps <= E1RM_MAX_REPS only (F3). */
 export function storedE1rm(s: SetEntry): number | undefined {
-  if (!countsAsWork(s) || isTimeSet(s) || s.reps > E1RM_MAX_REPS) return undefined;
-  return training.e1rm(s.kg, s.reps);
+  return rankableE1rm(s);
 }
 
 const keepSets = (exercises: readonly SessionExercise[], keep: (s: SetEntry) => boolean): SessionExercise[] =>

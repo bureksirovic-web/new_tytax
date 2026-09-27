@@ -59,7 +59,7 @@ describe('F3: e1RM only for reps <= 12', () => {
     expect(r.prs.map((c) => `${c.prType}:${c.value}:${c.reps}`)).toEqual(['e1rm:116.13:6']);
     expect(r.log.prCount).toBe(1);
     expect([high.e1rm, high.isPR]).toEqual([undefined, undefined]);
-    expect(six.e1rm).toBeCloseTo(3600 / 31, 9);
+    expect(six.e1rm).toBe(116.13); // rankableE1rm rounds to 0.01
     expect(six.isPR).toBe(true);
   });
 
