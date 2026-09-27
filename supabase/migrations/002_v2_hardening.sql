@@ -114,6 +114,44 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- 0. Repair archive: every value this migration rewrites on an upgraded 001
+--    database (over-long prose truncated in section h, cross-account
+--    references nulled in section d) is copied here first, so no repair is
+--    irreversible. Server-internal: RLS on, no policies, no grants to API
+--    roles; rows go with their account (on delete cascade). Restore a value:
+--      update public.<table_name> set <column_name> = a.old_value::<type>
+--        from public.migration_repair_archive a where ...;  (see supabase/README.md)
+--    Primary key + `on conflict do nothing`: a re-run never overwrites the
+--    original with an already-repaired value.
+-- ---------------------------------------------------------------------------
+create table if not exists public.migration_repair_archive (
+  table_name text not null,
+  row_id uuid not null,
+  column_name text not null,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  old_value text,
+  migration text not null,
+  archived_at timestamptz not null default now(),
+  primary key (table_name, row_id, column_name)
+);
+alter table public.migration_repair_archive enable row level security;
+revoke all on table public.migration_repair_archive from public, anon, authenticated;
+
+-- Archive, then rewrite, column p_col of the rows matching p_bad (a predicate
+-- on alias c). p_owner is the account column (profile_id, or id on profiles).
+create or replace function pg_temp.repair(
+  p_table text, p_col text, p_owner text, p_bad text, p_new text
+) returns void language plpgsql as $$
+begin
+  execute format(
+    'insert into public.migration_repair_archive (table_name, row_id, column_name, profile_id, old_value, migration) '
+    'select %L, c.id, %L, c.%I, c.%I::text, %L from public.%I c where %s '
+    'on conflict (table_name, row_id, column_name) do nothing',
+    p_table, p_col, p_owner, p_col, '002_v2_hardening', p_table, p_bad);
+  execute format('update public.%I c set %I = %s where %s', p_table, p_col, p_new, p_bad);
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- b. updated_at / deleted_at / created_at on every synced table
 -- ---------------------------------------------------------------------------
 alter table public.profiles           add column if not exists updated_at timestamptz not null default now();
@@ -366,21 +404,17 @@ alter table public.pr_records   drop constraint if exists pr_records_workout_log
 
 -- Repair: a reference that crosses accounts (possible under 001) is a leak,
 -- not data; null it so the composite FK can validate.
-update public.workout_logs c set family_member_id = null
-  where c.family_member_id is not null and not exists (
-    select 1 from public.family_members p where p.id = c.family_member_id and p.profile_id = c.profile_id);
-update public.workout_logs c set program_id = null
-  where c.program_id is not null and not exists (
-    select 1 from public.programs p where p.id = c.program_id and p.profile_id = c.profile_id);
-update public.pr_records c set workout_log_id = null
-  where c.workout_log_id is not null and not exists (
-    select 1 from public.workout_logs p where p.id = c.workout_log_id and p.profile_id = c.profile_id);
-update public.profiles c set active_family_member_id = null
-  where c.active_family_member_id is not null and not exists (
-    select 1 from public.family_members p where p.id = c.active_family_member_id and p.profile_id = c.id);
-update public.profiles c set active_equipment_profile_id = null
-  where c.active_equipment_profile_id is not null and not exists (
-    select 1 from public.equipment_profiles p where p.id = c.active_equipment_profile_id and p.profile_id = c.id);
+-- The old value is archived first (section 0).
+select pg_temp.repair('workout_logs', 'family_member_id', 'profile_id',
+  'c.family_member_id is not null and not exists (select 1 from public.family_members p where p.id = c.family_member_id and p.profile_id = c.profile_id)', 'null');
+select pg_temp.repair('workout_logs', 'program_id', 'profile_id',
+  'c.program_id is not null and not exists (select 1 from public.programs p where p.id = c.program_id and p.profile_id = c.profile_id)', 'null');
+select pg_temp.repair('pr_records', 'workout_log_id', 'profile_id',
+  'c.workout_log_id is not null and not exists (select 1 from public.workout_logs p where p.id = c.workout_log_id and p.profile_id = c.profile_id)', 'null');
+select pg_temp.repair('profiles', 'active_family_member_id', 'id',
+  'c.active_family_member_id is not null and not exists (select 1 from public.family_members p where p.id = c.active_family_member_id and p.profile_id = c.id)', 'null');
+select pg_temp.repair('profiles', 'active_equipment_profile_id', 'id',
+  'c.active_equipment_profile_id is not null and not exists (select 1 from public.equipment_profiles p where p.id = c.active_equipment_profile_id and p.profile_id = c.id)', 'null');
 
 select pg_temp.add_constraint_if_missing('workout_logs', 'workout_logs_family_member_fk',
   'foreign key (family_member_id, profile_id) references public.family_members (id, profile_id) match simple on update no action on delete no action deferrable initially immediate');
@@ -501,14 +535,15 @@ create index if not exists sync_metadata_sync_cursor_idx      on public.sync_met
 -- h. Size caps (NOT VALID, then VALIDATE when existing data allows it)
 -- ---------------------------------------------------------------------------
 -- Repair: truncate over-long user prose left by 001 (no caps there) so the
--- caps can validate. Keys and jsonb blobs are never rewritten; see add_check.
-update public.profiles           set display_name = left(display_name, 100) where char_length(display_name) > 100;
-update public.family_members     set name = left(name, 100)                 where char_length(name) > 100;
-update public.equipment_profiles set name = left(name, 100)                 where char_length(name) > 100;
-update public.programs           set name = left(name, 100)                 where char_length(name) > 100;
-update public.workout_logs       set session_name = left(session_name, 200) where char_length(session_name) > 200;
-update public.workout_logs       set notes = left(notes, 10000)             where char_length(notes) > 10000;
-update public.exercise_notes     set content = left(content, 10000)         where char_length(content) > 10000;
+-- caps can validate; the full original goes to the repair archive first
+-- (section 0). Keys and jsonb blobs are never rewritten; see add_check.
+select pg_temp.repair('profiles',           'display_name', 'id',         'char_length(c.display_name) > 100', 'left(c.display_name, 100)');
+select pg_temp.repair('family_members',     'name',         'profile_id', 'char_length(c.name) > 100',         'left(c.name, 100)');
+select pg_temp.repair('equipment_profiles', 'name',         'profile_id', 'char_length(c.name) > 100',         'left(c.name, 100)');
+select pg_temp.repair('programs',           'name',         'profile_id', 'char_length(c.name) > 100',         'left(c.name, 100)');
+select pg_temp.repair('workout_logs',       'session_name', 'profile_id', 'char_length(c.session_name) > 200', 'left(c.session_name, 200)');
+select pg_temp.repair('workout_logs',       'notes',        'profile_id', 'char_length(c.notes) > 10000',      'left(c.notes, 10000)');
+select pg_temp.repair('exercise_notes',     'content',      'profile_id', 'char_length(c.content) > 10000',    'left(c.content, 10000)');
 -- profiles
 select pg_temp.add_check('profiles', 'profiles_display_name_len', 'char_length(display_name) <= 100');
 -- family_members

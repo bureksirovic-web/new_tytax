@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(260);
+select plan(263);
 
 
 select has_column('public', 'profiles', 'updated_at', 'profiles has updated_at');
@@ -227,6 +227,9 @@ select ok(coalesce(has_function_privilege('authenticated', to_regprocedure('publ
 select has_table('public', 'sync_usage', '004: sync_usage exists');
 select ok(not has_table_privilege('authenticated', 'public.sync_usage', 'select, insert, update, delete, truncate, references, trigger') and not has_table_privilege('anon', 'public.sync_usage', 'select, insert, update, delete, truncate, references, trigger'), 'sync_usage: no privileges for API roles');
 select policies_are('public', 'sync_usage', array[]::name[], 'sync_usage: no policies (server-internal)');
+select has_table('public', 'migration_repair_archive', '002: migration_repair_archive exists');
+select ok(not has_table_privilege('authenticated', 'public.migration_repair_archive', 'select, insert, update, delete, truncate, references, trigger') and not has_table_privilege('anon', 'public.migration_repair_archive', 'select, insert, update, delete, truncate, references, trigger'), 'migration_repair_archive: no privileges for API roles');
+select policies_are('public', 'migration_repair_archive', array[]::name[], 'migration_repair_archive: no policies (server-internal)');
 select ok(coalesce(not has_function_privilege('authenticated', to_regprocedure('public.enforce_sync_quota()'), 'execute') and not has_function_privilege('anon', to_regprocedure('public.enforce_sync_quota()'), 'execute'), false), 'enforce_sync_quota() exists and is not executable by API roles');
 select ok(coalesce(not has_function_privilege('authenticated', to_regprocedure('public.sync_quota()'), 'execute') and not has_function_privilege('anon', to_regprocedure('public.sync_quota()'), 'execute'), false), 'sync_quota() exists and is not executable by API roles');
 select ok((select prosecdef from pg_proc where oid = 'public.enforce_sync_quota()'::regprocedure), 'enforce_sync_quota is SECURITY DEFINER (writes sync_usage)');

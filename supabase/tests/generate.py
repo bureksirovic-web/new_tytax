@@ -232,6 +232,10 @@ body.append(T("select ok(coalesce(has_function_privilege('authenticated', to_reg
 body.append(T("select has_table('public', 'sync_usage', '004: sync_usage exists')"))
 body.append(T("select ok(not has_table_privilege('authenticated', 'public.sync_usage', 'select, insert, update, delete, truncate, references, trigger') and not has_table_privilege('anon', 'public.sync_usage', 'select, insert, update, delete, truncate, references, trigger'), 'sync_usage: no privileges for API roles')"))
 body.append(T("select policies_are('public', 'sync_usage', array[]::name[], 'sync_usage: no policies (server-internal)')"))
+# 002: the upgrade repair archive is server-internal too.
+body.append(T("select has_table('public', 'migration_repair_archive', '002: migration_repair_archive exists')"))
+body.append(T("select ok(not has_table_privilege('authenticated', 'public.migration_repair_archive', 'select, insert, update, delete, truncate, references, trigger') and not has_table_privilege('anon', 'public.migration_repair_archive', 'select, insert, update, delete, truncate, references, trigger'), 'migration_repair_archive: no privileges for API roles')"))
+body.append(T("select policies_are('public', 'migration_repair_archive', array[]::name[], 'migration_repair_archive: no policies (server-internal)')"))
 for fn in ["enforce_sync_quota()", "sync_quota()"]:
     body.append(T(f"select ok(coalesce(not has_function_privilege('authenticated', to_regprocedure('public.{fn}'), 'execute') and not has_function_privilege('anon', to_regprocedure('public.{fn}'), 'execute'), false), '{fn} exists and is not executable by API roles')"))
 body.append(T("select ok((select prosecdef from pg_proc where oid = 'public.enforce_sync_quota()'::regprocedure), 'enforce_sync_quota is SECURITY DEFINER (writes sync_usage)')"))

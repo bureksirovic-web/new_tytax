@@ -90,9 +90,29 @@ App env for local sync: `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54421` and
   - Not in the repo: a request-body limit at the hosted project's API gateway.
 - Upgrading a populated 001 database: over-long user text (names, notes,
   content) is truncated to the caps. Cross-account references are set to
-  null. A cap that old data still violates, such as a >256 KiB jsonb blob,
-  stays `NOT VALID` with a WARNING. It is still enforced on new writes;
-  validate it in a later migration.
+  null. Every rewritten value is first copied, in full, to
+  `public.migration_repair_archive` (table, row id, column, owner, old value;
+  RLS on, no grants, deleted with its account), so no repair is lost.
+  Preflight, before applying 002 to a populated database, run as the owner
+  (counts what will be archived):
+  ```sql
+  select 'profiles.display_name', count(*) from public.profiles where char_length(display_name) > 100
+  union all select 'family_members.name', count(*) from public.family_members where char_length(name) > 100
+  union all select 'equipment_profiles.name', count(*) from public.equipment_profiles where char_length(name) > 100
+  union all select 'programs.name', count(*) from public.programs where char_length(name) > 100
+  union all select 'workout_logs.session_name', count(*) from public.workout_logs where char_length(session_name) > 200
+  union all select 'workout_logs.notes', count(*) from public.workout_logs where char_length(notes) > 10000
+  union all select 'exercise_notes.content', count(*) from public.exercise_notes where char_length(content) > 10000;
+  ```
+  After it, `select table_name, column_name, count(*) from
+  public.migration_repair_archive group by 1, 2` lists what was repaired. A
+  value can be put back only with the cap lifted (it no longer fits), e.g.
+  `update public.workout_logs w set notes = a.old_value from
+  public.migration_repair_archive a where a.table_name = 'workout_logs' and
+  a.column_name = 'notes' and a.row_id = w.id` after dropping
+  `workout_logs_notes_len`. A cap that old data still violates, such as a
+  >256 KiB jsonb blob, stays `NOT VALID` with a WARNING. It is still enforced
+  on new writes; validate it in a later migration.
 - A new table in a later migration still needs `enable row level security`
   and explicit grants. `00_schema` fails if any public table lacks RLS or if
   anon holds any privilege on it.
