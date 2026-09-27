@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-09-27
+
 ### Added
 - **Setup link** (`/setup#p=…`): creates family profiles with their programs on the device that opens it.
   - Asks for confirmation first, and nothing is written before you press Create.
