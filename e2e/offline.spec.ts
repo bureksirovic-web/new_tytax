@@ -125,19 +125,26 @@ test('an uncached route offline falls back to the offline page', async ({ page, 
 
 // The English dictionary is a lazy chunk (src/lib/i18n/index.ts) that an hr
 // session never fetches. After one online visit in hr the worker must still
-// have it (it follows the chunk references in the loader code), so a user
-// whose stored language is English gets English offline, not hr or raw keys.
-test('English loads offline although it was never used online', async ({ page, context, tytax }) => {
+// have it (it follows the chunk references in the loader code), so switching
+// the language offline works. (Setting localStorage 'locale' is not enough:
+// the active profile's language wins at boot, see ProfilePrefsSync.)
+test('switching to English works offline although English was never used online', async ({ page, context, tytax }) => {
   test.setTimeout(120_000);
   await tytax.gotoApp('/dashboard');
+  await tytax.reset();
   await primeOffline(page, tytax.gotoApp);
   await expect(page.locator('html')).toHaveAttribute('lang', 'hr');
 
   await goOffline(context);
-  await page.evaluate(() => localStorage.setItem('locale', 'en'));
-  await page.reload();
-  await expect(page.getByTestId('page-heading-dashboard')).toHaveText(/home/i, { timeout: 30_000 });
+  await page.goto('/settings');
+  const heading = page.getByTestId('page-heading-settings');
+  await expect(heading).toHaveText(/postavke/i, { timeout: 30_000 });
+  await page.getByTestId('settings-language-select').selectOption('en');
+  await expect(heading).toHaveText(/settings/i);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  // An offline reload keeps English: the profile says en, the chunk is cached.
+  await page.reload();
+  await expect(page.getByTestId('page-heading-settings')).toHaveText(/settings/i, { timeout: 30_000 });
   await goOnline(context);
 });
 
