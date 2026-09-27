@@ -1,8 +1,5 @@
-import { test, expect } from './fixtures';
+import { test, expect, type Page } from './fixtures';
 
-// e2e/fixtures exports no Page type (request docs/v2/requests/G3-01.md); derive it from `test`.
-type Fixtures = Parameters<Parameters<typeof test.beforeEach>[1]>[0];
-type Page = Fixtures['page'];
 
 /**
  * Wave 2 workout features (signals/WAVE2.md, G3 items 2–4, 7):

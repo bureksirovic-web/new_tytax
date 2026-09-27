@@ -1,9 +1,5 @@
-import { test, expect } from './fixtures';
+import { test, expect, type Page, type Locator } from './fixtures';
 
-// e2e/fixtures exports no Page/Locator types (request docs/v2/requests/G3-01.md); derive them from `test`.
-type Fixtures = Parameters<Parameters<typeof test.beforeEach>[1]>[0];
-type Page = Fixtures['page'];
-type Locator = ReturnType<Page['locator']>;
 
 /**
  * AC6: PR celebration after save.
