@@ -38,6 +38,8 @@ export interface BuildSessionExerciseInput {
   availableKg?: readonly number[];
   /** Overrides `measureOf(exercise)` (e.g. a slot without a catalog entry). */
   measure?: ExerciseMeasure;
+  /** Youth mode: caps the automatic load increase (`PrefillOptions.maxIncrementKg`, see `@/lib/training/youth`). */
+  maxIncrementKg?: number;
 }
 
 /** Heaviest non-warm-up kg of `sets`; 0 when none. */
@@ -98,6 +100,7 @@ export function buildSessionExercise(input: BuildSessionExerciseInput): SessionE
   }
   const options: PrefillOptions = { targetSets, repTarget: input.repTarget ?? slot?.reps };
   if (modality === 'kettlebell' && input.availableKg && input.availableKg.length > 0) options.availableKg = input.availableKg;
+  if (input.maxIncrementKg !== undefined) options.maxIncrementKg = input.maxIncrementKg;
   const prefill = training.prefillFromHistory(exerciseId, history, options);
   const working = prefill.sets;
   const isTime = (input.measure ?? measureOf(exercise)) === 'time';

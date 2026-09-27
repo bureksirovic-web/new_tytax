@@ -1,9 +1,10 @@
 'use client';
-import type { Units } from '@/contracts/domain';
+import type { SetType, Units } from '@/contracts/domain';
 import { useT } from '@/lib/i18n/use-t';
 import { TrashIcon } from './icons';
 import { RIR_OPTIONS, type EditSet, type SetErrors } from './edit-model';
 import '@/lib/i18n/packs/history';
+import '@/lib/i18n/packs/youth';
 
 interface Props {
   set: EditSet;
@@ -13,6 +14,8 @@ interface Props {
   error?: SetErrors;
   onChange: (patch: Partial<EditSet>) => void;
   onRemove: () => void;
+  /** Youth mode (profile under 16): drop and failure are not offered in the set-type picker. */
+  hideDropFailure?: boolean;
 }
 
 const field =
@@ -23,7 +26,28 @@ function border(bad?: boolean) {
   return bad ? 'border-red-500' : 'border-line';
 }
 
-export function EditorSetRow({ set, index, exerciseName, units, error, onChange, onRemove }: Props) {
+const TYPE_LABEL_KEY = {
+  working: 'hist_edit_type_working',
+  warmup: 'hist_edit_type_warmup',
+  drop: 'youth_set_type_drop',
+  failure: 'youth_set_type_failure',
+} as const satisfies Record<SetType, string>;
+
+/** Selectable set types. Youth mode never offers drop/failure as a choice. */
+export function typeOptions(hideDropFailure: boolean | undefined): SetType[] {
+  return hideDropFailure ? ['working', 'warmup'] : ['working', 'warmup', 'drop', 'failure'];
+}
+
+/**
+ * A stored legacy drop/failure set on a youth profile: shown as its current
+ * value (a disabled option, so nothing is silently retyped on open) but it
+ * cannot be selected again once changed.
+ */
+export function lockedLegacyType(current: SetType, hideDropFailure: boolean | undefined): SetType | null {
+  return hideDropFailure && (current === 'drop' || current === 'failure') ? current : null;
+}
+
+export function EditorSetRow({ set, index, exerciseName, units, error, onChange, onRemove, hideDropFailure }: Props) {
   const { t } = useT();
   const idp = `set-${set.id}`;
   return (
@@ -61,12 +85,21 @@ export function EditorSetRow({ set, index, exerciseName, units, error, onChange,
         <label htmlFor={`${idp}-type`} className={label}>{t('hist_edit_type')}</label>
         <select
           id={`${idp}-type`}
-          value={set.type === 'warmup' ? 'warmup' : 'working'}
-          onChange={(e) => onChange({ type: e.target.value === 'warmup' ? 'warmup' : 'working' })}
+          data-testid="history-edit-set-type"
+          value={set.type}
+          onChange={(e) => onChange({ type: e.target.value as SetType })}
           className={`${field} border-line`}
         >
-          <option value="working">{t('hist_edit_type_working')}</option>
-          <option value="warmup">{t('hist_edit_type_warmup')}</option>
+          {typeOptions(hideDropFailure).map((type) => (
+            <option key={type} value={type}>
+              {t(TYPE_LABEL_KEY[type])}
+            </option>
+          ))}
+          {lockedLegacyType(set.type, hideDropFailure) && (
+            <option value={set.type} disabled>
+              {t(TYPE_LABEL_KEY[set.type])}
+            </option>
+          )}
         </select>
       </div>
       <label htmlFor={`${idp}-done`} className="flex min-h-11 items-center gap-2 self-end text-sm text-fg-2">

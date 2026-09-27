@@ -52,6 +52,7 @@ import { DEFAULT_PROFILE_SETTINGS } from '@/contracts/domain';
 import type { Catalog } from '@/contracts/exercise-catalog';
 import type { FinishResult, Repository } from '@/contracts/repo';
 import type { RecoverySummary } from '@/contracts/training';
+import { isYouth, youthPrefillOptions, restDayLocked } from '@/lib/training/youth';
 import {
   applyDeload,
   buildProgramSession,
@@ -139,19 +140,23 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
   const now = deps.now ?? (() => new Date());
   const store = deps.store ?? useWorkoutStore;
 
-  async function settingsFor(profileId: string): Promise<ProfileSettings> {
-    return settingsOf(await repo.profiles.get(profileId));
+  /** `PrefillOptions.maxIncrementKg` for a profile at `at` (youth mode only; see `@/lib/training/youth`). */
+  function maxIncrementKgFor(profile: Profile | undefined, at: Date): number | undefined {
+    return isYouth(profile, at) ? youthPrefillOptions().maxIncrementKg : undefined;
   }
 
   async function prepareProgramStart(profileId: string): Promise<PreparedProgramStart | null> {
     const program: Program | undefined = await repo.programs.getActive(profileId);
     if (!program) return null;
-    const [settings, logs, catalog, inventory] = await Promise.all([
-      settingsFor(profileId),
+    const [profile, logs, catalog, inventory] = await Promise.all([
+      repo.profiles.get(profileId),
       repo.logs.list(profileId),
       deps.loadCatalog(),
       repo.equipment.get(profileId),
     ]);
+    const settings = settingsOf(profile);
+    const at = now();
+    const youth = isYouth(profile, at);
     const lookup = (id: string) => catalog.getById(id);
     const session = buildProgramSession({
       program,
@@ -160,9 +165,9 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       settings,
       lookup,
       availableKg: inventory.kettlebellsKg,
+      maxIncrementKg: maxIncrementKgFor(profile, at),
     });
     if (!session) return null;
-    const at = now();
     const offers: ProgramStartOffers = {};
     const deload = deloadOffer({ history: logs, lookup, now: at });
     if (deload.offer) offers.deload = { recovery: deload.recovery };
@@ -174,6 +179,7 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       settings,
       inventory,
       now: at,
+      youth,
     });
     if (pick) offers.weakPoint = pick;
     return { profileId, settings, session, offers };
@@ -200,19 +206,22 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
    * is built for the deload to drop.
    */
   async function prefilled(profileId: string, exercise: Exercise, targetSets?: number) {
-    const [settings, history, inventory] = await Promise.all([
-      settingsFor(profileId),
+    const [profile, history, inventory] = await Promise.all([
+      repo.profiles.get(profileId),
       repo.logs.historyFor(profileId, exercise.id),
       exercise.modality === 'kettlebell' ? repo.equipment.get(profileId) : Promise.resolve(undefined),
     ]);
+    const settings = settingsOf(profile);
     const availableKg = inventory?.kettlebellsKg;
-    if (!store.getState().draft?.isDeload) return buildSessionExercise({ exercise, history, settings, targetSets, availableKg });
+    const maxIncrementKg = maxIncrementKgFor(profile, now());
+    if (!store.getState().draft?.isDeload) return buildSessionExercise({ exercise, history, settings, targetSets, availableKg, maxIncrementKg });
     const built = buildSessionExercise({
       exercise,
       history,
       settings,
       targetSets: targetSets === undefined ? undefined : targetSets + 1,
       availableKg,
+      maxIncrementKg,
     });
     return applyDeload([built], settings)[0];
   }
@@ -273,6 +282,8 @@ export function createWorkoutOrchestrator(deps: WorkoutOrchestratorDeps) {
       const index = wrapIndex(program.currentSessionIndex, program.sessions.length);
       const session = program.sessions[index];
       if (session.isRest !== true && session.exercises.length > 0) return program;
+      // Youth mode: a rest day is completed on a later calendar day, never rushed.
+      if (restDayLocked(await repo.profiles.get(profileId), program, now())) return program;
       const next = (index + 1) % program.sessions.length;
       return repo.programs.update(profileId, program.id, { currentSessionIndex: next });
     },

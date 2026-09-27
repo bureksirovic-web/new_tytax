@@ -13,12 +13,14 @@ interface Props {
   onRemoveSet: (setId: string) => void;
   onAddSet: () => void;
   onRemoveExercise: () => void;
+  /** Youth mode: drop and failure are not offered in the set-type picker. */
+  hideDropFailure?: boolean;
 }
 
 const btn =
   'min-h-11 rounded-lg border border-line px-3 text-xs font-medium text-fg-2 hover:bg-card-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight';
 
-export function EditorExercise({ ex, units, errors, onSetChange, onRemoveSet, onAddSet, onRemoveExercise }: Props) {
+export function EditorExercise({ ex, units, errors, onSetChange, onRemoveSet, onAddSet, onRemoveExercise, hideDropFailure }: Props) {
   const { t } = useT();
   const name = ex.source.exerciseName;
   return (
@@ -39,6 +41,7 @@ export function EditorExercise({ ex, units, errors, onSetChange, onRemoveSet, on
           error={errors[s.id]}
           onChange={(patch) => onSetChange(s.id, patch)}
           onRemove={() => onRemoveSet(s.id)}
+          hideDropFailure={hideDropFailure}
         />
       ))}
       <button type="button" data-testid="history-edit-add-set" onClick={onAddSet} className={`${btn} mt-2`}>

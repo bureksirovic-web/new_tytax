@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { BodyweightEntry, Units, WorkoutLog } from '@/contracts/domain';
+import type { BodyweightEntry, Profile, Units, WorkoutLog } from '@/contracts/domain';
 import type { Repository } from '@/contracts/repo';
 import type { ExerciseLookup } from '@/contracts/training';
 import { useActiveProfile, useRepoQuery } from '@/hooks/use-repo';
@@ -55,6 +55,7 @@ export function useExerciseNames(): ExerciseNames {
 export interface AnalyticsData {
   loading: boolean;
   profileId: string | undefined;
+  profile: Profile | undefined;
   units: Units;
   /** The active profile's live logs, whole history, newest first. */
   logs: WorkoutLog[];
@@ -79,6 +80,7 @@ export function useAnalyticsData(): AnalyticsData {
   return {
     loading: profileLoading || (profileId !== undefined && logs === undefined),
     profileId,
+    profile,
     units: profile?.settings.units ?? 'kg',
     logs: logs ?? [],
     lookup: lookup ?? EMPTY_LOOKUP,

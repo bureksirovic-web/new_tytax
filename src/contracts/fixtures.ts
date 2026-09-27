@@ -76,6 +76,8 @@ export interface SeedProfileInput {
   /** Default 'Test'. */
   name?: string;
   settings?: Partial<ProfileSettings>;
+  /** Youth mode when under 16 (additive, family-profiles plan). */
+  birthYear?: number;
   /** Make it the device's active profile. Default true. */
   activate?: boolean;
 }
@@ -174,6 +176,7 @@ export function buildProfile(input: SeedProfileInput, now: Date, nextId: IdGen):
     name: input.name ?? 'Test',
     activeProgramId: null,
     settings: { ...DEFAULT_PROFILE_SETTINGS, plateSetKg: [...DEFAULT_PROFILE_SETTINGS.plateSetKg], ...input.settings },
+    ...(input.birthYear !== undefined ? { birthYear: input.birthYear } : {}),
     createdAt: stamp,
     updatedAt: stamp,
   };

@@ -127,6 +127,19 @@ describe('mapper round trip', () => {
     expect(back.tags).toEqual(['form']);
   });
 
+  it('never syncs birthYear: not in extra on push, and stripped from extra on pull (family-profiles plan)', () => {
+    const kao = { ...all.profiles[0], birthYear: 2015 };
+    const row = toRemote('profiles', kao, ACCOUNT_A);
+    expect(row.extra).toEqual({});
+    expect(JSON.stringify(row)).not.toContain('birthYear');
+    expect(JSON.stringify(row)).not.toContain('2015');
+    // A legacy/hostile remote row must not reintroduce it either.
+    const hostile = { ...wire(row), extra: { birthYear: 2015, pinned: true } };
+    const back = fromRemote('profiles', hostile);
+    expect(back.birthYear).toBeUndefined();
+    expect(back.pinned).toBe(true);
+  });
+
   it('never lets extra override a mapped column or leak unknown snake columns', () => {
     const row = { ...toRemote('programs', all.programs[0], ACCOUNT_A), is_active: true, extra: { name: 'evil', syncedAt: 'x', fresh: 1 } };
     const back = fromRemote('programs', wire(row));

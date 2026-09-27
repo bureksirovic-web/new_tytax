@@ -3,8 +3,10 @@ import type { ProgramTemplate } from '@/contracts/domain';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
+import { BW_YOUTH_DIPBAR_START_PRESET_ID } from '@/data/bodyweight/presets';
 import { MODALITY_KEYS, SPLIT_KEYS } from './lib/labels';
 import '@/lib/i18n/packs/programs';
+import '@/lib/i18n/packs/youth';
 
 interface PresetCardProps {
   preset: ProgramTemplate;
@@ -33,6 +35,11 @@ export function PresetCard({ preset, installed, busy, disabled, onInstall }: Pre
         {t('prog_sessions_count', { n: training })}
       </p>
       <p className="mt-1 text-xs text-fg-2">{preset.modalitiesUsed.map((m) => t(MODALITY_KEYS[m])).join(' · ')}</p>
+      {preset.presetId === BW_YOUTH_DIPBAR_START_PRESET_ID && (
+        <p className="mt-2 rounded-lg border border-line bg-bg-2 p-2 text-xs text-fg" data-testid="preset-youth-safety">
+          {t('youth_preset_safety')}
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         {installed ? (
           <Button

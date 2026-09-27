@@ -63,6 +63,12 @@ export interface PrefillOptions {
    * to the lightest one ≥ last + increment. Added after Wave 0 (request G1-02).
    */
   availableKg?: readonly number[];
+  /**
+   * Upper bound on the automatic load increase, kg (youth mode passes 1.25).
+   * When snapping to `availableKg` would exceed it, the weight stays unchanged.
+   * Added 2026-09-27 (family-profiles plan).
+   */
+  maxIncrementKg?: number;
 }
 
 export type PrefillBasis = 'none' | 'rir3plus' | 'rir2' | 'hold';

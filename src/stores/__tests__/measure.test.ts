@@ -28,8 +28,8 @@ describe('measureOf', () => {
     const tagOnly = all.filter((e) => e.measure === 'time' && !TIME_TARGET.test(e.defaultReps)).map((e) => e.id);
     expect(heuristicOnly).toEqual([]);
     expect(tagOnly).toEqual([]);
-    // 74 tytax + 12 bodyweight + 6 kettlebell = 92 tagged (G1 notes: "~92").
-    expect(all.filter((e) => measureOf(e) === 'time')).toHaveLength(92);
+    // 74 tytax + 13 bodyweight + 6 kettlebell = 93 tagged (youth preset added Tuck L-Sit, 2026-09-27).
+    expect(all.filter((e) => measureOf(e) === 'time')).toHaveLength(93);
   });
 
   it('is reps for an unknown exercise', () => {

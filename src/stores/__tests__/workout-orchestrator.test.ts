@@ -71,6 +71,26 @@ describe('workout orchestrator', () => {
     expect(await o.swapExercise(profileId, 'missing', row)).toBeNull();
   });
 
+  it('youth profile (birthYear set): addExercise caps the automatic increase to +1.25 kg', async () => {
+    await repo.profiles.update(profileId, { birthYear: NOW.getUTCFullYear() - 11 });
+    await seedBench(72, working(100, 3, 3));
+    const o = orch();
+    o.startQuick(profileId, 'Quick');
+    await o.addExercise(profileId, bench);
+    // 100 RIR 3: adult would be 102.5 (+2.5); youth caps the increase to +1.25 -> 101.25.
+    expect(draft().exercises[0].sets.filter((s) => s.type === 'working').map((s) => s.kg)).toEqual([101.25, 101.25, 101.25]);
+  });
+
+  it('youth profile: starting a program session also caps the increase (full path: profile -> draft prefill)', async () => {
+    await repo.profiles.update(profileId, { birthYear: NOW.getUTCFullYear() - 11 });
+    await seedBench(72, working(100, 3, 3));
+    await repo.programs.create(profileId, template, { activate: true });
+    const o = orch();
+    const prepared = await o.prepareProgramStart(profileId);
+    o.startProgram(prepared!, { deload: false, weakPoint: false });
+    expect(draft().exercises[0].sets.filter((s) => s.type === 'working').map((s) => s.kg)).toEqual([101.25, 101.25, 101.25]);
+  });
+
   it('add and swap in a deload draft are deloaded; a swap after done sets takes only the sets still to do', async () => {
     await seedBench(72, working(100, 3, 3));
     const o = orch();
@@ -129,6 +149,28 @@ describe('workout orchestrator', () => {
     expect(await o.prepareProgramStart(profileId)).toBeNull();
     const advanced = await o.skipRestDay(profileId);
     expect(advanced?.id).toBe(p.id);
+    expect(advanced?.currentSessionIndex).toBe(0);
+  });
+
+  it('youth: skipRestDay refuses a rest day until it has passed (same day and the rest day itself), then allows it', async () => {
+    await repo.profiles.update(profileId, { birthYear: NOW.getFullYear() - 11 });
+    // The program advanced "today" (relative to the injected clock).
+    const p = await repo.programs.create(profileId, { ...template, currentSessionIndex: 1 }, { activate: true });
+    await repo.programs.update(profileId, p.id, { name: p.name });
+    const stamped = await repo.programs.getActive(profileId);
+    const sameDay = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => new Date(stamped!.updatedAt) });
+    const refused = await sameDay.skipRestDay(profileId);
+    expect(refused?.currentSessionIndex).toBe(1);
+    expect((await repo.programs.getActive(profileId))?.currentSessionIndex).toBe(1);
+    // The day after the workout IS the rest day: still refused, nothing written.
+    const nextDay = new Date(new Date(stamped!.updatedAt).getTime() + 26 * 3600 * 1000);
+    const restDay = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => nextDay });
+    expect((await restDay.skipRestDay(profileId))?.currentSessionIndex).toBe(1);
+    expect((await repo.programs.getActive(profileId))?.updatedAt).toBe(stamped!.updatedAt);
+    // Two calendar days later the rest day has passed: it can be marked done.
+    const twoDays = new Date(new Date(stamped!.updatedAt).getTime() + 50 * 3600 * 1000);
+    const later = createWorkoutOrchestrator({ repo, loadCatalog: async () => catalog, now: () => twoDays });
+    const advanced = await later.skipRestDay(profileId);
     expect(advanced?.currentSessionIndex).toBe(0);
   });
 

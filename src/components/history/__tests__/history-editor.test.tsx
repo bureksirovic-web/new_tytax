@@ -104,6 +104,25 @@ describe('History editor', () => {
     expect(router.push).toHaveBeenCalledWith(`/history/${log.id}`);
   });
 
+  it('youth mode (profile under 16): the set-type picker offers no drop/failure option', async () => {
+    const { me, log } = await seedOne();
+    await getRepository().profiles.update(me.id, { birthYear: 2015 }); // 11 in 2026
+    renderEdit(log.id);
+    await screen.findByTestId('page-heading-history-edit');
+    const select = screen.getAllByTestId('history-edit-set-type')[0];
+    const values = within(select).getAllByRole('option').map((o) => (o as HTMLOptionElement).value);
+    expect(values).toEqual(['working', 'warmup']);
+  });
+
+  it('adult profile: the set-type picker offers drop and failure', async () => {
+    const { log } = await seedOne();
+    renderEdit(log.id);
+    await screen.findByTestId('page-heading-history-edit');
+    const select = screen.getAllByTestId('history-edit-set-type')[0];
+    const values = within(select).getAllByRole('option').map((o) => (o as HTMLOptionElement).value);
+    expect(values).toEqual(['working', 'warmup', 'drop', 'failure']);
+  });
+
   it('shows not-found for an unknown id and has no serious axe violations', async () => {
     const { log } = await seedOne();
     const { container, unmount } = renderEdit(log.id);

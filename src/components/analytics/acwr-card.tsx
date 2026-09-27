@@ -13,6 +13,8 @@ interface Props {
   logs: readonly WorkoutLog[];
   lookup: ExerciseLookup;
   now: Date;
+  /** Youth mode (profile under 16): no load-spike (caution/danger) zone warnings. */
+  hideSpikeWarnings?: boolean;
 }
 
 const ZONE_BADGE: Record<AcwrZone, 'default' | 'success' | 'warning' | 'danger'> = {
@@ -33,7 +35,7 @@ const TD = 'py-2 pr-2 font-mono text-fg-2';
  * (a new user must not see a fake "danger"). The same holds per muscle: a
  * muscle first trained < 28 days ago shows its own building notice, no zone.
  */
-export function AcwrCard({ logs, lookup, now }: Props) {
+export function AcwrCard({ logs, lookup, now, hideSpikeWarnings }: Props) {
   const { t, locale } = useT();
   const { rows, daysOfHistory, building } = useMemo(() => acwrSummary(logs, lookup, now), [logs, lookup, now]);
 
@@ -75,6 +77,8 @@ export function AcwrCard({ logs, lookup, now }: Props) {
                         <td className="py-2">
                           {r.building ? (
                             <span className="text-xs text-fg-muted">{t('ana_acwr_row_building', { days: r.baselineDays })}</span>
+                          ) : hideSpikeWarnings && (r.zone === 'caution' || r.zone === 'danger') ? (
+                            <span className="text-xs text-fg-muted">{NONE}</span>
                           ) : (
                             <Badge variant={ZONE_BADGE[r.zone]}>{t(ZONE_KEYS[r.zone])}</Badge>
                           )}

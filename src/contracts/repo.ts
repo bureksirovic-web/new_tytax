@@ -18,6 +18,7 @@ import type {
   ArsenalEntry,
   BodyweightEntry,
   EquipmentInventory,
+  ExperienceLevel,
   ExerciseNote,
   MachineSetup,
   PRRecord,
@@ -78,6 +79,8 @@ export interface CreateProfileInput {
   settings?: Partial<ProfileSettings>;
   avatarColor?: string;
   accountId?: string;
+  birthYear?: number;
+  experienceLevel?: ExperienceLevel;
 }
 
 export interface ProfilesRepo {

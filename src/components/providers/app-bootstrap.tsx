@@ -8,7 +8,17 @@ import type { E2EBootHooks } from './e2e-hooks';
 import '@/lib/i18n/packs/g5Auth';
 
 /** First-run profile name. User data (renamed in settings), not a UI string. */
-const DEFAULT_PROFILE_NAME = 'Profil 1';
+export const DEFAULT_PROFILE_NAME = 'Profil 1';
+
+/**
+ * `/setup` previews a setup link and writes nothing until "Create" is
+ * pressed (family-profiles plan, amendments after 1b, blocker 1): the normal
+ * first-run profile must not be created underneath it, or a cancelled/invalid
+ * link would still leave a fresh "Profil 1" behind.
+ */
+function isSetupRoute(): boolean {
+  return typeof window !== 'undefined' && window.location.pathname === '/setup';
+}
 
 /** One bootstrap per page load; dedupes React Strict Mode's double effect run. */
 let booting: Promise<void> | null = null;
@@ -32,7 +42,7 @@ async function bootstrap(): Promise<void> {
     hooks = installBootingE2EHooks(repo, { defaultProfileName: DEFAULT_PROFILE_NAME });
   }
   try {
-    await repo.profiles.ensureActive(DEFAULT_PROFILE_NAME);
+    if (!isSetupRoute()) await repo.profiles.ensureActive(DEFAULT_PROFILE_NAME);
   } catch (error) {
     if (hooks) hooks.bootError = errorMessage(error);
     throw error;

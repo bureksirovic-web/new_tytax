@@ -107,6 +107,26 @@ describe('workout start page', () => {
     expect(h.prepareProgramStart).not.toHaveBeenCalled();
   });
 
+  it('youth mode: a rest day reached today stays locked (disabled + hint), never hidden', async () => {
+    const today = { ...program(1), updatedAt: new Date().toISOString() };
+    const h = makeHook({ activeProgram: today, profile: { birthYear: new Date().getFullYear() - 11 } as UseWorkoutResult['profile'] });
+    hook.current = h;
+    render(<WorkoutPage />);
+    expect(screen.getByTestId('next-session-rest')).toHaveTextContent('Rest day');
+    expect(screen.getByTestId('complete-rest-day')).toBeDisabled();
+    expect(screen.getByTestId('rest-day-locked')).toBeInTheDocument();
+  });
+
+  it('youth mode: a rest day reached on an earlier day can be marked done (the rotation never gets stuck)', async () => {
+    const h = makeHook({ activeProgram: program(1), profile: { birthYear: new Date().getFullYear() - 11 } as UseWorkoutResult['profile'] });
+    hook.current = h;
+    render(<WorkoutPage />);
+    expect(screen.getByTestId('complete-rest-day')).toBeEnabled();
+    expect(screen.queryByTestId('rest-day-locked')).toBeNull();
+    await click('complete-rest-day');
+    expect(h.skipRestDay).toHaveBeenCalled();
+  });
+
   it('starts a program session without offers straight away', async () => {
     const h = makeHook({ activeProgram: program(0) });
     hook.current = h;
