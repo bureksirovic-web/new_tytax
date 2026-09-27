@@ -1,44 +1,27 @@
-import type { Program } from '@/types/program';
-import { TYTAX_ELITE_V3 } from '@/data/tytax/presets';
+import type { ProgramTemplate } from '@/contracts/domain';
+import { TYTAX_ELITE_V3, TYTAX_ORIGINAL_6DAY, TYTAX_ORIGINAL_6DAY_PRESET_ID } from '@/data/tytax/presets';
 import { BW_FUNDAMENTALS } from '@/data/bodyweight/presets';
 import { KB_SIMPLE_SINISTER, KB_HYPERTROPHY, KB_CONDITIONING } from '@/data/kettlebell/presets';
 
-/**
- * All built-in program templates, normalized to the Program shape.
- */
-function normalizePreset(
-  preset: Omit<Program, 'id' | 'profileId' | 'createdAt' | 'updatedAt'> | Program,
-  idStr: string
-): Program {
-  if ('id' in preset && preset.id) {
-    return preset as Program;
-  }
-  const now = new Date().toISOString();
-  return {
-    ...(preset as Program),
-    id: idStr,
-    profileId: 'preset',
-    createdAt: now,
-    updatedAt: now,
-  };
-}
+/** Stable preset id of the default TYTAX program: the original 6-day split + rest day. */
+export const DEFAULT_TYTAX_PRESET_ID = TYTAX_ORIGINAL_6DAY_PRESET_ID;
 
-export const ALL_PRESETS: Program[] = [
-  normalizePreset(TYTAX_ELITE_V3, 'preset_tytax_elite_v3'),
-  normalizePreset(BW_FUNDAMENTALS, 'preset_bw_fundamentals'),
+/** Every built-in program template; each has a stable, unique `presetId`. */
+export const ALL_PRESETS: ProgramTemplate[] = [
+  TYTAX_ORIGINAL_6DAY,
+  TYTAX_ELITE_V3,
+  BW_FUNDAMENTALS,
   KB_SIMPLE_SINISTER,
   KB_HYPERTROPHY,
   KB_CONDITIONING,
 ];
 
-/** Find a preset by its preset-stable id */
-export function getPresetById(id: string): Program | undefined {
-  return ALL_PRESETS.find((p) => p.id === id);
+/** Find a built-in template by its stable `presetId`. */
+export function getPresetById(presetId: string): ProgramTemplate | undefined {
+  return ALL_PRESETS.find((p) => p.presetId === presetId);
 }
 
-/** The stable preset IDs for KB programs (used in UI to detect "already installed"). */
-export const KB_PRESET_IDS = [
-  KB_SIMPLE_SINISTER.id,
-  KB_HYPERTROPHY.id,
-  KB_CONDITIONING.id,
-] as const;
+/** Stable preset ids of the kettlebell programs (UI: detect "already installed"). */
+export const KB_PRESET_IDS: readonly string[] = [KB_SIMPLE_SINISTER, KB_HYPERTROPHY, KB_CONDITIONING].map(
+  (p) => p.presetId ?? '',
+);

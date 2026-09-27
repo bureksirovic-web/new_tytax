@@ -1,137 +1,62 @@
 'use client';
-import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
-import { useWorkoutStore } from '@/stores/workout-store';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { formatDuration } from '@/lib/utils';
-import { useLocale } from '@/components/providers';
-import type { WorkoutLog } from '@/types/workout';
-import type { Program } from '@/types/program';
+import { DEFAULT_PROFILE_SETTINGS } from '@/contracts/domain';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { useT } from '@/lib/i18n/use-t';
+import { LastWorkoutCard } from './_components/last-workout-card';
+import { NoWorkoutsCard } from './_components/no-workouts-card';
+import { PinnedCard } from './_components/pinned-card';
+import { RecoveryCard } from './_components/recovery-card';
+import { TodayCard } from './_components/today-card';
+import { useDashboardData, useNow } from './_components/use-dashboard-data';
+import { useForeignDraft } from './_components/use-foreign-draft';
+import { useStartWorkout } from './_components/use-start-workout';
+import { WeeklyVolumeCard } from './_components/weekly-volume-card';
+import '@/lib/i18n/packs/dashboard';
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { t } = useLocale();
-  const startWorkout = useWorkoutStore((s) => s.startWorkout);
-
-  const lastLog = useLiveQuery<WorkoutLog | undefined>(
-    () => db.workoutLogs.orderBy('date').last(),
-    []
-  );
-
-  const weekLogs = useLiveQuery<WorkoutLog[]>(async () => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-    return db.workoutLogs.where('date').aboveOrEqual(cutoffStr).toArray();
-  }, []);
-
-  const activeProgram = useLiveQuery<Program | undefined>(
-    () => db.programs.where('isActive').equals(1).and((p) => !p.deletedAt).first(),
-    []
-  );
-
-  const weekVolume = weekLogs?.reduce((sum, l) => sum + (l.totalVolumeKg ?? 0), 0) ?? 0;
-  const weekCount = weekLogs?.length ?? 0;
-
-  const handleQuickStart = async () => {
-    await startWorkout({});
-    router.push('/workout/active');
-  };
+  const { t } = useT();
+  const now = useNow();
+  const data = useDashboardData(now);
+  const start = useStartWorkout(data.profile?.id);
+  const foreign = useForeignDraft(data.profile?.id);
+  const units = data.profile?.settings.units ?? DEFAULT_PROFILE_SETTINGS.units;
 
   return (
-    <main className="min-h-screen p-4 pb-24" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <div className="mb-6 pt-4">
-        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_system')}</p>
-        <h1
-          className="text-3xl font-bold tracking-wider uppercase"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
-        >
-          {t('dashboard_title')}
+    <div className="mx-auto w-full max-w-3xl space-y-4 bg-bg p-4 pb-24">
+      <header className="pt-4">
+        <h1 data-testid="page-heading-dashboard" className="font-display text-3xl font-bold uppercase tracking-wider text-highlight">
+          {t('dash_title')}
         </h1>
-      </div>
+      </header>
 
-      <Button fullWidth size="lg" onClick={handleQuickStart} className="uppercase tracking-widest font-bold mb-6 min-h-[64px] text-lg">
-        {t('workout_start')}
-      </Button>
-
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <Card>
-          <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_this_week')}</p>
-          <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-mono)', color: 'var(--highlight)' }}>
-            {weekCount}
-            <span className="text-sm font-normal ml-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_sessions')}</span>
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t('dashboard_volume')}</p>
-          <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-mono)', color: 'var(--highlight)' }}>
-            {weekVolume > 0 ? `${Math.round(weekVolume / 1000).toLocaleString()}t` : '—'}
-          </p>
-        </Card>
-      </div>
-
-      {lastLog ? (
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle>{t('dashboard_last_workout')}</CardTitle>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{lastLog.date}</span>
-          </CardHeader>
-          <h3 className="font-bold uppercase tracking-wide mb-2" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
-            {lastLog.sessionName}
-          </h3>
-          <div className="flex gap-4 text-sm">
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {lastLog.exercises.length} {t('dashboard_exercises')}
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {formatDuration(lastLog.durationSeconds)}
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {Math.round(lastLog.totalVolumeKg).toLocaleString()} kg
-            </span>
-          </div>
-          {lastLog.prCount > 0 && (
-            <Badge variant="warning" className="mt-2">{lastLog.prCount} PR{lastLog.prCount > 1 ? 's' : ''}</Badge>
-          )}
-        </Card>
+      {data.loading ? (
+        <div role="status" aria-live="polite" aria-busy="true" data-testid="dash-loading" className="space-y-4">
+          <span className="sr-only">{t('dash_loading')}</span>
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : data.failed ? (
+        <p role="alert" data-testid="dash-error" className="rounded-xl border border-line bg-card p-4 text-sm text-fg">
+          {t('dash_load_failed')}
+        </p>
       ) : (
-        <Card className="mb-4">
-          <p className="text-sm py-2" style={{ color: 'var(--text-muted)' }}>{t('dashboard_no_workouts')}</p>
-        </Card>
+        <>
+          <TodayCard program={data.program} start={start} foreign={foreign} />
+          <PinnedCard units={units} />
+          {data.lastLog ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <RecoveryCard recovery={data.recovery} failed={data.recoveryFailed} />
+              <WeeklyVolumeCard volume={data.volume} units={units} />
+              <div className="md:col-span-2">
+                <LastWorkoutCard log={data.lastLog} units={units} />
+              </div>
+            </div>
+          ) : (
+            <NoWorkoutsCard start={start} />
+          )}
+        </>
       )}
-
-      {activeProgram && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('dashboard_active_program')}</CardTitle>
-            <Badge variant="success">{t('dashboard_on')}</Badge>
-          </CardHeader>
-          <h3 className="font-bold uppercase tracking-wide" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
-            {activeProgram.name}
-          </h3>
-          {(() => {
-            const idx = activeProgram.currentSessionIndex ?? 0;
-            const session = activeProgram.sessions[idx % activeProgram.sessions.length];
-            return session ? (
-              <p className="text-sm mt-1" style={{ color: 'var(--accent)' }}>
-                {t('dashboard_next')}: {session.name} — {session.exercises.length} {t('dashboard_exercises')}
-              </p>
-            ) : null;
-          })()}
-          <Button
-            variant="secondary"
-            size="sm"
-            fullWidth
-            className="mt-3 uppercase tracking-widest"
-            onClick={() => router.push('/workout')}
-          >
-            {t('dashboard_view_program_session')}
-          </Button>
-        </Card>
-      )}
-    </main>
+      {start.dialogs}
+    </div>
   );
 }

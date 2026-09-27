@@ -1,25 +1,79 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * Test isolation (PLAN §10.1 W0.2): every goal/worktree runs its own server on
+ * its own port (G1 3101 … G5 3105, integration 3100) and never reuses one.
+ * The global setup then asserts the server's `/api/health` SHA equals this
+ * worktree's HEAD, so a run can never silently test another worktree's code.
+ *
+ * `E2E_SERVER=prod` serves an existing `next build` with `next start`. The
+ * e2e hooks are compiled in only when that build ran with NEXT_PUBLIC_E2E_HOOKS=1
+ * (NEXT_PUBLIC_* is inlined at build time); `next dev` always has them.
+ *
+ * PORT is required, never guessed (S3-09): a fallback would land on another
+ * goal's (or the integration) port and abort one of the two runs.
+ */
+const PORT = process.env.PORT;
+if (!PORT) throw new Error('Set PORT=310<n> (GOALS.md port table)');
+const baseURL = `http://127.0.0.1:${PORT}`;
+
+// `-H 127.0.0.1`: keep the server off the LAN, and make 127.0.0.1 the dev
+// server's own hostname so Next's cross-origin dev guard allows its assets.
+const serverCommand =
+  process.env.E2E_SERVER === 'prod'
+    ? `npx next start -p ${PORT} -H 127.0.0.1`
+    : `npx next dev -p ${PORT} -H 127.0.0.1`;
+
 export default defineConfig({
   testDir: './e2e',
+  // Only *.spec.ts: the file type the lint bans and the counting expect cover (R09).
+  testMatch: '**/*.spec.ts',
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
+  forbidOnly: true,
+  // The CI retry exists for the trace; a test that needs it still fails the run (S3-08).
   retries: process.env.CI ? 1 : 0,
+  failOnFlakyTests: !!process.env.CI,
   workers: process.env.CI ? 2 : undefined,
-  reporter: [['html'], ['list']],
+  // no-skips-reporter fails the run on any skipped or test.fail() test (R10).
+  reporter: [['list'], ['html', { open: 'never' }], ['./e2e/no-skips-reporter.ts']],
+  // Playwright 1.58 runs plugin setup (the webServer, which waits for `url`)
+  // before globalSetup (runner/tasks.js createGlobalSetupTasks), so the
+  // server is up when the SHA guard runs.
+  globalSetup: './e2e/global-setup.ts',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'retain-on-failure',
+    // Integration fix (v2-g4 merge): the G4 service worker precaches all 12
+    // shell routes on install and again on CACHE_URLS. Under `next dev` every
+    // fresh test context makes it SSR-render ~24 pages, which at full
+    // parallelism slowed navigations past the 5 s expect timeout (pr.spec,
+    // profiles-ui.spec failed in the full run, passed solo; with workers
+    // blocked the full run passed 55/55 in 19.7 s vs 40 s). Specs that test
+    // the worker opt back in with test.use({ serviceWorkers: 'allow' }).
+    serviceWorkers: 'block',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'iPhone 14', use: { ...devices['iPhone 14'] } },
-    { name: 'Pixel 7', use: { ...devices['Pixel 7'] } },
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    command: serverCommand,
+    url: `${baseURL}/api/health`,
+    reuseExistingServer: false,
+    timeout: 180_000,
+    // The Supabase public env is pinned to the runner's own values ('' when
+    // unset). An explicit '' blocks Next from filling it from .env.local, so
+    // specs can read process.env and know whether the server has Supabase
+    // (see e2e/fixtures/env.ts); without it auth routes answer auth_not_configured.
+    env: {
+      NEXT_PUBLIC_E2E_HOOKS: '1',
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      // Pinned to the origin the browser uses: the magic link's emailRedirectTo
+      // is built from it, and the PKCE verifier cookie only exists on the host
+      // that asked for the link (127.0.0.1 and localhost are different hosts).
+      // NEXT_PUBLIC_SYNC_ENABLED and the rest of process.env pass through.
+      NEXT_PUBLIC_APP_URL: baseURL,
+    },
   },
 });

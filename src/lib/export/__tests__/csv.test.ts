@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { workoutLogsToCSV } from '../csv';
-import type { WorkoutLog } from '@/types/workout';
+import type { WorkoutLog } from '@/contracts';
+
+// Legacy columns are kept stable; v2 only appends columns after them.
+const LEGACY_HEADER = 'Date,Duration (min),Exercise,Set #,Weight (kg),Reps,Volume,Modality';
 
 function makeLog(
   date: string,
@@ -15,18 +18,19 @@ function makeLog(
     profileId: 'test',
     sessionName: 'Test',
     date,
-    startedAt: new Date().toISOString(),
+    startedAt: `${date}T10:00:00.000Z`,
+    finishedAt: `${date}T11:00:00.000Z`,
     durationSeconds,
     exercises: exercises.map((ex, i) => ({
-      exerciseRef: `ex-${i}`,
+      uid: `u-${i}`,
+      exerciseId: `ex-${i}`,
       exerciseName: ex.name,
       modality: 'tytax',
       sets: ex.sets.map((s, si) => ({
         id: `s-${i}-${si}`,
-        setNumber: si + 1,
         type: 'working' as const,
         done: true,
-        timestamp: new Date().toISOString(),
+        completedAt: `${date}T10:30:00.000Z`,
         kg: s.kg,
         reps: s.reps,
       })),
@@ -36,8 +40,8 @@ function makeLog(
     totalSets: 0,
     prCount: 0,
     modalitiesUsed: ['tytax'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: `${date}T11:00:00.000Z`,
+    updatedAt: `${date}T11:00:00.000Z`,
   };
 }
 
@@ -45,7 +49,8 @@ describe('workoutLogsToCSV', () => {
   it('generates valid CSV header row', () => {
     const result = workoutLogsToCSV([]);
     const lines = result.split('\n');
-    expect(lines[0]).toBe('Date,Duration (min),Exercise,Set #,Weight (kg),Reps,Volume,Modality');
+    expect(lines[0]).toBe(`${LEGACY_HEADER},RIR,Set type,Done`);
+    expect(lines[0].startsWith(LEGACY_HEADER)).toBe(true);
   });
 
   it('includes all workout data (exercises, sets, volume)', () => {
@@ -79,7 +84,7 @@ describe('workoutLogsToCSV', () => {
     const result = workoutLogsToCSV([]);
     const lines = result.split('\n');
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toBe('Date,Duration (min),Exercise,Set #,Weight (kg),Reps,Volume,Modality');
+    expect(lines[0]).toBe(`${LEGACY_HEADER},RIR,Set type,Done`);
   });
 
   it('escapes special characters in exercise names', () => {

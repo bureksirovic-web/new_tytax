@@ -1,0 +1,89 @@
+-- 003: unknown camelCase fields round-trip through extra jsonb; profile_id defaults to auth.uid().
+-- Generated for TYTAX v2 migrations 002-004; run with: npx -y supabase@2.118.0 test db
+begin;
+create extension if not exists pgtap with schema extensions;
+
+select plan(49);
+
+insert into auth.users (id, email, raw_user_meta_data, aud, role, instance_id) values
+  ('aaaaaaaa-0000-4000-8000-000000000000', 'alice@example.test', '{"display_name":"Alice A"}'::jsonb, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
+  ('bbbbbbbb-0000-4000-8000-000000000000', 'bob.builder@example.test', '{}'::jsonb, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+
+insert into public.family_members (id, profile_id, name) values ('aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000000', 'Kid of a');
+insert into public.equipment_profiles (id, profile_id, name, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000002', 'aaaaaaaa-0000-4000-8000-000000000000', 'Home gym', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.programs (id, profile_id, name, split_type, frequency, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000000', 'PPL', 'ppl', 6, 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.workout_logs (id, profile_id, session_name, date, started_at, family_member_id, program_id) values ('aaaaaaaa-0000-4000-8000-000000000004', 'aaaaaaaa-0000-4000-8000-000000000000', 'Push A', '2026-09-01', '2026-09-01 10:00+00', 'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000003');
+insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_type, value, achieved_at, workout_log_id, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000005', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'Bench press', 'e1rm', 100, '2026-09-01 10:30+00', 'aaaaaaaa-0000-4000-8000-000000000004', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000006', 'aaaaaaaa-0000-4000-8000-000000000000', '2026-09-01', 80, 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000007', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('aaaaaaaa-0000-4000-8000-000000000008', 'aaaaaaaa-0000-4000-8000-000000000000', 'workout_logs', 'device-a-0008');
+insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-000000000000', 't1x-001', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('aaaaaaaa-0000-4000-8000-000000000010', 'aaaaaaaa-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.family_members (id, profile_id, name) values ('bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000000', 'Kid of b');
+insert into public.equipment_profiles (id, profile_id, name, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000002', 'bbbbbbbb-0000-4000-8000-000000000000', 'Home gym', 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.programs (id, profile_id, name, split_type, frequency, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000003', 'bbbbbbbb-0000-4000-8000-000000000000', 'PPL', 'ppl', 6, 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.workout_logs (id, profile_id, session_name, date, started_at, family_member_id, program_id) values ('bbbbbbbb-0000-4000-8000-000000000004', 'bbbbbbbb-0000-4000-8000-000000000000', 'Push A', '2026-09-01', '2026-09-01 10:00+00', 'bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000003');
+insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_type, value, achieved_at, workout_log_id, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000005', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'Bench press', 'e1rm', 100, '2026-09-01 10:30+00', 'bbbbbbbb-0000-4000-8000-000000000004', 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000006', 'bbbbbbbb-0000-4000-8000-000000000000', '2026-09-01', 80, 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000007', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.sync_metadata (id, profile_id, table_name, device_id) values ('bbbbbbbb-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-000000000000', 'workout_logs', 'device-b-0008');
+insert into public.arsenal (id, profile_id, exercise_id, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000009', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'bbbbbbbb-0000-4000-8000-000000000001');
+insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000010', 'bbbbbbbb-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'bbbbbbbb-0000-4000-8000-000000000001');
+
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', 'bbbbbbbb-0000-4000-8000-000000000000', 'role', 'authenticated')::text, true);
+
+select lives_ok($sql$insert into public.family_members (id, profile_id, name, extra) values ('bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000000', 'Kid of b', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'family_members: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.family_members where id = 'bbbbbbbb-0000-4000-8000-000000000001'), '{"futureField":1}'::jsonb, 'family_members: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.family_members where id = 'bbbbbbbb-0000-4000-8000-000000000001'), 1, 'family_members: unknown field readable by key');
+select lives_ok($sql$insert into public.family_members (id, name) values ('bbbbbbbb-0000-4000-8000-000000000601', 'Kid of b')$sql$, 'family_members: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.family_members where id = 'bbbbbbbb-0000-4000-8000-000000000601'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'family_members: omitted profile_id defaults to the caller');
+select is((select extra from public.family_members where id = 'bbbbbbbb-0000-4000-8000-000000000601'), '{}'::jsonb, 'family_members: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.workout_logs (id, profile_id, session_name, date, started_at, family_member_id, program_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000004', 'bbbbbbbb-0000-4000-8000-000000000000', 'Push A', '2026-09-01', '2026-09-01 10:00+00', 'bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000003', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'workout_logs: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.workout_logs where id = 'bbbbbbbb-0000-4000-8000-000000000004'), '{"futureField":1}'::jsonb, 'workout_logs: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.workout_logs where id = 'bbbbbbbb-0000-4000-8000-000000000004'), 1, 'workout_logs: unknown field readable by key');
+select lives_ok($sql$insert into public.workout_logs (id, session_name, date, started_at, family_member_id, program_id) values ('bbbbbbbb-0000-4000-8000-000000000604', 'Push A', '2026-09-01', '2026-09-01 10:00+00', 'bbbbbbbb-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000003')$sql$, 'workout_logs: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.workout_logs where id = 'bbbbbbbb-0000-4000-8000-000000000604'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'workout_logs: omitted profile_id defaults to the caller');
+select is((select extra from public.workout_logs where id = 'bbbbbbbb-0000-4000-8000-000000000604'), '{}'::jsonb, 'workout_logs: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.programs (id, profile_id, name, split_type, frequency, family_member_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000003', 'bbbbbbbb-0000-4000-8000-000000000000', 'PPL', 'ppl', 6, 'bbbbbbbb-0000-4000-8000-000000000001', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'programs: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.programs where id = 'bbbbbbbb-0000-4000-8000-000000000003'), '{"futureField":1}'::jsonb, 'programs: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.programs where id = 'bbbbbbbb-0000-4000-8000-000000000003'), 1, 'programs: unknown field readable by key');
+select lives_ok($sql$insert into public.programs (id, name, split_type, frequency, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000603', 'PPL', 'ppl', 6, 'bbbbbbbb-0000-4000-8000-000000000001')$sql$, 'programs: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.programs where id = 'bbbbbbbb-0000-4000-8000-000000000603'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'programs: omitted profile_id defaults to the caller');
+select is((select extra from public.programs where id = 'bbbbbbbb-0000-4000-8000-000000000603'), '{}'::jsonb, 'programs: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.pr_records (id, profile_id, exercise_id, exercise_name, pr_type, value, achieved_at, workout_log_id, family_member_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000005', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'Bench press', 'e1rm', 100, '2026-09-01 10:30+00', 'bbbbbbbb-0000-4000-8000-000000000004', 'bbbbbbbb-0000-4000-8000-000000000001', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'pr_records: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.pr_records where id = 'bbbbbbbb-0000-4000-8000-000000000005'), '{"futureField":1}'::jsonb, 'pr_records: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.pr_records where id = 'bbbbbbbb-0000-4000-8000-000000000005'), 1, 'pr_records: unknown field readable by key');
+select lives_ok($sql$insert into public.pr_records (id, exercise_id, exercise_name, pr_type, value, achieved_at, workout_log_id, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000605', 't1x-001', 'Bench press', 'e1rm', 100, '2026-09-01 10:30+00', 'bbbbbbbb-0000-4000-8000-000000000004', 'bbbbbbbb-0000-4000-8000-000000000001')$sql$, 'pr_records: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.pr_records where id = 'bbbbbbbb-0000-4000-8000-000000000605'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'pr_records: omitted profile_id defaults to the caller');
+select is((select extra from public.pr_records where id = 'bbbbbbbb-0000-4000-8000-000000000605'), '{}'::jsonb, 'pr_records: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.bodyweight_entries (id, profile_id, date, value_kg, family_member_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000006', 'bbbbbbbb-0000-4000-8000-000000000000', '2026-09-01', 80, 'bbbbbbbb-0000-4000-8000-000000000001', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'bodyweight_entries: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.bodyweight_entries where id = 'bbbbbbbb-0000-4000-8000-000000000006'), '{"futureField":1}'::jsonb, 'bodyweight_entries: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.bodyweight_entries where id = 'bbbbbbbb-0000-4000-8000-000000000006'), 1, 'bodyweight_entries: unknown field readable by key');
+select lives_ok($sql$insert into public.bodyweight_entries (id, date, value_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000606', '2026-09-01', 80, 'bbbbbbbb-0000-4000-8000-000000000001')$sql$, 'bodyweight_entries: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.bodyweight_entries where id = 'bbbbbbbb-0000-4000-8000-000000000606'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'bodyweight_entries: omitted profile_id defaults to the caller');
+select is((select extra from public.bodyweight_entries where id = 'bbbbbbbb-0000-4000-8000-000000000606'), '{}'::jsonb, 'bodyweight_entries: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.exercise_notes (id, profile_id, exercise_id, content, family_member_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000007', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'Grip wider', 'bbbbbbbb-0000-4000-8000-000000000001', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'exercise_notes: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.exercise_notes where id = 'bbbbbbbb-0000-4000-8000-000000000007'), '{"futureField":1}'::jsonb, 'exercise_notes: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.exercise_notes where id = 'bbbbbbbb-0000-4000-8000-000000000007'), 1, 'exercise_notes: unknown field readable by key');
+select lives_ok($sql$insert into public.exercise_notes (id, exercise_id, content, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000607', 't1x-001', 'Grip wider', 'bbbbbbbb-0000-4000-8000-000000000001')$sql$, 'exercise_notes: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.exercise_notes where id = 'bbbbbbbb-0000-4000-8000-000000000607'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'exercise_notes: omitted profile_id defaults to the caller');
+select is((select extra from public.exercise_notes where id = 'bbbbbbbb-0000-4000-8000-000000000607'), '{}'::jsonb, 'exercise_notes: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.arsenal (id, profile_id, exercise_id, family_member_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000009', 'bbbbbbbb-0000-4000-8000-000000000000', 't1x-001', 'bbbbbbbb-0000-4000-8000-000000000001', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'arsenal: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.arsenal where id = 'bbbbbbbb-0000-4000-8000-000000000009'), '{"futureField":1}'::jsonb, 'arsenal: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.arsenal where id = 'bbbbbbbb-0000-4000-8000-000000000009'), 1, 'arsenal: unknown field readable by key');
+select lives_ok($sql$insert into public.arsenal (id, exercise_id, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000609', 't1x-001', 'bbbbbbbb-0000-4000-8000-000000000001')$sql$, 'arsenal: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.arsenal where id = 'bbbbbbbb-0000-4000-8000-000000000609'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'arsenal: omitted profile_id defaults to the caller');
+select is((select extra from public.arsenal where id = 'bbbbbbbb-0000-4000-8000-000000000609'), '{}'::jsonb, 'arsenal: omitted extra defaults to an empty object');
+select lives_ok($sql$insert into public.equipment (id, profile_id, station_ids, kettlebells_kg, family_member_id, extra) values ('bbbbbbbb-0000-4000-8000-000000000010', 'bbbbbbbb-0000-4000-8000-000000000000', '{rack}', '{8,16}', 'bbbbbbbb-0000-4000-8000-000000000001', '{"futureField":1}') on conflict (id) do update set extra = excluded.extra$sql$, 'equipment: upsert (merge-duplicates) with extra = {"futureField":1} runs');
+select is((select extra from public.equipment where id = 'bbbbbbbb-0000-4000-8000-000000000010'), '{"futureField":1}'::jsonb, 'equipment: extra round-trips unchanged on pull');
+select is((select (extra ->> 'futureField')::int from public.equipment where id = 'bbbbbbbb-0000-4000-8000-000000000010'), 1, 'equipment: unknown field readable by key');
+select lives_ok($sql$insert into public.equipment (id, station_ids, kettlebells_kg, family_member_id) values ('bbbbbbbb-0000-4000-8000-000000000610', '{rack}', '{8,16}', 'bbbbbbbb-0000-4000-8000-000000000001')$sql$, 'equipment: insert without profile_id runs (default auth.uid())');
+select is((select profile_id from public.equipment where id = 'bbbbbbbb-0000-4000-8000-000000000610'), 'bbbbbbbb-0000-4000-8000-000000000000'::uuid, 'equipment: omitted profile_id defaults to the caller');
+select is((select extra from public.equipment where id = 'bbbbbbbb-0000-4000-8000-000000000610'), '{}'::jsonb, 'equipment: omitted extra defaults to an empty object');
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+select is((select count(*) from public.workout_logs where profile_id = 'aaaaaaaa-0000-4000-8000-000000000000' and extra = '{}'::jsonb), 1::bigint, 'A rows untouched by B upserts');
+select * from finish();
+rollback;

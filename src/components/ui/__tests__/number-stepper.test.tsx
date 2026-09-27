@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
+import { renderUI as render } from './render-ui';
 import { NumberStepper } from '../number-stepper';
 
 describe('NumberStepper', () => {
@@ -71,5 +72,35 @@ describe('NumberStepper', () => {
   it('applies custom className', () => {
     const { container } = renderStepper({ value: 10, className: 'my-custom-class' });
     expect(container.firstChild).toHaveClass('my-custom-class');
+  });
+});
+
+describe('NumberStepper a11y', () => {
+  it('gives every step button a >=44px touch target class and a translated label', () => {
+    const { container } = render(<NumberStepper value={5} onChange={vi.fn()} step={2.5} smallStep={0.5} ariaLabel="Weight" />);
+    const buttons = Array.from(container.querySelectorAll('button'));
+    expect(buttons).toHaveLength(4);
+    for (const b of buttons) {
+      expect(b).toHaveClass('min-h-11', 'min-w-11');
+      expect(b.getAttribute('aria-label')).not.toMatch(/^ui_/);
+    }
+    expect(screen.getByRole('group', { name: 'Weight' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /decrease by 0.5/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /increase by 0.5/i })).toBeInTheDocument();
+  });
+
+  it('keeps stepping from the latest value while held', () => {
+    vi.useFakeTimers();
+    try {
+      const onChange = vi.fn();
+      render(<NumberStepper value={10} onChange={onChange} step={1} />);
+      const inc = screen.getByRole('button', { name: /increase by 1/i });
+      fireEvent.mouseDown(inc);
+      vi.advanceTimersByTime(400 + 80 * 3);
+      fireEvent.mouseUp(inc);
+      expect(onChange.mock.calls.map((c) => c[0])).toEqual([11, 12, 13]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

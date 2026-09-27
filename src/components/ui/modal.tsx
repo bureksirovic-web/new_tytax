@@ -1,5 +1,8 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { CloseIcon } from './icons';
+import { useId, useRef } from 'react';
+import { useLocale } from '@/components/providers';
+import { useDialog } from './use-dialog';
 
 interface ModalProps {
   open: boolean;
@@ -7,86 +10,44 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Accessible name when no visible title is rendered. */
+  ariaLabel?: string;
 }
 
 const sizeClasses = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-2xl' };
 
-export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = 'md', ariaLabel }: ModalProps) {
+  const { t } = useLocale();
   const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    if (typeof window === 'undefined') return;
-    
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open || typeof window === 'undefined') return;
-
-    document.body.style.overflow = 'hidden';
-    const modal = dialogRef.current;
-
-    let handleTab: ((e: KeyboardEvent) => void) | null = null;
-    if (modal) {
-      const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      first?.focus();
-      handleTab = (e: KeyboardEvent) => {
-        if (e.key !== 'Tab') return;
-        if (e.shiftKey) {
-          if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
-        } else {
-          if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
-        }
-      };
-      modal.addEventListener('keydown', handleTab);
-    }
-
-    return () => {
-      document.body.style.overflow = '';
-      if (modal && handleTab) modal.removeEventListener('keydown', handleTab);
-    };
-  }, [open]);
+  const titleId = useId();
+  useDialog(open, onClose, dialogRef);
 
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : ariaLabel}
         tabIndex={-1}
-        className={`relative w-full ${sizeClasses[size]} rounded-xl border shadow-2xl focus:outline-none`}
-        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+        className={`relative w-full ${sizeClasses[size]} rounded-xl border border-line bg-card shadow-2xl focus:outline-none`}
       >
         {title && (
-          <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
-            <h2
-              className="text-sm font-semibold uppercase tracking-widest"
-              style={{ color: 'var(--highlight)', fontFamily: 'var(--font-display)' }}
-            >
+          <div className="flex items-center justify-between border-b border-line p-4">
+            <h2 id={titleId} className="font-display text-sm font-semibold uppercase tracking-widest text-highlight">
               {title}
             </h2>
             <button
+              type="button"
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gunmetal-700 transition-colors"
-              style={{ color: 'var(--text-muted)' }}
-              aria-label="Close"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-gunmetal-700 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400"
+              aria-label={t('close')}
             >
-              ✕
+              <CloseIcon />
             </button>
           </div>
         )}

@@ -1,159 +1,153 @@
-import { describe, it, expect, vi } from 'vitest';
-import { computeVolumeParity, getParityLabel } from '../volume-parity';
-import type { WorkoutLog } from '@/types/workout';
+import { describe, it, expect } from 'vitest';
+import type { Exercise } from '@/contracts/domain';
+import type { ExerciseLookup } from '@/contracts/training';
+import { computeVolumeParity, getParityLabel, movementOf, patternOf } from '../volume-parity';
+import { daysBefore, makeLog, type FixtureExercise } from './fixtures';
 
-vi.mock('@/data', () => ({
-  findExerciseById: vi.fn((id: string) => {
-    const patterns: Record<string, string> = {
-      'ex-push': 'Horizontal Push',
-      'ex-pull': 'Horizontal Pull',
-      'ex-squat': 'Squat',
-      'ex-hinge': 'Hinge',
-      'ex-carry': 'Carry',
-      'ex-core': 'Core',
-    };
-    if (patterns[id]) {
-      return { id, pattern: patterns[id] };
-    }
-    return undefined;
-  }),
-}));
+const NOW = new Date(2026, 8, 20, 12, 0, 0);
+const TODAY = daysBefore(NOW, 0);
 
-function makeLog(
-  date: string,
-  exercises: Array<{ ref: string; sets: Array<{ kg: number; reps: number }> }>,
-): WorkoutLog {
-  return {
-    id: `log-${date}`,
-    profileId: 'test',
-    sessionName: 'Test',
-    date,
-    startedAt: new Date().toISOString(),
-    durationSeconds: 3600,
-    exercises: exercises.map((ex, i) => ({
-      exerciseRef: ex.ref,
-      exerciseName: `Exercise ${i}`,
-      modality: 'tytax',
-      sets: ex.sets.map((s, si) => ({
-        id: `s-${i}-${si}`,
-        setNumber: si + 1,
-        type: 'working' as const,
-        done: true,
-        timestamp: new Date().toISOString(),
-        kg: s.kg,
-        reps: s.reps,
-      })),
-      muscleImpactSnapshot: [],
-    })),
-    totalVolumeKg: exercises.reduce(
-      (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.kg * set.reps, 0),
-      0,
-    ),
-    totalSets: exercises.reduce((sum, ex) => sum + ex.sets.length, 0),
-    prCount: 0,
-    modalitiesUsed: ['tytax'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+const PATTERNS: Record<string, string> = {
+  'ex-push': 'Horizontal Push',
+  'ex-pull': 'Horizontal Pull',
+  'ex-squat': 'Squat',
+  'ex-hinge': 'Hinge',
+  'ex-carry': 'Carry',
+  'ex-core': 'Core',
+};
+
+const lookup: ExerciseLookup = (id) =>
+  PATTERNS[id] ? ({ id, pattern: PATTERNS[id] } as Pick<Exercise, 'id' | 'pattern'> as Exercise) : undefined;
+
+function parity(exercises: FixtureExercise[], date = TODAY, extra = {}) {
+  return computeVolumeParity([makeLog(date, exercises, extra)], 30, { now: NOW, lookup });
 }
+
+const tenByHundred = [{ kg: 100, reps: 10 }];
 
 describe('computeVolumeParity', () => {
   it('returns balanced score for equal push/pull/hinge/quad volume', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const logs = [
-      makeLog(today, [
-        { ref: 'ex-push', sets: [{ kg: 100, reps: 10 }] },
-        { ref: 'ex-pull', sets: [{ kg: 100, reps: 10 }] },
-        { ref: 'ex-squat', sets: [{ kg: 100, reps: 10 }] },
-        { ref: 'ex-hinge', sets: [{ kg: 100, reps: 10 }] },
-      ]),
-    ];
-
-    const results = computeVolumeParity(logs);
-    const push = results.find(r => r.pattern === 'push');
-    const pull = results.find(r => r.pattern === 'pull');
-    const quad = results.find(r => r.pattern === 'quad');
-    const hinge = results.find(r => r.pattern === 'hinge');
-
-    expect(push).toBeDefined();
-    expect(pull).toBeDefined();
-    expect(quad).toBeDefined();
-    expect(hinge).toBeDefined();
-
-    expect(push!.volume).toBe(pull!.volume);
-    expect(quad!.volume).toBe(hinge!.volume);
-    expect(push!.volume).toBe(quad!.volume);
-
-    expect(push!.status).toBe('balanced');
-    expect(pull!.status).toBe('balanced');
-    expect(quad!.status).toBe('balanced');
-    expect(hinge!.status).toBe('balanced');
+    const results = parity(['ex-push', 'ex-pull', 'ex-squat', 'ex-hinge'].map((id) => ({ id, sets: tenByHundred })));
+    const by = Object.fromEntries(results.map((r) => [r.pattern, r]));
+    // each pattern: 100×10 = 1000 of 4000 → 25 %; target 20 → delta +5 → balanced (|5| ≤ 5)
+    for (const p of ['push', 'pull', 'quad', 'hinge']) {
+      expect(by[p].volume).toBe(1000);
+      expect(by[p].percentage).toBe(25);
+      expect(by[p].status).toBe('balanced');
+    }
   });
 
   it('returns unbalanced score when one pattern dominates', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const logs = [
-      makeLog(today, [
-        { ref: 'ex-push', sets: [{ kg: 100, reps: 10 }] },
-        { ref: 'ex-push', sets: [{ kg: 100, reps: 10 }] },
-        { ref: 'ex-push', sets: [{ kg: 100, reps: 10 }] },
-        { ref: 'ex-push', sets: [{ kg: 100, reps: 10 }] },
-      ]),
-    ];
-
-    const results = computeVolumeParity(logs);
-    const push = results.find(r => r.pattern === 'push');
-    expect(push).toBeDefined();
-    expect(push!.delta).toBeGreaterThan(0);
-    expect(push!.status).toBe('overtrained');
+    const push = parity([{ id: 'ex-push', sets: tenByHundred }, { id: 'ex-push', sets: tenByHundred }]).find((r) => r.pattern === 'push');
+    // push = 100 % of volume; target 20 → delta +80 → overtrained
+    expect(push?.delta).toBe(80);
+    expect(push?.status).toBe('overtrained');
   });
 
-  it('returns results for all movement patterns', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const logs = [makeLog(today, [
-      { ref: 'ex-push', sets: [{ kg: 50, reps: 5 }] },
-    ])];
+  it('counts only done working sets, recent live logs; unknown ids are other', () => {
+    const exercises: FixtureExercise[] = [
+      { id: 'ex-push', sets: [{ kg: 100, reps: 10 }, { kg: 50, reps: 10, type: 'warmup' }, { kg: 100, reps: 10, done: false }] },
+      { id: 'mystery', sets: [{ kg: 100, reps: 10 }] },
+    ];
+    const results = parity(exercises);
+    // push 1000, other 1000 (warm-up and undone excluded) → 50 % each
+    expect(results.find((r) => r.pattern === 'push')?.volume).toBe(1000);
+    expect(results.find((r) => r.pattern === 'other')?.percentage).toBe(50);
+    // 31 days ago is outside the 30-day window → all zero
+    expect(parity(exercises, daysBefore(NOW, 31)).every((r) => r.volume === 0)).toBe(true);
+    // soft-deleted → all zero
+    expect(parity(exercises, TODAY, { deletedAt: 'x' }).every((r) => r.volume === 0)).toBe(true);
+  });
 
-    const results = computeVolumeParity(logs);
-    const patterns = results.map(r => r.pattern);
-    expect(patterns).toContain('push');
-    expect(patterns).toContain('pull');
-    expect(patterns).toContain('quad');
-    expect(patterns).toContain('hinge');
-    expect(patterns).toContain('carry');
-    expect(patterns).toContain('core');
-    expect(patterns).toContain('other');
+  it('returns results for all 7 movement patterns', () => {
+    const patterns = parity([{ id: 'ex-push', sets: [{ kg: 50, reps: 5 }] }]).map((r) => r.pattern);
+    expect([...patterns].sort()).toEqual(['carry', 'core', 'hinge', 'other', 'pull', 'push', 'quad']);
   });
 
   it('handles empty logs', () => {
-    const results = computeVolumeParity([]);
+    const results = computeVolumeParity([], 30, { now: NOW, lookup });
     expect(results).toHaveLength(7);
-    results.forEach(r => {
+    results.forEach((r) => {
       expect(r.volume).toBe(0);
       expect(r.percentage).toBe(0);
+      // 0 − target
       expect(r.delta).toBe(-r.targetPercentage);
     });
+  });
+
+  it('maps catalog patterns to movement patterns', () => {
+    expect(patternOf('ex-carry', lookup)).toBe('carry');
+    expect(patternOf('ex-core', lookup)).toBe('core');
+    expect(patternOf('nope', lookup)).toBe('other');
+  });
+});
+
+describe('movementOf: exercise names refine coarse catalog patterns', () => {
+  it('Shoulders: shrugs and assisted pull-ups are pull', () => {
+    expect(movementOf('Shoulders', 'Standing Smith Shrug')).toBe('pull');
+    expect(movementOf('Shoulders', 'Lying Sled Assisted Pull Up')).toBe('pull');
+    expect(movementOf('Shoulders', 'Standing Cable Upright Row')).toBe('pull');
+    // no name rule matches → pattern rule "shoulders" → push
+    expect(movementOf('Shoulders', 'Seated Overhead Fly')).toBe('push');
+  });
+
+  it('Quads: leg curls and deadlifts are hinge; squats stay quad', () => {
+    expect(movementOf('Quads', 'Lying Leg Curl')).toBe('hinge');
+    expect(movementOf('Quads', 'Smith Deadlift')).toBe('hinge');
+    expect(movementOf('Quads', 'Smith Machine Good Morning')).toBe('hinge');
+    expect(movementOf('Quads', 'Lying Sled Hip Thrust')).toBe('hinge');
+    expect(movementOf('Quads', 'Sled Rear Kick')).toBe('hinge');
+    expect(movementOf('Core', 'Sissy Squat')).toBe('quad');
+  });
+
+  it('Chest: cable curls and rows are pull', () => {
+    expect(movementOf('Chest', 'Standing Cable Curl (Stirrups)')).toBe('pull');
+    expect(movementOf('Chest', 'Cross Cable Row')).toBe('pull');
+    // "Cable Pushdown Lower Chest": pushdown is not pulldown → pattern rule "chest" → push
+    expect(movementOf('Chest', 'Cable Pushdown Lower Chest')).toBe('push');
+  });
+
+  it('Kickback: triceps kickbacks are push, glute kickbacks hinge', () => {
+    expect(movementOf('Kickback', 'Lower Pulley Single-Arm Triceps Kickback')).toBe('push');
+    expect(movementOf('Kickback', 'Smith Glute Kickback')).toBe('hinge');
+    expect(movementOf('Kickback', 'Prone Cable Kickback')).toBe('hinge');
+  });
+
+  it('wrist work is other whichever wrist pattern it carries', () => {
+    expect(movementOf('Wrist Extension', 'Seated Wrist Extension')).toBe('other');
+    expect(movementOf('Wrist Extension', 'Lower Pulley Reverse Wrist Curl (straight bar)')).toBe('other');
+    expect(movementOf('Wrist Flexion', 'Lower Pulley Wrist Curl (straight bar)')).toBe('other');
+  });
+
+  it('names are ignored for specific patterns and optional', () => {
+    // 'Horizontal Pull' is not a coarse bucket → pattern rule → pull, whatever the name says
+    expect(movementOf('Horizontal Pull', 'Triceps Squat')).toBe('pull');
+    // no name → pattern rules only: "shoulders" → push, "quads" → quad
+    expect(movementOf('Shoulders')).toBe('push');
+    expect(movementOf('Quads')).toBe('quad');
+  });
+
+  it('patternOf passes the catalog name', () => {
+    const named: ExerciseLookup = (id) =>
+      id === 'shrug' ? ({ id, name: 'Standing Smith Shrug', pattern: 'Shoulders' } as Pick<Exercise, 'id' | 'name' | 'pattern'> as Exercise) : undefined;
+    expect(patternOf('shrug', named)).toBe('pull');
+    const results = computeVolumeParity([makeLog(TODAY, [{ id: 'shrug', sets: tenByHundred }])], 30, { now: NOW, lookup: named });
+    // 100×10 = 1000 kg of shrugs → all pull (100 %), none push
+    expect(results.find((r) => r.pattern === 'pull')?.percentage).toBe(100);
+    expect(results.find((r) => r.pattern === 'push')?.volume).toBe(0);
   });
 });
 
 describe('getParityLabel', () => {
   it('returns balanced for delta within +/-5', () => {
-    expect(getParityLabel(0)).toBe('balanced');
-    expect(getParityLabel(5)).toBe('balanced');
-    expect(getParityLabel(-5)).toBe('balanced');
-    expect(getParityLabel(3)).toBe('balanced');
-    expect(getParityLabel(-3)).toBe('balanced');
+    for (const d of [0, 5, -5, 3, -3]) expect(getParityLabel(d)).toBe('balanced');
   });
 
   it('returns overtrained for delta > 5', () => {
-    expect(getParityLabel(6)).toBe('overtrained');
-    expect(getParityLabel(20)).toBe('overtrained');
-    expect(getParityLabel(50)).toBe('overtrained');
+    for (const d of [6, 20, 50]) expect(getParityLabel(d)).toBe('overtrained');
   });
 
   it('returns undertrained for delta < -5', () => {
-    expect(getParityLabel(-6)).toBe('undertrained');
-    expect(getParityLabel(-20)).toBe('undertrained');
-    expect(getParityLabel(-50)).toBe('undertrained');
+    for (const d of [-6, -20, -50]) expect(getParityLabel(d)).toBe('undertrained');
   });
 });

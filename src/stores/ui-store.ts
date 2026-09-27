@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { newUuid } from '@/lib/db/ids';
 
 interface UIStore {
   focusMode: boolean;
@@ -28,7 +29,7 @@ export const useUIStore = create<UIStore>((set) => ({
   addToast: (message, type = 'info') => set((s) => ({
     toasts: [
       ...s.toasts,
-      { id: crypto.randomUUID(), message, type },
+      { id: newUuid(), message, type },
     ],
   })),
   removeToast: (id) => set((s) => ({

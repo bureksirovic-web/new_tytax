@@ -1,181 +1,145 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
+import type { ProgramTemplate } from '@/contracts/domain';
+import { useActiveProfile, useRepo, useRepoQuery } from '@/hooks/use-repo';
 import { ALL_PRESETS } from '@/lib/programs/presets';
-import { activateProgram, installPreset } from '@/lib/programs/utils';
-import { Badge } from '@/components/ui/badge';
+import { useT } from '@/lib/i18n/use-t';
+import { useUIStore } from '@/stores/ui-store';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { useLocale } from '@/components/providers';
-import type { Program } from '@/types/program';
-
-const PROFILE_ID = 'local';
-
-function ProgramCard({
-  program,
-  isPreset = false,
-  onActivate,
-  onInstall,
-  onClick,
-}: {
-  program: Program | (typeof ALL_PRESETS)[number];
-  isPreset?: boolean;
-  onActivate?: () => void;
-  onInstall?: () => void;
-  onClick?: () => void;
-}) {
-  const { t } = useLocale();
-  const isActive = 'isActive' in program && program.isActive;
-  const currentIdx = 'currentSessionIndex' in program ? program.currentSessionIndex : 0;
-  const currentSession = program.sessions[currentIdx];
-  const modalityVariant = (program.modalitiesUsed?.[0] ?? 'custom') as 'tytax' | 'bodyweight' | 'kettlebell' | 'custom';
-
-  return (
-    <div
-      className="rounded-xl border p-4 cursor-pointer transition-colors duration-150"
-      style={{
-        backgroundColor: 'var(--bg-card)',
-        borderColor: isActive ? 'var(--accent)' : 'var(--border-color)',
-        boxShadow: isActive ? '0 0 0 1px var(--accent)' : undefined,
-      }}
-      onClick={onClick}
-    >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
-            {program.name}
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {program.frequency}x/week &middot; {program.splitType.replace(/_/g, ' ')}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Badge variant={modalityVariant}>
-            {(program.modalitiesUsed?.[0] ?? 'custom').toUpperCase()}
-          </Badge>
-          {isActive && <Badge variant="success">{t('active').toUpperCase()}</Badge>}
-        </div>
-      </div>
-
-      {currentSession && (
-          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-            {t('next')}: <span style={{ color: 'var(--text-secondary)' }}>{currentSession.name}</span>
-            {' '}&middot; {currentSession.exercises.length} {currentSession.exercises.length !== 1 ? t('exercise_plural') : t('exercise_singular')}
-          </p>
-      )}
-
-      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-        {!isPreset && onActivate && (
-          <Button
-            variant={isActive ? 'ghost' : 'primary'}
-            size="sm"
-            disabled={!!isActive}
-            onClick={onActivate}
-          >
-            {isActive ? t('active') : t('activate_program')}
-          </Button>
-        )}
-        {isPreset && onInstall && (
-          <Button variant="secondary" size="sm" onClick={onInstall}>
-            {t('install')}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
+import { Skeleton } from '@/components/ui/skeleton';
+import { ActiveProgramCard } from '@/components/programs/active-program-card';
+import { ProgramCard } from '@/components/programs/program-card';
+import { PresetCard } from '@/components/programs/preset-card';
+import { useMutationRunner } from '@/components/programs/use-program';
+import '@/lib/i18n/packs/programs';
 
 export default function ProgramsPage() {
   const router = useRouter();
-  const { t } = useLocale();
-  const [installing, setInstalling] = useState<string | null>(null);
+  const { t } = useT();
+  const repo = useRepo();
+  const addToast = useUIStore((s) => s.addToast);
+  const run = useMutationRunner(t('prog_error'));
+  const { profile, profileId, loading: profileLoading } = useActiveProfile();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
-  const myPrograms = useLiveQuery(
-    () => db.programs
-      .where('profileId').equals(PROFILE_ID)
-      .filter((p) => !p.deletedAt)
-      .toArray(),
-    [],
-    [],
+  const { data: programs } = useRepoQuery(async (r) => (profileId ? r.programs.list(profileId) : []), [profileId]);
+  const sorted = useMemo(
+    () => (programs ? [...programs].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0)) : undefined),
+    [programs],
   );
+  const activeId = profile?.activeProgramId ?? null;
+  const active = sorted?.find((p) => p.id === activeId);
+  const loading = profileLoading || sorted === undefined;
 
-  async function handleActivate(programId: string) {
-    await activateProgram(programId);
+  async function activate(programId: string, name: string) {
+    if (!profileId || busy) return;
+    setBusy(programId);
+    const ok = await run(() => repo.programs.setActive(profileId, programId));
+    setBusy(null);
+    if (ok) addToast(t('prog_activated', { name }), 'success');
   }
 
-  async function handleInstall(idx: number) {
-    const key = String(idx);
-    if (installing === key) return;
-    setInstalling(key);
-    try {
-      const id = await installPreset(ALL_PRESETS[idx], PROFILE_ID);
-      router.push(`/programs/${id}`);
-    } finally {
-      setInstalling(null);
-    }
+  async function deactivate() {
+    setConfirmDeactivate(false);
+    if (!profileId || busy) return;
+    setBusy('deactivate');
+    const ok = await run(() => repo.programs.setActive(profileId, null));
+    setBusy(null);
+    if (ok) addToast(t('prog_deactivated'), 'info');
+  }
+
+  async function install(preset: ProgramTemplate, activateNow: boolean) {
+    const key = preset.presetId ?? preset.name;
+    if (!profileId || busy) return;
+    setBusy(key);
+    let createdId: string | null = null;
+    const ok = await run(async () => {
+      const created = await repo.programs.create(profileId, preset, { activate: activateNow });
+      createdId = created.id;
+    });
+    setBusy(null);
+    if (!ok || !createdId) return;
+    addToast(t(activateNow ? 'prog_activated' : 'prog_installed_toast', { name: preset.name }), 'success');
+    router.push(`/programs/${createdId}`);
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1
-          className="text-2xl font-bold tracking-wider uppercase"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
-        >
-          {t('programs')}
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      <header className="mb-6 flex items-center justify-between gap-3">
+        <h1 data-testid="page-heading-programs" className="font-display text-2xl font-bold uppercase tracking-wider text-highlight">
+          {t('prog_title')}
         </h1>
         <Button variant="primary" size="sm" onClick={() => router.push('/programs/new')}>
-          {t('new_program_short')}
+          {t('prog_new')}
         </Button>
-      </div>
+      </header>
 
-      <section className="mb-8">
-        <h2
-          className="text-xs font-semibold uppercase tracking-widest mb-3"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--text-muted)' }}
-        >
-          {t('my_programs')}
+      {active ? <ActiveProgramCard program={active} busy={busy !== null} onDeactivate={() => setConfirmDeactivate(true)} /> : null}
+
+      <section aria-labelledby="prog-mine-heading" className="mb-8">
+        <h2 id="prog-mine-heading" className="mb-3 text-xs font-semibold uppercase tracking-widest text-fg-muted">
+          {t('prog_my_programs')}
         </h2>
-        {myPrograms && myPrograms.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {myPrograms.map((program) => (
-              <ProgramCard
-                key={program.id}
-                program={program}
-                onActivate={() => handleActivate(program.id)}
-                onClick={() => router.push(`/programs/${program.id}`)}
-              />
-            ))}
+        {loading ? (
+          <div role="status" aria-live="polite" className="space-y-3">
+            <span className="sr-only">{t('prog_loading')}</span>
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
           </div>
+        ) : sorted && sorted.length > 0 ? (
+          <ul className="flex flex-col gap-3">
+            {sorted.map((p) => (
+              <li key={p.id}>
+                <ProgramCard program={p} isActive={p.id === activeId} busy={busy === p.id} onActivate={() => void activate(p.id, p.name)} />
+              </li>
+            ))}
+          </ul>
         ) : (
           <EmptyState
-            icon="◈"
-            title={t('no_programs_yet')}
-            description={t('no_programs_desc')}
+            title={t('prog_empty_title')}
+            description={t('prog_empty_desc')}
+            action={{ label: t('prog_new'), onClick: () => router.push('/programs/new') }}
           />
         )}
       </section>
 
-      <section>
-        <h2
-          className="text-xs font-semibold uppercase tracking-widest mb-3"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--text-muted)' }}
-        >
-          {t('browse_presets')}
+      <section aria-labelledby="prog-presets-heading">
+        <h2 id="prog-presets-heading" className="mb-3 text-xs font-semibold uppercase tracking-widest text-fg-muted">
+          {t('prog_presets')}
         </h2>
-        <div className="flex flex-col gap-3">
-          {ALL_PRESETS.map((preset, idx) => (
-            <ProgramCard
-              key={`${preset.name}-${idx}`}
-              program={preset as Program}
-              isPreset
-              onInstall={() => handleInstall(idx)}
-            />
-          ))}
-        </div>
+        <ul className="flex flex-col gap-3">
+          {ALL_PRESETS.map((preset) => {
+            const key = preset.presetId ?? preset.name;
+            const installed = (sorted ?? []).some((p) => p.presetId !== undefined && p.presetId === preset.presetId);
+            return (
+              <li key={key}>
+                <PresetCard
+                  preset={preset}
+                  installed={installed}
+                  busy={busy === key}
+                  disabled={!profileId || busy !== null}
+                  onInstall={(activateNow) => void install(preset, activateNow)}
+                />
+              </li>
+            );
+          })}
+        </ul>
       </section>
+
+      <ConfirmDialog
+        open={confirmDeactivate}
+        title={t('prog_deactivate')}
+        message={t('prog_deactivate_confirm')}
+        confirmLabel={t('prog_deactivate')}
+        cancelLabel={t('prog_cancel')}
+        danger
+        onConfirm={() => void deactivate()}
+        onCancel={() => setConfirmDeactivate(false)}
+      />
     </div>
   );
 }

@@ -1,0 +1,28 @@
+// Repro for docs/v2/requests/G4-47 (G2: repo.logs.update never recomputes prCount).
+// Paste into src/components/history/__tests__/refuter-round4.test.tsx as a normal `it(...)`
+// once G2 fixes it; it currently fails (prCount stays 1).
+
+  // Defect lives in G2's repo.logs.update (prCount is server-owned, never recomputed):
+  // see docs/v2/requests/G4-26 and G4-47. `it.fails` flips to a failure once it is fixed.
+  it('editing the PR set away recomputes prCount (open: G4-26 / G4-47)', async () => {
+    const me = await seedProfile('Ana');
+    const built = bench();
+    const log: WorkoutLog = {
+      ...built,
+      profileId: me.id,
+      prCount: 1,
+      exercises: [{ ...built.exercises[0], sets: [{ ...built.exercises[0].sets[0], isPR: true }] }],
+    };
+    const repo = getRepository();
+    await repo.importBackup({
+      format: 'tytax-backup', version: 3, exportedAt: NOW.toISOString(), profiles: [], workoutLogs: [log],
+      programs: [], prRecords: [], bodyweightEntries: [], exerciseNotes: [], arsenal: [], equipment: [],
+    });
+    const draft = fromLog(log, 'kg');
+    draft.exercises[0].sets[0].kg = '60';
+    await repo.logs.update(me.id, log.id, toPatch(draft, 'kg'));
+    const saved = await repo.logs.get(me.id, log.id);
+    expect(saved?.exercises[0].sets[0].isPR).toBeUndefined();
+    expect(saved?.prCount).toBe(0);
+  });
+

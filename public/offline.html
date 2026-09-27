@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offline — TYTAX</title>
+  <meta name="theme-color" content="#0a0f1a">
+  <title>Izvan mreže — TYTAX</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #0a0f1a;
-      color: #fff;
+      color: #f5f5f5;
       font-family: system-ui, -apple-system, sans-serif;
       display: flex;
       align-items: center;
@@ -18,13 +19,16 @@
       padding: 2rem;
     }
     h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-    p { color: #999; }
+    p { color: #b8b8b8; margin-bottom: 1rem; }
+    a { display: inline-block; min-height: 44px; padding: 0.75rem 1.25rem; border-radius: 0.5rem; background: #4a7c3f; color: #fff; text-decoration: none; font-weight: 600; }
   </style>
 </head>
 <body>
-  <div>
-    <h1>You're offline</h1>
-    <p>TYTAX works fully offline — your data is saved locally.</p>
-  </div>
+  <main>
+    <h1>Izvan mreže ste</h1>
+    <p>Ova stranica još nije spremljena za rad bez interneta. Vaši podaci su spremljeni lokalno.</p>
+    <p lang="en">You're offline. This page has not been cached yet; your data is stored locally.</p>
+    <a href="/dashboard">Početna / Home</a>
+  </main>
 </body>
 </html>

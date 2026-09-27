@@ -1,593 +1,128 @@
-export type Locale = 'en' | 'hr';
+import { coreHr } from './modules/core.hr';
+import type { Locale, TranslationKey, TranslationVars } from './types';
+
+export type { Locale, TranslationKey, TranslationVars } from './types';
+export { formatWeight, formatDate, toDisplayWeight, fromDisplayWeight, type WeightUnit } from './format';
+
+export const DEFAULT_LOCALE: Locale = 'hr';
+export const LOCALE_STORAGE_KEY = 'locale';
 
 export const LOCALES: Record<Locale, string> = {
-  en: 'English',
   hr: 'Hrvatski',
+  en: 'English',
 };
 
-// Core translations
-const en = {
-  // Navigation
-  nav_home: 'Home',
-  nav_workout: 'Workout',
-  nav_exercises: 'Exercises',
-  nav_programs: 'Programs',
-  nav_analytics: 'Analytics',
-  nav_settings: 'Settings',
-  nav_more: 'More',
-  // Workout
-  workout_start: 'Start Workout',
-  workout_finish: 'Finish',
-  workout_add_set: 'Log Set',
-  workout_next_exercise: 'Next Exercise',
-  workout_rest_timer: 'Rest Timer',
-  workout_end: 'End Workout',
-  workout_cancel: 'Cancel Workout',
-  workout_add_exercise: '+ Add Exercise',
-  workout_browse_exercises: 'Browse Exercises',
-  workout_first_exercise_title: 'Add Your First Exercise',
-  workout_first_exercise_desc: 'Browse the library and tap "Add to Workout" on any exercise.',
-  workout_session_active: 'Session Active',
-  workout_sets_done: 'Sets Done',
-  workout_set_label: 'Set',
-  workout_warmup: 'Warmup',
-  workout_weight: 'Weight',
-  workout_reps: 'Reps',
-  workout_pr: 'PR',
-  workout_weight_pr: 'Weight PR',
-  workout_reps_pr: 'Reps PR',
-  workout_volume_pr: 'Volume PR',
-  workout_no_active: 'No active workout',
-  workout_already_added: 'Already in workout',
-  workout_add_to_workout: 'Add to Workout',
-  // Active workout
-  workout_rest: 'REST',
-  workout_skip: 'SKIP',
-  workout_log_set: 'LOG SET',
-  workout_weight_kg: 'WEIGHT (kg)',
-  workout_reps_label: 'REPS',
-  workout_sets_done_label: 'SETS DONE',
-  workout_set_n: 'Set {n}',
-  workout_add_exercise_btn: '+ ADD EXERCISE',
-  workout_warmup_btn: 'WARMUP',
-  workout_active_label: 'SESSION ACTIVE',
-  workout_add_first_title: 'ADD YOUR FIRST EXERCISE',
-  workout_browse_exercises_btn: 'BROWSE EXERCISES',
-  workout_cancel_btn: 'Cancel Workout',
-  // Debrief
-  debrief_title: 'Debrief',
-  debrief_mission_complete: 'Mission Complete',
-  debrief_duration: 'Duration',
-  debrief_volume: 'Volume',
-  debrief_exercises: 'Exercises',
-  debrief_new_prs: 'New PRs',
-  debrief_new_pr: 'New PR',
-  debrief_pr_record: 'personal record',
-  debrief_pr_records: 'personal records',
-  debrief_pr_set_session: 'set this session',
-  debrief_save_exit: 'Save & Exit',
-  debrief_back_dashboard: 'Back to Dashboard',
-  // Dashboard
-  dashboard_title: 'Command Center',
-  dashboard_system: 'TYTAX System',
-  dashboard_this_week: 'This Week',
-  dashboard_sessions: 'sessions',
-  dashboard_last_workout: 'Last Workout',
-  dashboard_no_workouts: 'No workouts logged yet. Hit START to begin.',
-  dashboard_active_program: 'Active Program',
-  dashboard_on: 'ON',
-  dashboard_next: 'Next',
-  dashboard_view_program_session: 'View Program Session',
-  dashboard_volume: 'Volume',
-  dashboard_exercises: 'exercises',
-  // Training page
-  training_title: 'Training Ops',
-  training_free_session: 'Free session — add exercises as you go',
-  training_or_continue: 'or continue program',
-  training_active_program: 'Active Program',
-  training_active: 'ACTIVE',
-  training_next_session: 'Next Session',
-  training_continue_program: 'Continue Program',
-  training_no_program: 'No active program. Build one in Programs to track structured progress.',
-  training_exercises: 'exercises',
-  // Exercise library
-  exercise_library: 'Exercise Library',
-  search_exercises: 'Search exercises...',
-  all_modalities: 'All',
-  all_muscles: 'All muscles',
-  results: 'results',
-  no_exercises_found: 'No exercises found',
-  no_exercises_desc: 'Try adjusting your search or filters',
-  clear_filters: 'Clear filters',
-  load_more: 'Load more',
-  remaining: 'remaining',
-  // Exercise detail
-  exercise_not_found: 'Exercise not found',
-  exercise_not_found_desc: 'No exercise with id',
-  back_to_library: 'Back to library',
-  back: 'Back',
-  muscle_impact: 'Muscle Impact',
-  recommended_weight: 'Recommended Weight',
-  male: 'Male',
-  female: 'Female',
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
-  progression_chain: 'Progression Chain',
-  step: 'Step',
-  of: 'of',
-  my_notes: 'My Notes',
-  notes_placeholder: 'Add coaching notes, cues, or personal records…',
-  save_note: 'Save note',
-  note_saved: 'Saved',
-  // Programs
-  programs: 'Programs',
-  my_programs: 'My Programs',
-  preset_programs: 'Preset Programs',
-  browse_presets: 'Browse Presets',
-  activate_program: 'Activate',
-  new_program: 'New Program',
-  new_program_short: '+ New',
-  no_programs_yet: 'No programs yet',
-  no_programs_desc: 'Install a preset or create your own',
-  active: 'Active',
-  install: 'Install',
-  next: 'Next',
-  sessions: 'Sessions',
-  make_active: 'Make Active',
-  delete_program: 'Delete Program',
-  delete_program_confirm: 'Delete',
-  delete_program_message: 'Delete this program? This cannot be undone.',
-  program_not_found: 'Program not found',
-  back_to_programs: 'Back to programs',
-  no_exercises_session: 'No exercises — tap + Add to build this session',
-  add_exercise: 'Add Exercise',
-  add: 'Add',
-  exercise_picker_coming: 'Exercise picker coming soon. Use the Exercise Library to find exercises.',
-  browse_exercise_library: 'Browse Exercise Library',
-  click_to_edit: 'Click to edit',
-  exercise_singular: 'exercise',
-  exercise_plural: 'exercises',
-  // Program creation
-  new_program_page: 'New Program',
-  step_of: 'Step',
-  name_modality: 'Name & Modality',
-  structure: 'Structure',
-  review: 'Review',
-  program_name: 'Program name',
-  program_name_placeholder: 'e.g. My PPL Program',
-  primary_modality: 'Primary Modality',
-  split_type: 'Split Type',
-  frequency: 'Frequency',
-  days_per_week: 'days/week',
-  full_body: 'Full Body',
-  upper_lower: 'Upper / Lower',
-  push_pull_legs: 'Push / Pull / Legs',
-  custom: 'Custom',
-  save_program: 'Save Program',
-  sessions_empty_note: 'Sessions will be empty. Add exercises from the program detail page.',
-  // History
-  history: 'History',
-  history_session: 'session',
-  history_sessions: 'sessions',
-  no_workouts_yet: 'No workouts yet',
-  no_workouts_desc: 'Complete your first session to see it here.',
-  prev: 'Prev',
-  next_page: 'Next',
-  page: 'Page',
-  repeat_workout: 'Repeat This Workout',
-  workout_not_found: 'Workout not found.',
-  volume: 'Volume',
-  sets: 'Sets',
-  superset: 'Superset',
-  // Analytics
-  analytics: 'Analytics',
-  training_load_acwr: 'Training Load — ACWR',
-  optimal: 'Optimal',
-  caution: 'Caution',
-  danger: 'Danger',
-  undertrained: 'Undertrained',
-  acwr_optimal_desc: 'Load is balanced. Training stimulus is productive.',
-  acwr_caution_desc: 'Acute load elevated. Monitor recovery closely.',
-  acwr_danger_desc: 'Overreach risk. Consider a deload or rest day.',
-  acwr_undertrain_desc: 'Load is low. Increase frequency or intensity.',
-  acute: 'Acute',
-  chronic: 'Chronic',
-  acute_trend: '7-day acute trend',
-  log_session_for_load: 'Log a session to see your training load.',
-  weekly_volume: 'Weekly Volume',
-  no_volume_data: 'No volume data yet.',
-  muscle_balance: 'Muscle Balance',
-  no_data_30d: 'No data in last 30 days.',
-  best_lifts: 'Best Lifts',
-  no_lifts_logged: 'No lifts logged yet.',
-  kinetic_impact: 'Kinetic Impact Score',
-  no_data: 'No data',
-  volume_parity: 'Volume Parity',
-  target: 'Target',
-  overall_balance: 'Overall Balance',
-  personal_best: 'Personal Best',
-  e1rm_progression: 'e1RM Progression',
-  volume_per_session: 'Volume Per Session',
-  no_sessions_found: 'No sessions found.',
-  no_data_display: 'No data to display.',
-  // Settings
-  settings: 'Settings',
-  language: 'Language',
-  units: 'Units',
-  theme: 'Theme',
-  family_members: 'Family Members',
-  profile: 'Profile',
-  account: 'Account',
-  data: 'Data',
-  display_name: 'Display Name',
-  display_name_placeholder: 'Operator',
-  bodyweight: 'Bodyweight',
-  bodyweight_placeholder: '80',
-  units_metric: 'kg / km',
-  units_imperial: 'lb / mi',
-  theme_dark: 'Dark',
-  theme_oled: 'OLED',
-  member_name: 'Name',
-  signed_in_as: 'Signed in as',
-  sign_in_sync: 'Sign in to sync your data across devices.',
-  export_csv: 'Export CSV',
-  reset_all_data: 'Reset all data',
-  reset_all_data_message: 'This will permanently delete all local data including workouts, programs, and profiles. This cannot be undone.',
-  reset: 'Reset',
-  // Sync
-  changes_pending: 'changes pending',
-  all_synced: 'All changes synced',
-  last_sync: 'Last sync',
-  syncing: 'Syncing...',
-  sync_now: 'Sync Now',
-  // Offline
-  offline: 'Offline',
-  offline_data_saved: 'data saved locally',
-  // Warmup
-  warmup_sets: 'Warmup Sets',
-  // Modality labels
-  modality_tytax: 'TYTAX',
-  modality_tytax_t1: 'TYTAX T1',
-  modality_bodyweight: 'Bodyweight',
-  modality_kettlebell: 'Kettlebell',
-  modality_custom: 'Custom',
-  modality_bw: 'BW',
-  modality_kb: 'KB',
-  // More drawer
-  more: 'More',
-  workout_history: 'Workout History',
-  past_sessions: 'Past sessions',
-  training_plans: 'Training plans',
-  preferences_sync: 'Preferences & sync',
-  sync_across_devices: 'Sync across devices',
-  // Sidebar
-  sidebar_training: 'Training',
-  sidebar_intel: 'Intel',
-  sidebar_analysis: 'Analysis',
-  sidebar_system: 'System',
-  sidebar_command_center: 'Command Center',
-  sidebar_training_center: 'Training Center',
-  sidebar_vault: 'Vault',
-  sidebar_meta_library: 'Meta-Library',
-  sidebar_arsenal: 'Arsenal',
-  sidebar_force_analytics: 'Force Analytics',
-  sidebar_plate_calc: 'Plate Calculator',
-  sidebar_rm_calc: '1RM Calculator',
-  // General
-  save: 'Save',
-  cancel: 'Cancel',
-  delete: 'Delete',
-  confirm: 'Confirm',
-  loading: 'Loading...',
-  error: 'Error',
-  close: 'Close',
-  clear: 'Clear',
-  search: 'Search',
-  clear_search: 'Clear search',
-  dismiss: 'Dismiss',
-  go_back: 'Go back',
-  // Auth
-  sign_in: 'Sign In',
-  sign_out: 'Sign Out',
-  email: 'Email',
-  continue_with_email: 'Continue with Email',
-  check_your_email: 'Check your email for a magic link',
-} as const;
+export type Dictionary = Record<TranslationKey, string>;
 
-export type TranslationKey = keyof typeof en;
+/**
+ * What ships in first-load JS is the smallest dictionary the first paint
+ * needs, so `t()` stays synchronous:
+ * - hr (DEFAULT_LOCALE, rendered by the server and the hydration pass): the
+ *   core module (./modules/core.hr.ts) up front, plus one *pack* per screen
+ *   module (./packs/<module>.ts). A file that uses a pack's keys imports that
+ *   pack, so its route or lazy chunk registers the strings before the first
+ *   render (checked by scripts/i18n-packs.ts in npm test).
+ * - every other locale: one lazy chunk (`import()`), fetched by `loadLocale`
+ *   when a user picks it or has it stored. The service worker precaches it
+ *   (public/sw.js follows the chunk references in this module's loader code),
+ *   so switching also works offline.
+ * Server code that needs every string synchronously imports ./dictionaries.
+ */
+const hrStrings: Partial<Dictionary> = { ...coreHr };
 
-const hr: Record<TranslationKey, string> = {
-  // Navigation
-  nav_home: 'Početna',
-  nav_workout: 'Trening',
-  nav_exercises: 'Vježbe',
-  nav_programs: 'Programi',
-  nav_analytics: 'Analitika',
-  nav_settings: 'Postavke',
-  nav_more: 'Više',
-  // Workout
-  workout_start: 'Započni trening',
-  workout_finish: 'Završi',
-  workout_add_set: 'Dodaj seriju',
-  workout_next_exercise: 'Sljedeća vježba',
-  workout_rest_timer: 'Odmor',
-  workout_end: 'Završi trening',
-  workout_cancel: 'Otkaži trening',
-  workout_add_exercise: '+ Dodaj vježbu',
-  workout_browse_exercises: 'Pretraži vježbe',
-  workout_first_exercise_title: 'Dodajte svoju prvu vježbu',
-  workout_first_exercise_desc: 'Pretražite knjižnicu i dodirnite "Dodaj u trening" na bilo kojoj vježbi.',
-  workout_session_active: 'Trening aktivan',
-  workout_sets_done: 'Obavljene serije',
-  workout_set_label: 'Serija',
-  workout_warmup: 'Zagrijavanje',
-  workout_weight: 'Težina',
-  workout_reps: 'Ponavljanja',
-  workout_pr: 'PR',
-  workout_weight_pr: 'PR težina',
-  workout_reps_pr: 'PR ponavljanja',
-  workout_volume_pr: 'PR volumen',
-  workout_no_active: 'Nema aktivnog treninga',
-  workout_already_added: 'Već dodano u trening',
-  workout_add_to_workout: 'Dodaj u trening',
-  // Active workout
-  workout_rest: 'ODMOR',
-  workout_skip: 'PRESKOČI',
-  workout_log_set: 'ZABIJEŽI SERIJU',
-  workout_weight_kg: 'TEŽINA (kg)',
-  workout_reps_label: 'PONAVLJANJA',
-  workout_sets_done_label: 'OBAVLJENE SERIJE',
-  workout_set_n: 'Serija {n}',
-  workout_add_exercise_btn: '+ DODAJ VJEŽBU',
-  workout_warmup_btn: 'ZAGRIJAVANJE',
-  workout_active_label: 'SESIJA AKTIVNA',
-  workout_add_first_title: 'DODAJTE SVOJU PRVU VJEŽBU',
-  workout_browse_exercises_btn: 'PRETRAŽI VJEŽBE',
-  workout_cancel_btn: 'Otkaži trening',
-  // Debrief
-  debrief_title: 'Izvještaj',
-  debrief_mission_complete: 'Misija dovršena',
-  debrief_duration: 'Trajanje',
-  debrief_volume: 'Volumen',
-  debrief_exercises: 'Vježbe',
-  debrief_new_prs: 'Novi PR-ovi',
-  debrief_new_pr: 'Novi PR',
-  debrief_pr_record: 'osobni rekord',
-  debrief_pr_records: 'osobnih rekorda',
-  debrief_pr_set_session: 'postavljeno u ovoj sesiji',
-  debrief_save_exit: 'Spremi i izađi',
-  debrief_back_dashboard: 'Natrag na kontrolnu ploču',
-  // Dashboard
-  dashboard_title: 'Kontrolna ploča',
-  dashboard_system: 'TYTAX sustav',
-  dashboard_this_week: 'Ovaj tjedan',
-  dashboard_sessions: 'sesija',
-  dashboard_last_workout: 'Zadnji trening',
-  dashboard_no_workouts: 'Još nema treninga. Pritisni START za početak.',
-  dashboard_active_program: 'Aktivni program',
-  dashboard_on: 'UKLJUČEN',
-  dashboard_next: 'Sljedeći',
-  dashboard_view_program_session: 'Pogledaj program sesiju',
-  dashboard_volume: 'Volumen',
-  dashboard_exercises: 'vježbi',
-  // Training page
-  training_title: 'Treninzi',
-  training_free_session: 'Slobodna sesija — dodaj vježbe po potrebi',
-  training_or_continue: 'ili nastavi program',
-  training_active_program: 'Aktivni program',
-  training_active: 'AKTIVAN',
-  training_next_session: 'Sljedeća sesija',
-  training_continue_program: 'Nastavi program',
-  training_no_program: 'Nema aktivnog programa. Napravi jedan u Programima za strukturirani napredak.',
-  training_exercises: 'vježbi',
-  // Exercise library
-  exercise_library: 'Knjižnica vježbi',
-  search_exercises: 'Pretraži vježbe...',
-  all_modalities: 'Sve',
-  all_muscles: 'Svi mišići',
-  results: 'rezultata',
-  no_exercises_found: 'Nema pronađenih vježbi',
-  no_exercises_desc: 'Pokušajte prilagoditi pretragu ili filtere',
-  clear_filters: 'Očisti filtere',
-  load_more: 'Učitaj više',
-  remaining: 'preostalo',
-  // Exercise detail
-  exercise_not_found: 'Vježba nije pronađena',
-  exercise_not_found_desc: 'Nema vježbe s id',
-  back_to_library: 'Natrag u knjižnicu',
-  back: 'Natrag',
-  muscle_impact: 'Utjecaj na mišiće',
-  recommended_weight: 'Preporučena težina',
-  male: 'Muško',
-  female: 'Žensko',
-  beginner: 'Početnik',
-  intermediate: 'Srednji',
-  advanced: 'Napredni',
-  progression_chain: 'Lanac progresije',
-  step: 'Korak',
-  of: 'od',
-  my_notes: 'Moje bilješke',
-  notes_placeholder: 'Dodajte bilješke, savjete ili osobne rekorde…',
-  save_note: 'Spremi bilješku',
-  note_saved: 'Spremljeno',
-  // Programs
-  programs: 'Programi',
-  my_programs: 'Moji programi',
-  preset_programs: 'Gotovi programi',
-  browse_presets: 'Pretraži predloške',
-  activate_program: 'Aktiviraj',
-  new_program: 'Novi program',
-  new_program_short: '+ Novi',
-  no_programs_yet: 'Još nema programa',
-  no_programs_desc: 'Instaliraj predložak ili napravi svoj',
-  active: 'Aktivan',
-  install: 'Instaliraj',
-  next: 'Dalje',
-  sessions: 'Sesije',
-  make_active: 'Postavi aktivnim',
-  delete_program: 'Obriši program',
-  delete_program_confirm: 'Obriši',
-  delete_program_message: 'Obrisati ovaj program? Ovo se ne može poništiti.',
-  program_not_found: 'Program nije pronađen',
-  back_to_programs: 'Natrag na programe',
-  no_exercises_session: 'Nema vježbi — dodirnite + Dodaj za izradu ove sesije',
-  add_exercise: 'Dodaj vježbu',
-  add: 'Dodaj',
-  exercise_picker_coming: 'Birač vježbi uskoro. Koristite knjižnicu vježbi za pronalaženje.',
-  browse_exercise_library: 'Pretraži knjižnicu vježbi',
-  click_to_edit: 'Kliknite za uređivanje',
-  exercise_singular: 'vježba',
-  exercise_plural: 'vježbi',
-  // Program creation
-  new_program_page: 'Novi program',
-  step_of: 'Korak',
-  name_modality: 'Naziv i modalitet',
-  structure: 'Struktura',
-  review: 'Pregled',
-  program_name: 'Naziv programa',
-  program_name_placeholder: 'npr. Moj PPL program',
-  primary_modality: 'Primarni modalitet',
-  split_type: 'Tip podjele',
-  frequency: 'Frekvencija',
-  days_per_week: 'dana/tjedno',
-  full_body: 'Cijelo tijelo',
-  upper_lower: 'Gornji / Donji',
-  push_pull_legs: 'Guranje / Vučenje / Noge',
-  custom: 'Prilagođeno',
-  save_program: 'Spremi program',
-  sessions_empty_note: 'Sesije će biti prazne. Dodajte vježbe sa stranice detalja programa.',
-  // History
-  history: 'Povijest',
-  history_session: 'sesija',
-  history_sessions: 'sesija',
-  no_workouts_yet: 'Još nema treninga',
-  no_workouts_desc: 'Završite svoju prvu sesiju da se prikaže ovdje.',
-  prev: 'Natrag',
-  next_page: 'Naprijed',
-  page: 'Stranica',
-  repeat_workout: 'Ponovi ovaj trening',
-  workout_not_found: 'Trening nije pronađen.',
-  volume: 'Volumen',
-  sets: 'Serije',
-  superset: 'Superserija',
-  // Analytics
-  analytics: 'Analitika',
-  training_load_acwr: 'Opterećenje — ACWR',
-  optimal: 'Optimalno',
-  caution: 'Oprez',
-  danger: 'Opasnost',
-  undertrained: 'Premalo treninga',
-  acwr_optimal_desc: 'Opterećenje je uravnoteženo. Stimulus treninga je produktivan.',
-  acwr_caution_desc: 'Akutno opterećenje povišeno. Pomno pratite oporavak.',
-  acwr_danger_desc: 'Rizik od pretreniranosti. Razmislite o smanjenju ili danu odmora.',
-  acwr_undertrain_desc: 'Opterećenje je nisko. Povećajte učestalost ili intenzitet.',
-  acute: 'Akutno',
-  chronic: 'Kronično',
-  acute_trend: '7-dnevni akutni trend',
-  log_session_for_load: 'Zabilježite sesiju za prikaz opterećenja.',
-  weekly_volume: 'Tjedni volumen',
-  no_volume_data: 'Još nema podataka o volumenu.',
-  muscle_balance: 'Ravnoteža mišića',
-  no_data_30d: 'Nema podataka u zadnjih 30 dana.',
-  best_lifts: 'Najbolji rezultati',
-  no_lifts_logged: 'Još nema zabilježenih vježbi.',
-  kinetic_impact: 'Kinetički udarni rezultat',
-  no_data: 'Nema podataka',
-  volume_parity: 'Paritet volumena',
-  target: 'Cilj',
-  overall_balance: 'Ukupna ravnoteža',
-  personal_best: 'Osobni rekord',
-  e1rm_progression: 'e1RM progresija',
-  volume_per_session: 'Volumen po sesiji',
-  no_sessions_found: 'Nema pronađenih sesija.',
-  no_data_display: 'Nema podataka za prikaz.',
-  // Settings
-  settings: 'Postavke',
-  language: 'Jezik',
-  units: 'Jedinice',
-  theme: 'Tema',
-  family_members: 'Članovi obitelji',
-  profile: 'Profil',
-  account: 'Račun',
-  data: 'Podaci',
-  display_name: 'Prikazano ime',
-  display_name_placeholder: 'Operater',
-  bodyweight: 'Tjelesna težina',
-  bodyweight_placeholder: '80',
-  units_metric: 'kg / km',
-  units_imperial: 'lb / mi',
-  theme_dark: 'Tamna',
-  theme_oled: 'OLED',
-  member_name: 'Ime',
-  signed_in_as: 'Prijavljeni ste kao',
-  sign_in_sync: 'Prijavite se za sinkronizaciju podataka između uređaja.',
-  export_csv: 'Izvoz CSV',
-  reset_all_data: 'Resetiraj sve podatke',
-  reset_all_data_message: 'Ovo će trajno obrisati sve lokalne podatke uključujući treninge, programe i profile. Ovo se ne može poništiti.',
-  reset: 'Resetiraj',
-  // Sync
-  changes_pending: 'promjena na čekanju',
-  all_synced: 'Sve promjene sinkronizirane',
-  last_sync: 'Zadnja sinkronizacija',
-  syncing: 'Sinkronizacija...',
-  sync_now: 'Sinkroniziraj sada',
-  // Offline
-  offline: 'Izvan mreže',
-  offline_data_saved: 'podaci spremljeni lokalno',
-  // Warmup
-  warmup_sets: 'Serije zagrijavanja',
-  // Modality labels
-  modality_tytax: 'TYTAX',
-  modality_tytax_t1: 'TYTAX T1',
-  modality_bodyweight: 'Tjelesna težina',
-  modality_kettlebell: 'Girja',
-  modality_custom: 'Prilagođeno',
-  modality_bw: 'TV',
-  modality_kb: 'GJ',
-  // More drawer
-  more: 'Više',
-  workout_history: 'Povijest treninga',
-  past_sessions: 'Prošle sesije',
-  training_plans: 'Planovi treninga',
-  preferences_sync: 'Postavke i sinkronizacija',
-  sync_across_devices: 'Sinkronizacija između uređaja',
-  // Sidebar
-  sidebar_training: 'Trening',
-  sidebar_intel: 'Obavještajni',
-  sidebar_analysis: 'Analiza',
-  sidebar_system: 'Sustav',
-  sidebar_command_center: 'Kontrolna ploča',
-  sidebar_training_center: 'Centar za trening',
-  sidebar_vault: 'Arhiva',
-  sidebar_meta_library: 'Meta-knjižnica',
-  sidebar_arsenal: 'Arsenal',
-  sidebar_force_analytics: 'Analitika sile',
-  sidebar_plate_calc: 'Kalkulator ploča',
-  sidebar_rm_calc: '1RM kalkulator',
-  // General
-  save: 'Spremi',
-  cancel: 'Odustani',
-  delete: 'Obriši',
-  confirm: 'Potvrdi',
-  loading: 'Učitavanje...',
-  error: 'Greška',
-  close: 'Zatvori',
-  clear: 'Očisti',
-  search: 'Pretraži',
-  clear_search: 'Očisti pretragu',
-  dismiss: 'Odbaci',
-  go_back: 'Natrag',
-  // Auth
-  sign_in: 'Prijava',
-  sign_out: 'Odjava',
-  email: 'E-mail',
-  continue_with_email: 'Nastavi s e-mailom',
-  check_your_email: 'Provjerite e-mail za magic link',
+const LOADERS: Record<Locale, () => Promise<Partial<Dictionary>>> = {
+  hr: async () => hrStrings,
+  en: () => import('./en').then((m) => m.en),
 };
 
-export const translations: Record<Locale, Record<TranslationKey, string>> = { en, hr };
+const loaded: Partial<Record<Locale, Partial<Dictionary>>> = { hr: hrStrings };
+const pending = new Map<Locale, Promise<void>>();
+const listeners = new Set<() => void>();
 
-export function t(key: TranslationKey, locale: Locale = 'en'): string {
-  return translations[locale][key] ?? key;
+/**
+ * Add hr strings of one module (called by ./packs/*). Runs while modules
+ * evaluate, before anything renders, so it notifies nobody.
+ */
+export function registerPack(strings: Partial<Dictionary>): void {
+  Object.assign(hrStrings, strings);
+}
+
+export function isLocale(value: unknown): value is Locale {
+  return value === 'hr' || value === 'en';
+}
+
+/** Locales whose dictionary can be loaded (all of LOCALES). */
+export const loadableLocales = (): Locale[] => Object.keys(LOADERS) as Locale[];
+
+/** True once `locale`'s dictionary is available to the synchronous `t()`. */
+export function isLocaleLoaded(locale: Locale): boolean {
+  return loaded[locale] !== undefined;
+}
+
+/** Make a dictionary available synchronously (a loader, tests); merges into what is loaded. */
+export function registerLocale(locale: Locale, dictionary: Partial<Dictionary>): void {
+  const current = loaded[locale];
+  if (current) Object.assign(current, dictionary);
+  else loaded[locale] = { ...dictionary };
+  for (const listener of [...listeners]) listener();
+}
+
+/**
+ * Fetch `locale`'s dictionary chunk once; concurrent calls share one request.
+ * A failed load (offline without a cached chunk) rejects and may be retried.
+ */
+export function loadLocale(locale: Locale): Promise<void> {
+  if (isLocaleLoaded(locale)) return Promise.resolve();
+  let p = pending.get(locale);
+  if (!p) {
+    p = LOADERS[locale]().then(
+      (dictionary) => {
+        pending.delete(locale);
+        registerLocale(locale, dictionary);
+      },
+      (err: unknown) => {
+        pending.delete(locale);
+        throw err;
+      }
+    );
+    pending.set(locale, p);
+  }
+  return p;
+}
+
+/** Called whenever a dictionary is registered (useSyncExternalStore subscribe). */
+export function subscribeLocales(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Replace `{name}` placeholders; unknown placeholders are left intact. */
+export function interpolate(template: string, vars?: TranslationVars): string {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : match
+  );
+}
+
+/**
+ * Translate `key` into `locale` (hr by default). Synchronous: a locale whose
+ * dictionary is not loaded yet falls back to the default locale (always
+ * loaded), then to the key itself, so a missing string is visible rather than
+ * blank. LocaleProvider only switches to a locale once it is loaded.
+ */
+export function t(key: TranslationKey, locale: Locale = DEFAULT_LOCALE, vars?: TranslationVars): string {
+  const text = loaded[locale]?.[key] ?? loaded[DEFAULT_LOCALE]?.[key] ?? (key as string);
+  return interpolate(text, vars);
+}
+
+/** Read the persisted locale; anything unknown or unreadable yields the default. */
+export function readStoredLocale(storage: Pick<Storage, 'getItem'> | undefined): Locale {
+  try {
+    const saved = storage?.getItem(LOCALE_STORAGE_KEY);
+    return isLocale(saved) ? saved : DEFAULT_LOCALE;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
 }

@@ -1,252 +1,109 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useCallback, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
-import { activateProgram, deleteProgram } from '@/lib/programs/utils';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { BottomSheet } from '@/components/ui/bottom-sheet';
+import type { Modality, Program, ProgramSession } from '@/contracts/domain';
+import { useRepo } from '@/hooks/use-repo';
+import { useCatalog } from '@/hooks/use-exercises';
+import { useT } from '@/lib/i18n/use-t';
+import { useUIStore } from '@/stores/ui-store';
 import { EmptyState } from '@/components/ui/empty-state';
-import { useLocale } from '@/components/providers';
-import { isoDate } from '@/lib/utils';
-import type { Program, ProgramSession, SessionExercise } from '@/types/program';
+import { ProgramHeader } from '@/components/programs/program-header';
+import { ProgramSessionList } from '@/components/programs/program-session-list';
+import { ProgramActions } from '@/components/programs/manager/program-actions';
+import { RotationPanel } from '@/components/programs/manager/rotation-panel';
+import { NotFoundState, LoadingState } from '@/components/programs/manager/page-states';
+import { isIncomplete } from '@/components/programs/lib/rotation';
+import { mapSession } from '@/components/programs/lib/session-edit';
+import { useMutationRunner, useProgram } from '@/components/programs/use-program';
+import '@/lib/i18n/packs/programs';
 
-export default function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
+interface Props {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+const NO_SEARCH: Promise<Record<string, string | string[] | undefined>> = Promise.resolve({});
+
+export default function ProgramDetailPage({ params, searchParams }: Props) {
   const { id } = use(params);
+  const search = use(searchParams ?? NO_SEARCH);
   const router = useRouter();
-  const { t } = useLocale();
+  const { t } = useT();
+  const repo = useRepo();
+  const addToast = useUIStore((s) => s.addToast);
+  const run = useMutationRunner(t('prog_error'));
+  const state = useProgram(id);
+  const { catalog } = useCatalog();
+  const [busy, setBusy] = useState(false);
+  const lookup = useCallback((exerciseId: string) => catalog?.getById(exerciseId), [catalog]);
 
-  const program = useLiveQuery<Program | undefined>(() => db.programs.get(id), [id]);
+  if (state.status === 'loading') return <LoadingState />;
+  if (state.status === 'missing') return <NotFoundState />;
 
-  const [editingName, setEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [addSheet, setAddSheet] = useState<{ sessionId: string } | null>(null);
+  const { program, profile } = state;
+  const pid = profile.id;
+  const isActive = profile.activeProgramId === program.id;
+  const isDraft = search.builder === '1';
 
-  if (program === undefined) {
-    return (
-      <div className="flex items-center justify-center h-full py-24">
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('loading')}</p>
-      </div>
-    );
-  }
-
-  if (program === null) {
-    return (
-      <EmptyState
-        icon="◈"
-        title={t('program_not_found')}
-        action={{ label: t('back_to_programs'), onClick: () => router.push('/programs') }}
-      />
-    );
-  }
-
-  const prog: Program = program;
-  const modalityVariant = (prog.modalitiesUsed?.[0] ?? 'custom') as
-    | 'tytax'
-    | 'bodyweight'
-    | 'kettlebell'
-    | 'custom';
-
-  async function saveName() {
-    if (!nameValue.trim()) return;
-    await db.programs.update(id, { name: nameValue.trim(), updatedAt: isoDate() });
-    setEditingName(false);
-  }
-
-  async function handleDelete() {
-    await deleteProgram(id);
-    router.push('/programs');
-  }
-
-  async function removeExercise(sessionId: string, exerciseId: string) {
-    const updated = prog.sessions.map((s) =>
-      s.id === sessionId
-        ? { ...s, exercises: s.exercises.filter((e) => e.exerciseId !== exerciseId) }
-        : s,
-    );
-    await db.programs.update(id, { sessions: updated, updatedAt: isoDate() });
-  }
+  const patch = (p: Partial<Program>) => run(() => repo.programs.update(pid, program.id, p));
+  const changeSession = (sessionId: string, fn: (s: ProgramSession) => ProgramSession) => {
+    const sessions = mapSession(program, sessionId, fn);
+    void patch({ sessions, sessionOrder: sessions.map((s) => s.name) });
+  };
+  const withBusy = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    const ok = await run(fn);
+    setBusy(false);
+    return ok;
+  };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
-      <button
-        onClick={() => router.push('/programs')}
-        className="text-xs mb-4 flex items-center gap-1 min-h-[44px]"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        ← {t('programs')}
-      </button>
+    <div className="mx-auto max-w-2xl px-4 py-6 pb-24">
+      <nav aria-label={t('prog_title')} className="mb-4">
+        <Link href="/programs" className="inline-flex min-h-11 items-center gap-1 rounded text-sm text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <span aria-hidden="true">←</span> {t('prog_detail_back')}
+        </Link>
+      </nav>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <Badge variant={modalityVariant}>
-            {(prog.modalitiesUsed?.[0] ?? 'custom').toUpperCase()}
-          </Badge>
-          {prog.isActive && <Badge variant="success">{t('training_active')}</Badge>}
-          {prog.isPreset && <Badge variant="default">PRESET</Badge>}
-        </div>
-
-        {editingName ? (
-          <div className="flex gap-2 items-center">
-            <input
-              autoFocus
-              value={nameValue}
-              onChange={(e) => setNameValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void saveName();
-                if (e.key === 'Escape') setEditingName(false);
-              }}
-              className="flex-1 rounded-lg border px-3 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-od-green-500/50"
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-display)',
-              }}
-            />
-            <Button size="sm" variant="primary" onClick={() => void saveName()}>
-              {t('save')}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>
-              {t('cancel')}
-            </Button>
-          </div>
-        ) : (
-          <h1
-            className="text-2xl font-bold uppercase tracking-wide cursor-pointer"
-            style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
-            onClick={() => { setNameValue(prog.name); setEditingName(true); }}
-            title={t('click_to_edit')}
-          >
-            {prog.name} ✎
-          </h1>
-        )}
-
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          {prog.frequency}x/week &middot; {prog.splitType.replace(/_/g, ' ')} &middot;{' '}
-          {prog.sessions.length} {t('sessions').toLowerCase()}
-        </p>
-      </div>
-
-      <div className="flex gap-3 mb-8 flex-wrap">
-        {!prog.isActive && (
-          <Button variant="primary" size="md" onClick={() => void activateProgram(id)}>
-            {t('make_active')}
-          </Button>
-        )}
-        <Button variant="danger" size="md" onClick={() => setConfirmDelete(true)}>
-          {t('delete_program')}
-        </Button>
-      </div>
-
-      <section>
-        <h2
-          className="text-xs font-semibold uppercase tracking-widest mb-4"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--text-muted)' }}
-        >
-          {t('sessions')}
-        </h2>
-        <div className="flex flex-col gap-4">
-          {prog.sessions.map((session: ProgramSession, sIdx: number) => (
-            <div
-              key={session.id}
-              className="rounded-xl border overflow-hidden"
-              style={{
-                borderColor:
-                  prog.currentSessionIndex === sIdx ? 'var(--accent)' : 'var(--border-color)',
-                backgroundColor: 'var(--bg-card)',
-              }}
-            >
-              <div
-                className="flex items-center justify-between px-4 py-3 border-b"
-                style={{ borderColor: 'var(--border-color)' }}
-              >
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    {session.name}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {session.exercises.length} {session.exercises.length !== 1 ? t('exercise_plural') : t('exercise_singular')}
-                    {prog.currentSessionIndex === sIdx ? ` · ${t('dashboard_next').toUpperCase()} ${t('training_next_session').toUpperCase()}` : ''}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAddSheet({ sessionId: session.id })}
-                >
-                  + {t('add')}
-                </Button>
-              </div>
-
-              {session.exercises.length > 0 ? (
-                <ul>
-                  {session.exercises.map((ex: SessionExercise) => (
-                    <li
-                      key={ex.exerciseId}
-                      className="flex items-center justify-between px-4 py-3 gap-3 border-t"
-                      style={{ borderColor: 'var(--border-color)' }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
-                          {ex.exerciseName}
-                        </p>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {ex.sets}x{ex.reps}
-                          {ex.restSeconds ? ` · ${ex.restSeconds}s rest` : ''}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => void removeExercise(session.id, ex.exerciseId)}
-                        className="text-xs px-2 py-1 rounded min-h-[36px] min-w-[36px]"
-                        style={{ color: 'var(--text-muted)' }}
-                        aria-label={t('delete')}
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="px-4 py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {t('no_exercises_session')}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        title={t('delete_program')}
-        message={`${t('delete_program_confirm')} "${prog.name}"? ${t('delete_program_message')}`}
-        confirmLabel={t('delete')}
-        danger
-        onConfirm={() => void handleDelete()}
-        onCancel={() => setConfirmDelete(false)}
+      <ProgramHeader
+        program={program}
+        isActive={isActive}
+        onRename={async (name) => void (await patch({ name }))}
+        onModality={async (m: Modality) => void (await patch({ modalitiesUsed: [m, ...program.modalitiesUsed.filter((x) => x !== m)] }))}
       />
 
-      <BottomSheet open={!!addSheet} onClose={() => setAddSheet(null)} title={t('add_exercise')}>
-        <div className="px-4 py-6">
-          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-            {t('exercise_picker_coming')}
-          </p>
-          <Button
-            variant="secondary"
-            fullWidth
-            onClick={() => {
-              setAddSheet(null);
-              router.push('/exercises');
-            }}
-          >
-            {t('browse_exercise_library')}
-          </Button>
-        </div>
-      </BottomSheet>
+      <ProgramActions
+        name={program.name}
+        isActive={isActive}
+        incomplete={isIncomplete(program)}
+        isDraft={isDraft}
+        busy={busy}
+        onActivate={() =>
+          void withBusy(() => repo.programs.setActive(pid, program.id)).then((ok) => ok && addToast(t('prog_activated', { name: program.name }), 'success'))
+        }
+        onDeactivate={() => void withBusy(() => repo.programs.setActive(pid, null)).then((ok) => ok && addToast(t('prog_deactivated'), 'info'))}
+        onDelete={() =>
+          void withBusy(() => repo.programs.softDelete(pid, program.id)).then((ok) => {
+            if (!ok) return;
+            addToast(t('prog_deleted'), 'info');
+            router.replace('/programs');
+          })
+        }
+      />
+
+      {program.sessions.some((s) => !s.isRest) ? (
+        <ProgramSessionList program={program} lookup={lookup} onSessionChange={changeSession} hrefSuffix={isDraft ? '?builder=1' : ''} />
+      ) : (
+        <EmptyState title={t('prog_slot_empty')} />
+      )}
+
+      <RotationPanel
+        key={`${program.id}-${program.rotationStartDate ?? ''}`}
+        program={program}
+        onPatch={patch}
+        onAligned={(name) => addToast(t('prog_rotation_synced', { session: name }), 'success')}
+      />
     </div>
   );
 }

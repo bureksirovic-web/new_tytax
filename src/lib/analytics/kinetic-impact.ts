@@ -1,7 +1,10 @@
-import type { WorkoutLog } from '@/types/workout';
+import type { WorkoutLog } from '@/contracts/domain';
+import type { ExerciseLookup } from '@/contracts/training';
 import { computeACWR } from './acwr';
 import { computeVolumeParity } from './volume-parity';
-import { getWeekKey } from '@/lib/utils';
+import { getWeekKey, parseLocalDay } from '@/lib/utils';
+import { dayCutoff, liveLogs, logVolume } from './sets';
+import '@/lib/i18n/packs/requests';
 
 export interface KineticImpactScore {
   score: number; // 0-100
@@ -12,11 +15,22 @@ export interface KineticImpactScore {
     consistencyScore: number; // 0-20 pts: training frequency
     volumeScore: number;    // 0-20 pts: weekly volume vs personal average
   };
+  /** i18n key for the explanation (G4-31 / spec N5): the UI translates it. */
+  explanationKey: KineticExplanationKey;
+  /** @deprecated English text kept for older callers; use `explanationKey`. */
   explanation: string;
 }
 
-export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): KineticImpactScore {
-  if (!logs || logs.length === 0) {
+export type KineticExplanationKey = 'ki_no_data' | 'ki_no_recent' | 'ki_excellent' | 'ki_good' | 'ki_fair' | 'ki_poor';
+
+export function computeKineticImpact(
+  allLogs: readonly WorkoutLog[] | null | undefined,
+  windowDays = 28,
+  opts: { now?: Date; lookup?: ExerciseLookup } = {},
+): KineticImpactScore {
+  const now = opts.now ?? new Date();
+  const logs = liveLogs(allLogs ?? []);
+  if (logs.length === 0) {
     return {
       score: 0,
       label: 'poor',
@@ -26,14 +40,13 @@ export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): Kinet
         consistencyScore: 0,
         volumeScore: 0
       },
+      explanationKey: 'ki_no_data',
       explanation: 'No workout data available to calculate a score.'
     };
   }
 
   // Use recent logs up to windowDays
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - windowDays);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = dayCutoff(now, windowDays);
 
   const recentLogs = logs.filter(log => log.date >= cutoffStr);
   if (recentLogs.length === 0) {
@@ -46,6 +59,7 @@ export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): Kinet
         consistencyScore: 0,
         volumeScore: 0
       },
+      explanationKey: 'ki_no_recent',
       explanation: 'No recent workout data to calculate a score.'
     };
   }
@@ -70,7 +84,7 @@ export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): Kinet
   }
 
   // Parity Score
-  const parityResults = computeVolumeParity(logs, windowDays);
+  const parityResults = computeVolumeParity(logs, windowDays, { now, lookup: opts.lookup });
   let sumAbsDelta = 0;
   for (const r of parityResults) {
     sumAbsDelta += Math.abs(r.delta);
@@ -82,7 +96,7 @@ export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): Kinet
   // Consistency Score
   // Consistency: 20 pts based on workouts per week vs target (3-4/week = full points)
   const weeksMap = new Set<string>();
-  recentLogs.forEach(log => weeksMap.add(getWeekKey(new Date(log.date))));
+  recentLogs.forEach(log => weeksMap.add(getWeekKey(parseLocalDay(log.date))));
   const numWeeks = Math.max(1, weeksMap.size);
   const avgWorkoutsPerWeek = recentLogs.length / numWeeks;
   let consistencyScore = 0;
@@ -96,18 +110,15 @@ export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): Kinet
   // Volume: 20 pts based on current week vs 4-week average
   let currentWeekVolume = 0;
   let fourWeekVolume = 0;
-  const currentWeekKey = getWeekKey(new Date());
+  const currentWeekKey = getWeekKey(now);
+  const fourWeeksAgo = dayCutoff(now, 28);
 
   logs.forEach(log => {
-    const wk = getWeekKey(new Date(log.date));
-    const vol = log.totalVolumeKg;
-    if (wk === currentWeekKey) {
+    const vol = logVolume(log);
+    if (getWeekKey(parseLocalDay(log.date)) === currentWeekKey) {
       currentWeekVolume += vol;
     }
-    const logDate = new Date(log.date);
-    const fourWeeksAgo = new Date();
-    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-    if (logDate >= fourWeeksAgo) {
+    if (log.date >= fourWeeksAgo) {
       fourWeekVolume += vol;
     }
   });
@@ -163,6 +174,7 @@ export function computeKineticImpact(logs: WorkoutLog[], windowDays = 28): Kinet
       consistencyScore: Math.round(consistencyScore),
       volumeScore: Math.round(volumeScore)
     },
+    explanationKey: `ki_${label}`,
     explanation
   };
 }

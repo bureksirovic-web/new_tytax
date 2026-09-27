@@ -1,123 +1,132 @@
 'use client';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/dexie';
-import { useWorkoutStore } from '@/stores/workout-store';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { getRepository } from '@/lib/db';
+import { useWorkout } from '@/hooks/use-workout';
 import { useLocale } from '@/components/providers';
-import type { Program } from '@/types/program';
+import { Button } from '@/components/ui/button';
+import { NextSessionCard } from '@/components/workout/next-session-card';
+import { StartDraftCard } from '@/components/workout/start-draft-card';
+import { foreignInfo } from '@/components/workout/foreign-draft';
+import { useProgramStartFlow } from '@/components/workout/start-program-flow';
+import { useStartStrings } from '@/components/workout/strings/start';
+import { useWorkoutStore } from '@/stores/workout-store';
+import '@/lib/i18n/packs/g3Workout';
 
 export default function WorkoutPage() {
   const router = useRouter();
-  const { t } = useLocale();
-  const startWorkout = useWorkoutStore((s) => s.startWorkout);
-  const storeStatus = useWorkoutStore((s) => s.status);
+  const locale = useLocale();
+  const t = useStartStrings();
+  const workout = useWorkout();
+  const { ready, draft, profileId, activeProgram, activeProgramLoading, prepareProgramStart, startProgram, skipRestDay } = workout;
+  const [starting, setStarting] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  const activeProgram = useLiveQuery<Program | undefined>(
-    () => db.programs.where('isActive').equals(1).first(),
-    []
+  const onDone = useCallback(
+    (started: boolean) => {
+      if (started) router.push('/workout/active');
+    },
+    [router],
   );
+  const onError = useCallback(() => setFailed(true), []);
+  const flow = useProgramStartFlow({ prepareProgramStart, startProgram, onDone, onError });
 
-  const handleQuickStart = async () => {
-    await startWorkout({});
-    router.push('/workout/active');
-  };
-
-  const handleProgramStart = async () => {
-    if (!activeProgram) return;
-    const idx = activeProgram.currentSessionIndex ?? 0;
-    const session = activeProgram.sessions[idx % activeProgram.sessions.length];
-    if (!session) return;
-    await startWorkout({ programSessionId: session.id });
-    router.push('/workout/active');
-  };
-
-  useEffect(() => {
-    if (storeStatus === 'active') {
-      router.replace('/workout/active');
+  async function handleQuickStart() {
+    setStarting(true);
+    setFailed(false);
+    try {
+      const name = t('quick_session_name');
+      // A fresh device has no profile yet: create the default one first.
+      const started = profileId
+        ? workout.startQuick(name)
+        : useWorkoutStore.getState().startQuick((await getRepository().profiles.ensureActive(locale.t('profile'))).id, name);
+      if (started) router.push('/workout/active');
+    } catch {
+      setFailed(true);
+    } finally {
+      setStarting(false);
     }
-  }, [storeStatus, router]);
+  }
+
+  async function handleSkipRest() {
+    setStarting(true);
+    setFailed(false);
+    try {
+      await skipRestDay();
+    } catch {
+      setFailed(true);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  const busy = starting || flow.busy;
 
   return (
-    <main className="min-h-screen p-4 pb-24" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <div className="mb-8 pt-4">
-        <p className="text-xs tracking-widest uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
-          {t('dashboard_system')}
-        </p>
-        <h1
-          className="text-4xl font-bold tracking-wider uppercase"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--highlight)' }}
-        >
-          {t('training_title')}
+    <div data-testid="workout-home" className="min-h-screen bg-[var(--bg-primary)] p-4 pb-24">
+      <header className="mb-8 pt-4">
+        <p className="mb-1 text-xs uppercase tracking-widest text-[var(--text-muted)]">{locale.t('dashboard_system')}</p>
+        <h1 data-testid="page-heading-workout" className="font-display text-4xl font-bold uppercase tracking-wider text-[var(--highlight)]">
+          {locale.t('training_title')}
         </h1>
-      </div>
+      </header>
 
-      <div className="mb-6">
-        <Button
-          size="lg"
-          fullWidth
-          onClick={handleQuickStart}
-          className="text-xl tracking-widest uppercase font-bold py-6 min-h-[72px]"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {t('workout_start')}
-        </Button>
-        <p className="text-xs text-center mt-2" style={{ color: 'var(--text-muted)' }}>
-          {t('training_free_session')}
+      {failed && (
+        <p data-testid="start-error" role="alert" className="mb-4 rounded-lg border border-red-700 bg-red-950 p-3 text-sm text-red-100">
+          {t('start_error')}
         </p>
-      </div>
-
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-color)' }} />
-        <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-          {t('training_or_continue')}
-        </span>
-        <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-color)' }} />
-      </div>
-
-      {activeProgram ? (
-        <Card hoverable onClick={handleProgramStart}>
-          <CardHeader>
-            <CardTitle>{t('training_active_program')}</CardTitle>
-            <Badge variant="success">{t('training_active')}</Badge>
-          </CardHeader>
-          <h2
-            className="text-xl font-bold uppercase tracking-wide mb-1"
-            style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
-          >
-            {activeProgram.name}
-          </h2>
-          {(() => {
-            const idx = activeProgram.currentSessionIndex ?? 0;
-            const session = activeProgram.sessions[idx % activeProgram.sessions.length];
-            return session ? (
-              <div className="mt-3">
-                <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
-                  {t('training_next_session')}
-                </p>
-                <p className="font-semibold" style={{ color: 'var(--accent)' }}>
-                  {session.name}
-                </p>
-                <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                  {session.exercises.length} {t('training_exercises')}
-                </p>
-              </div>
-            ) : null;
-          })()}
-          <Button fullWidth variant="secondary" className="mt-4 uppercase tracking-widest" size="md">
-            {t('training_continue_program')}
-          </Button>
-        </Card>
-      ) : (
-        <Card>
-          <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
-            {t('training_no_program')}
-          </p>
-        </Card>
       )}
-    </main>
+
+      {!ready ? (
+        <p className="text-sm text-[var(--text-muted)]" aria-busy="true">
+          {locale.t('loading')}
+        </p>
+      ) : draft ? (
+        <StartDraftCard
+          draft={draft}
+          onDiscard={() => useWorkoutStore.getState().discard()}
+          foreign={workout.foreignDraft ? foreignInfo(workout) : undefined}
+        />
+      ) : (
+        <>
+          <div className="mb-6">
+            <Button
+              data-testid="start-quick-workout"
+              size="lg"
+              fullWidth
+              disabled={busy}
+              onClick={() => void handleQuickStart()}
+              className="min-h-[72px] py-6 font-display text-xl font-bold uppercase tracking-widest"
+            >
+              {locale.t('workout_start')}
+            </Button>
+            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">{locale.t('training_free_session')}</p>
+          </div>
+          {activeProgramLoading ? (
+            <div
+              data-testid="active-program-loading"
+              aria-busy="true"
+              className="h-40 animate-pulse rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]"
+            />
+          ) : activeProgram ? (
+            <NextSessionCard
+              program={activeProgram}
+              starting={busy}
+              disabled={!profileId || busy}
+              onStart={() => {
+                setFailed(false);
+                void flow.begin();
+              }}
+              onSkipRest={() => void handleSkipRest()}
+            />
+          ) : (
+            <p className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 text-center text-sm text-[var(--text-muted)]">
+              {locale.t('training_no_program')}
+            </p>
+          )}
+        </>
+      )}
+      {flow.dialogs}
+    </div>
   );
 }

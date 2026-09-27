@@ -1,4 +1,5 @@
 'use client';
+import { useLocale } from '@/components/providers';
 import { Modal } from './modal';
 import { Button } from './button';
 
@@ -13,14 +14,15 @@ interface ConfirmDialogProps {
   danger?: boolean;
 }
 
-export function ConfirmDialog({ open, onConfirm, onCancel, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, onConfirm, onCancel, title, message, confirmLabel, cancelLabel, danger }: ConfirmDialogProps) {
+  const { t } = useLocale();
   return (
     <Modal open={open} onClose={onCancel} title={title} size="sm">
       <div className="space-y-4">
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{message}</p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="ghost" size="sm" onClick={onCancel}>{cancelLabel}</Button>
-          <Button variant={danger ? 'danger' : 'primary'} size="sm" onClick={onConfirm}>{confirmLabel}</Button>
+        <p className="text-sm text-fg-2">{message}</p>
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onCancel}>{cancelLabel ?? t('cancel')}</Button>
+          <Button variant={danger ? 'danger' : 'primary'} size="sm" onClick={onConfirm}>{confirmLabel ?? t('confirm')}</Button>
         </div>
       </div>
     </Modal>

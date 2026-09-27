@@ -1,8 +1,7 @@
-import type { Program } from '@/types/program';
+import type { ProgramTemplate } from '@/contracts/domain';
 
-export const KB_SIMPLE_SINISTER: Program = {
-  id: 'kb_program_simple_sinister',
-  profileId: 'preset',
+export const KB_SIMPLE_SINISTER: ProgramTemplate = {
+  presetId: 'kb-simple-sinister',
   name: 'Simple & Sinister',
   splitType: 'full_body',
   frequency: 5,
@@ -12,7 +11,7 @@ export const KB_SIMPLE_SINISTER: Program = {
   sessions: [
     {
       id: 'kb_ss_daily',
-      programId: 'kb_program_simple_sinister',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Daily Practice',
       dayIndex: 0,
       exercises: [
@@ -36,17 +35,12 @@ export const KB_SIMPLE_SINISTER: Program = {
     },
   ],
   modalitiesUsed: ['kettlebell'],
-  isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
-  // Presets don't have real timestamps — set at install time
-  createdAt: '',
-  updatedAt: '',
 };
 
-export const KB_HYPERTROPHY: Program = {
-  id: 'kb_program_hypertrophy',
-  profileId: 'preset',
+export const KB_HYPERTROPHY: ProgramTemplate = {
+  presetId: 'kb-hypertrophy',
   name: 'KB Hypertrophy',
   splitType: 'upper_lower',
   frequency: 4,
@@ -56,7 +50,7 @@ export const KB_HYPERTROPHY: Program = {
   sessions: [
     {
       id: 'kb_hyp_upper_a',
-      programId: 'kb_program_hypertrophy',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Upper A — Push',
       dayIndex: 0,
       exercises: [
@@ -96,7 +90,7 @@ export const KB_HYPERTROPHY: Program = {
     },
     {
       id: 'kb_hyp_lower_a',
-      programId: 'kb_program_hypertrophy',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Lower A — Squat',
       dayIndex: 1,
       exercises: [
@@ -136,7 +130,7 @@ export const KB_HYPERTROPHY: Program = {
     },
     {
       id: 'kb_hyp_upper_b',
-      programId: 'kb_program_hypertrophy',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Upper B — Pull',
       dayIndex: 2,
       exercises: [
@@ -176,7 +170,7 @@ export const KB_HYPERTROPHY: Program = {
     },
     {
       id: 'kb_hyp_lower_b',
-      programId: 'kb_program_hypertrophy',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Lower B — Hinge',
       dayIndex: 3,
       exercises: [
@@ -216,17 +210,12 @@ export const KB_HYPERTROPHY: Program = {
     },
   ],
   modalitiesUsed: ['kettlebell'],
-  isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
-  // Presets don't have real timestamps — set at install time
-  createdAt: '',
-  updatedAt: '',
 };
 
-export const KB_CONDITIONING: Program = {
-  id: 'kb_program_conditioning',
-  profileId: 'preset',
+export const KB_CONDITIONING: ProgramTemplate = {
+  presetId: 'kb-conditioning',
   name: 'KB Conditioning',
   splitType: 'full_body',
   frequency: 3,
@@ -236,7 +225,7 @@ export const KB_CONDITIONING: Program = {
   sessions: [
     {
       id: 'kb_cond_a',
-      programId: 'kb_program_conditioning',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Complex A — Ballistic',
       dayIndex: 0,
       exercises: [
@@ -268,7 +257,7 @@ export const KB_CONDITIONING: Program = {
     },
     {
       id: 'kb_cond_b',
-      programId: 'kb_program_conditioning',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Complex B — Grind',
       dayIndex: 1,
       exercises: [
@@ -300,7 +289,7 @@ export const KB_CONDITIONING: Program = {
     },
     {
       id: 'kb_cond_c',
-      programId: 'kb_program_conditioning',
+      programId: '', // Intentional: presets don't have IDs until installed
       name: 'Complex C — Full Body',
       dayIndex: 2,
       exercises: [
@@ -340,10 +329,6 @@ export const KB_CONDITIONING: Program = {
     },
   ],
   modalitiesUsed: ['kettlebell'],
-  isActive: false,
   isPreset: true,
   currentSessionIndex: 0,
-  // Presets don't have real timestamps — set at install time
-  createdAt: '',
-  updatedAt: '',
 };

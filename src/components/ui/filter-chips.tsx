@@ -6,9 +6,16 @@ interface FilterChipsProps<T extends string> {
   onChange: (selected: T[]) => void;
   multi?: boolean;
   className?: string;
+  /** Accessible name for the chip group. */
+  ariaLabel?: string;
 }
 
-export function FilterChips<T extends string>({ options, selected, onChange, multi = true, className = '' }: FilterChipsProps<T>) {
+const base =
+  'flex min-h-11 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tactical-amber-400';
+const activeCls = 'border-accent bg-accent text-white';
+const idleCls = 'border-line bg-bg-2 text-fg-2 hover:bg-card-hover hover:text-fg';
+
+export function FilterChips<T extends string>({ options, selected, onChange, multi = true, className = '', ariaLabel }: FilterChipsProps<T>) {
   const toggle = (value: T) => {
     if (!multi) {
       onChange(selected[0] === value ? [] : [value]);
@@ -18,25 +25,19 @@ export function FilterChips<T extends string>({ options, selected, onChange, mul
   };
 
   return (
-    <div className={`flex flex-wrap gap-2 ${className}`}>
+    <div className={`flex flex-wrap gap-2 ${className}`} role="group" aria-label={ariaLabel}>
       {options.map((opt) => {
         const active = selected.includes(opt.value);
         return (
           <button
             key={opt.value}
+            type="button"
             onClick={() => toggle(opt.value)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] border"
-            style={{
-              backgroundColor: active ? 'var(--accent)' : 'var(--bg-secondary)',
-              borderColor: active ? 'var(--accent)' : 'var(--border-color)',
-              color: active ? 'white' : 'var(--text-secondary)',
-            }}
+            className={`${base} ${active ? activeCls : idleCls}`}
             aria-pressed={active}
           >
             {opt.label}
-            {opt.count !== undefined && (
-              <span className="opacity-70 ml-0.5">{opt.count}</span>
-            )}
+            {opt.count !== undefined && <span className="ml-0.5">{opt.count}</span>}
           </button>
         );
       })}

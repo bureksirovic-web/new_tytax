@@ -1,32 +1,36 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useLocale } from '@/components/providers';
+
+function subscribe(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+
+const getOnline = () => navigator.onLine;
+// The server (and the hydration pass) always assumes online, so the markup matches.
+const getServerOnline = () => true;
 
 export function OfflineIndicator() {
   const { t } = useLocale();
-  const [isOffline, setIsOffline] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !navigator.onLine;
-    }
-    return false;
-  });
+  const online = useSyncExternalStore(subscribe, getOnline, getServerOnline);
 
-  useEffect(() => {
-    const onOnline = () => setIsOffline(false);
-    const onOffline = () => setIsOffline(true);
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-    return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
-  }, []);
-
-  if (!isOffline) return null;
-
+  // The live region stays mounted so screen readers announce the change.
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-[var(--highlight)] text-black text-xs font-bold text-center py-1">
-      {t('offline')} — {t('offline_data_saved')}
+    <div
+      role="status"
+      aria-live="polite"
+      className={
+        online
+          ? 'sr-only'
+          : 'fixed top-0 left-0 right-0 z-50 bg-highlight py-1 text-center text-xs font-bold text-gunmetal-950'
+      }
+    >
+      {!online && `${t('offline')} — ${t('offline_data_saved')}`}
     </div>
   );
 }

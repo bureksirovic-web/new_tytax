@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
+import { t } from '@/lib/i18n/dictionaries';
 import SettingsPage from './page-client';
 
-export const metadata = {
-  title: 'Settings',
-  description: 'Preferences, sync, and data export',
+// Server metadata uses the default language (hr); the client heading follows the active locale.
+export const metadata: Metadata = {
+  title: t('set_title'),
+  description: t('set_meta_description'),
 };
 
 export default function Page() {

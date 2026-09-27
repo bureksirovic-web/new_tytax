@@ -92,7 +92,64 @@ export const MUSCLE_NAME_MAP: Record<string, StandardMuscle> = {
   'Adductors': 'Adductors',
   'Abductors': 'Abductors',
   'Neck': 'Neck',
+  // Names used by the current catalog data (tytax JSON, bodyweight, kettlebell)
+  'Mid/Lower Traps': 'Mid/Lower Traps',
+  'Lower Traps': 'Mid/Lower Traps',
+  'Mid Traps + Rhomboids': 'Mid/Lower Traps',
+  'Mid Back': 'Rhomboids',
+  'Mid Back (rhomboids/mid traps)': 'Rhomboids',
+  'Upper/Mid Back (rhomboids/mid traps)': 'Rhomboids',
+  'Upper Chest': 'Chest',
+  'Upper Chest bias': 'Chest',
+  'Lower Chest bias': 'Chest',
+  'Lower Chest (costal pec)': 'Chest',
+  'Delts (anterior/medial)': 'Front Delts',
+  'Rear Deltoids': 'Rear Delts',
+  'Upper Traps/Scapular stabilizers': 'Upper Traps',
+  'Serratus/Scapular depressors': 'Serratus',
+  'Serratus/Scapular control': 'Serratus',
+  'Serratus/Scapular stabilizers': 'Serratus',
+  'Supraspinatus': 'Rotator Cuff',
+  'Shoulder stabilizers': 'Rotator Cuff',
+  'Brachialis': 'Biceps',
+  'Supinators/Biceps synergy': 'Biceps',
+  'Anconeus': 'Triceps',
+  'Brachioradialis': 'Forearms',
+  'Brachialis/Brachioradialis': 'Forearms',
+  'Grip': 'Forearms',
+  'Wrist Flexors': 'Forearms',
+  'Wrist Extensors': 'Forearms',
+  'Forearm Flexors': 'Forearms',
+  'Pronators': 'Forearms',
+  'Gastrocnemius': 'Calves',
+  'Soleus': 'Calves',
+  'Foot/Ankle Stabilizers': 'Calves',
+  'Glute Med/Min': 'Glutes',
+  'Glutes/Hip rotators': 'Glutes',
+  'Quadratus Lumborum': 'Core',
 };
+
+// Maps (not the object) so prototype keys like "constructor" never resolve.
+const MUSCLE_NAME_MAP_EXACT: ReadonlyMap<string, StandardMuscle> = new Map(Object.entries(MUSCLE_NAME_MAP));
+const MUSCLE_NAME_MAP_LOWER: ReadonlyMap<string, StandardMuscle> = new Map(
+  Object.entries(MUSCLE_NAME_MAP).map(([k, v]) => [k.toLowerCase(), v] as const),
+);
+
+/**
+ * Standardised muscle name for a raw impact name.
+ * Order: exact `MUSCLE_NAME_MAP` hit → case-insensitive hit → the same after
+ * stripping parenthetical qualifiers ("Quads (stability)" → "Quads").
+ * Unknown names pass through unchanged.
+ */
+export function standardizeMuscle(raw: string): string {
+  const exact = MUSCLE_NAME_MAP_EXACT.get(raw);
+  if (exact) return exact;
+  const lower = raw.trim().toLowerCase();
+  const ci = MUSCLE_NAME_MAP_LOWER.get(lower);
+  if (ci) return ci;
+  const stripped = lower.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+  return MUSCLE_NAME_MAP_LOWER.get(stripped) ?? raw;
+}
 
 export const TYTAX_STATIONS = {
   SMITH: 'Smith Machine',
@@ -125,4 +182,9 @@ export const ACWR_THRESHOLDS = {
 
 export const GAP_THRESHOLD = 0.30; // 30% gap = lagging
 
-
+/**
+ * Most reps one set can hold: the workout reps field clamps to it, the store
+ * clamps patches to it, the persisted-draft validator and the history editor
+ * accept up to it (refuter R2, 2026-09-27: they disagreed at 100 vs 1000).
+ */
+export const MAX_SET_REPS = 1000;

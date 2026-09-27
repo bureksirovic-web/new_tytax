@@ -1,6 +1,8 @@
-import type { WorkoutLog } from '@/types/workout';
-import { getWeekKey } from '@/lib/utils';
-import { MUSCLE_NAME_MAP } from '@/lib/constants';
+import type { WorkoutLog } from '@/contracts/domain';
+import type { ExerciseLookup } from '@/contracts/training';
+import { getWeekKey, parseLocalDay } from '@/lib/utils';
+import { impactWeights, isTimeSet } from '@/lib/training/common';
+import { countedSets, exerciseVolume, liveLogs, logVolume, setVolume } from './sets';
 
 export interface VolumeDataPoint {
   weekKey: string;
@@ -10,31 +12,37 @@ export interface VolumeDataPoint {
   sessionCount: number;
 }
 
-export function computeWeeklyVolume(logs: WorkoutLog[]): VolumeDataPoint[] {
+const noLookup: ExerciseLookup = () => undefined;
+
+/**
+ * Weekly (ISO week of the local `date`) kg × reps volume over done working
+ * sets of live logs (time sets add none). Muscle shares use the catalog impact (`lookup`), falling back to the
+ * log's `muscleImpactSnapshot`.
+ */
+export function computeWeeklyVolume(logs: readonly WorkoutLog[], opts: { lookup?: ExerciseLookup } = {}): VolumeDataPoint[] {
+  const lookup = opts.lookup ?? noLookup;
   const map = new Map<string, VolumeDataPoint>();
 
-  for (const log of logs) {
-    const wk = getWeekKey(new Date(log.date));
-    if (!map.has(wk)) {
-      map.set(wk, { weekKey: wk, totalVolume: 0, byModality: {}, byMuscle: {}, sessionCount: 0 });
+  for (const log of liveLogs(logs)) {
+    const wk = getWeekKey(parseLocalDay(log.date));
+    let point = map.get(wk);
+    if (!point) {
+      point = { weekKey: wk, totalVolume: 0, byModality: {}, byMuscle: {}, sessionCount: 0 };
+      map.set(wk, point);
     }
-    const point = map.get(wk)!;
     point.sessionCount += 1;
 
     for (const ex of log.exercises) {
-      for (const set of ex.sets) {
-        const vol = set.kg * set.reps;
+      const weights = impactWeights(ex, lookup);
+      for (const set of countedSets(ex)) {
+        // Time sets are counted sets but carry no kg × reps volume.
+        if (isTimeSet(set)) continue;
+        const vol = setVolume(set);
         point.totalVolume += vol;
-
         const mod = ex.modality ?? 'custom';
         point.byModality[mod] = (point.byModality[mod] ?? 0) + vol;
-
-        if (ex.muscleImpactSnapshot) {
-          for (const impact of ex.muscleImpactSnapshot) {
-            const muscle = MUSCLE_NAME_MAP[impact.muscle] ?? impact.muscle;
-            const share = vol * (impact.score / 100);
-            point.byMuscle[muscle] = (point.byMuscle[muscle] ?? 0) + share;
-          }
+        for (const [muscle, weight] of weights) {
+          point.byMuscle[muscle] = (point.byMuscle[muscle] ?? 0) + vol * weight;
         }
       }
     }
@@ -45,35 +53,34 @@ export function computeWeeklyVolume(logs: WorkoutLog[]): VolumeDataPoint[] {
     .map(([, v]) => v);
 }
 
-export function volumeByMuscle(logs: WorkoutLog[]): Record<string, number> {
+/**
+ * Impact-weighted volume per standardised muscle, largest first. Impact from
+ * the catalog (`lookup`), falling back to each log's snapshot.
+ */
+export function volumeByMuscle(logs: readonly WorkoutLog[], opts: { lookup?: ExerciseLookup } = {}): Record<string, number> {
+  const lookup = opts.lookup ?? noLookup;
   const totals: Record<string, number> = {};
 
-  for (const log of logs) {
+  for (const log of liveLogs(logs)) {
     for (const ex of log.exercises) {
-      if (!ex.muscleImpactSnapshot) continue;
-      const exVol = ex.sets.reduce((s, set) => s + set.kg * set.reps, 0);
-      for (const impact of ex.muscleImpactSnapshot) {
-        const muscle = MUSCLE_NAME_MAP[impact.muscle] ?? impact.muscle;
-        totals[muscle] = (totals[muscle] ?? 0) + exVol * (impact.score / 100);
+      const exVol = exerciseVolume(ex);
+      if (exVol <= 0) continue;
+      for (const [muscle, weight] of impactWeights(ex, lookup)) {
+        totals[muscle] = (totals[muscle] ?? 0) + exVol * weight;
       }
     }
   }
 
-  return Object.fromEntries(
-    Object.entries(totals).sort(([, a], [, b]) => b - a)
-  );
+  return Object.fromEntries(Object.entries(totals).sort(([, a], [, b]) => b - a));
 }
 
-export function computeMonthlyTrend(logs: WorkoutLog[]): { month: string; volume: number }[] {
+/** Volume per calendar month ('YYYY-MM'). */
+export function computeMonthlyTrend(logs: readonly WorkoutLog[]): { month: string; volume: number }[] {
   const map = new Map<string, number>();
 
-  for (const log of logs) {
+  for (const log of liveLogs(logs)) {
     const month = log.date.slice(0, 7);
-    const vol = log.exercises.reduce(
-      (s, ex) => s + ex.sets.reduce((ss, set) => ss + set.kg * set.reps, 0),
-      0
-    );
-    map.set(month, (map.get(month) ?? 0) + vol);
+    map.set(month, (map.get(month) ?? 0) + logVolume(log));
   }
 
   return Array.from(map.entries())

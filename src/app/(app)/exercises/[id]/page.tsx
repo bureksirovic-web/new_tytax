@@ -1,16 +1,18 @@
-import ExerciseDetailPage from './page-client';
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import ExerciseDetailPage from './page-client';
 
 type Props = { params: Promise<{ id: string }> };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  return {
-    title: id,
-    description: 'Exercise details, muscle impact, and progression info',
-  };
-}
+// The catalog is client-side and lazy; the server does not load it just for a title.
+export const metadata: Metadata = {
+  title: 'Vježba',
+};
 
 export default function Page(props: Props) {
-  return <ExerciseDetailPage {...props} />;
+  return (
+    <Suspense>
+      <ExerciseDetailPage {...props} />
+    </Suspense>
+  );
 }

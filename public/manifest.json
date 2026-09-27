@@ -1,38 +1,38 @@
 {
-  "name": "New TYTAX Training Companion",
+  "id": "/",
+  "name": "TYTAX — trening",
   "short_name": "TYTAX",
-  "description": "TYTAX T1, Bodyweight & Kettlebell training companion",
+  "description": "TYTAX T1, trening s vlastitom težinom i kettlebellom. Radi i bez interneta.",
+  "lang": "hr",
+  "dir": "ltr",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0a0f1a",
   "theme_color": "#0a0f1a",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
   "categories": ["fitness", "health", "sports"],
   "shortcuts": [
     {
-      "name": "Start Workout",
+      "name": "Započni trening",
+      "short_name": "Trening",
       "url": "/workout",
-      "description": "Start a new workout session"
+      "description": "Započni novi trening",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Exercise Library",
+      "name": "Vježbe",
+      "short_name": "Vježbe",
       "url": "/exercises",
-      "description": "Browse exercise library"
+      "description": "Pregledaj knjižnicu vježbi",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

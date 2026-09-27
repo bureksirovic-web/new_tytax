@@ -1,0 +1,113 @@
+{
+  "tytax_logs": [
+    {
+      "id": 1704110400000,
+      "date": "2024-01-01",
+      "session": "Upper A",
+      "duration": 3300,
+      "rpe": "7",
+      "exercises": [
+        {
+          "name": "TYTAX T1 | Smith Flat Bench Press",
+          "sets": [
+            {
+              "kg": "30.0",
+              "reps": 10,
+              "rir": "",
+              "done": true,
+              "type": "warmup"
+            },
+            {
+              "kg": "50",
+              "reps": "10",
+              "rir": "",
+              "done": true
+            },
+            {
+              "kg": "",
+              "reps": "",
+              "rir": "",
+              "done": false
+            }
+          ]
+        },
+        {
+          "name": "TYTAX T1 | Smith Flat Bench Press",
+          "sets": [
+            {
+              "kg": 45,
+              "reps": 12,
+              "rir": 2,
+              "done": true,
+              "type": "working"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1704283200000,
+      "date": "2024-01-03",
+      "session": "Lower A",
+      "duration": 3600,
+      "exercises": [
+        {
+          "name": "TYTAX T1 | Smith Back Squat",
+          "sets": [
+            {
+              "kg": "40.0",
+              "reps": 10,
+              "rir": "",
+              "done": true,
+              "type": "warmup"
+            },
+            {
+              "kg": "70",
+              "reps": "6",
+              "rir": "1",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1704369600000,
+      "date": "2024-01-04",
+      "session": "Upper A",
+      "exercises": "oops"
+    }
+  ],
+  "tytax_training_plan": {
+    "Upper A": [
+      "TYTAX T1 | Smith Flat Bench Press",
+      "TYTAX T1 | Lower Pulley Seated Cable Row (bench)",
+      "TYTAX T1 | Smith Seated Shoulder Press"
+    ],
+    "Lower A": [
+      "TYTAX T1 | Smith Back Squat",
+      "TYTAX T1 | Smith Romanian Deadlift (RDL)"
+    ],
+    "Rest Day": []
+  },
+  "tytax_session_order": [
+    "Upper A",
+    "Lower A",
+    "Rest Day"
+  ],
+  "tytax_bodyweight_log": [
+    {
+      "date": "2024-01-01",
+      "value": "75.4"
+    },
+    {
+      "date": "2024-01-07",
+      "value": 75
+    }
+  ],
+  "tytax_custom_protocols": "[{\"id\":\"custom_1704000000000\",\"name\":\"Solo Split\",\"description\":\"Synthetic protocol\",\"data\":{\"INITIAL_PLAN\":{\"Full A\":[\"TYTAX T1 | Smith Flat Bench Press\",\"TYTAX T1 | Smith Back Squat\"],\"Rest Day\":[]},\"INITIAL_ORDER\":[\"Full A\",\"Rest Day\"]}}]",
+  "tytax_oled_mode": "false",
+  "tytax_warmup_strategy": "Pyramid",
+  "tytax_bar_weight": "20",
+  "tytax_start_date": "2024-01-01"
+}
