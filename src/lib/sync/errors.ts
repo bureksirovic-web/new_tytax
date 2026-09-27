@@ -23,6 +23,14 @@ const AUTH_CODES = new Set(['PGRST301', 'PGRST302', 'PGRST303']);
 
 export const AUTH_REQUIRED: RemoteError = Object.freeze({ code: 'auth_required', retryable: false, authRequired: true });
 export const NETWORK_ERROR: RemoteError = Object.freeze({ code: 'network', retryable: true });
+/**
+ * The signed-in account is no longer the one the run started with: the run
+ * stops with its ops still live (never dead-lettered) and retries under the
+ * new session, where ops of the old account's profiles stay deferred.
+ */
+export const ACCOUNT_CHANGED: RemoteError = Object.freeze({ code: 'account_changed', retryable: true });
+/** Postgres insufficient_privilege: the RLS policy refused the row. */
+export const RLS_DENIED = '42501';
 
 export interface ErrorInput {
   /** HTTP status; 0 or undefined when the request never completed. */

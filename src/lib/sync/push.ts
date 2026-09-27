@@ -7,7 +7,7 @@ import { isRepoError, type Repository } from '@/contracts/repo';
 import type { SyncOperation, SyncTable } from '@/contracts/sync';
 import { BACKUP_KEY } from './backup-keys';
 import { PUSH_ORDER, remoteTableOf } from './columns';
-import type { RemoteError } from './errors';
+import { ACCOUNT_CHANGED, NETWORK_ERROR, RLS_DENIED, type RemoteError } from './errors';
 import type { SyncLogger } from './log';
 import { SyncMapError, toRemote, type LocalRecord, type RemoteRow } from './mapper';
 import { PEEK_LIMIT, collectOps, keyOf, settle, type PushEntry as Entry, type PushOutcome } from './outbox-ops';
@@ -138,6 +138,19 @@ export async function pushRun(
   for (const step of STEPS) for (const e of entries.values()) if (e.table === step.table && e.row && !e.failed && step.select(e.row)) e.need += 1;
 
   let abort: RemoteError | undefined;
+  /**
+   * An RLS denial (42501) is permanent only while the session still belongs
+   * to `accountId`. If the account changed (or signed out) since the run
+   * started, the denial says nothing about the row: stop the run, keep the op live.
+   */
+  const sessionMoved = async (error: RemoteError): Promise<RemoteError | undefined> => {
+    if (error.code !== RLS_DENIED) return undefined;
+    try {
+      return (await remote.currentAccountId()) === accountId ? undefined : ACCOUNT_CHANGED;
+    } catch {
+      return NETWORK_ERROR;
+    }
+  };
   /** Sticky tombstone met by a live local record: clear it (LWW by arrival applies to deletes too). */
   const restore = async (table: SyncTable, e: Entry): Promise<RemoteError | undefined> => {
     const res = await remote.undelete(remoteTableOf(table), e.recordId);
@@ -146,9 +159,10 @@ export async function pushRun(
       log({ event: 'undelete', table, count: 1 });
       return undefined;
     }
-    if (res.error.retryable || res.error.authRequired) {
-      e.retryCode = res.error.code;
-      return res.error;
+    const stop = res.error.retryable || res.error.authRequired ? res.error : await sessionMoved(res.error);
+    if (stop) {
+      e.retryCode = stop.code;
+      return stop;
     }
     e.failed = res.error.code;
     return undefined;
@@ -167,9 +181,10 @@ export async function pushRun(
       }
       return undefined;
     }
-    if (res.error.retryable || res.error.authRequired) {
-      chunk.forEach((e) => (e.retryCode = res.error.code));
-      return res.error;
+    const stop = res.error.retryable || res.error.authRequired ? res.error : await sessionMoved(res.error);
+    if (stop) {
+      chunk.forEach((e) => (e.retryCode = stop.code));
+      return stop;
     }
     if (chunk.length === 1) {
       chunk[0].failed = res.error.code;
