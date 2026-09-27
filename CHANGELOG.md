@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- **Setup link** (`/setup#p=…`): creates family profiles with their programs on the device that opens it.
+  - Asks for confirmation first, and nothing is written before you press Create.
+  - The data lives in the URL fragment, which is never sent to the server.
+  - Rerunning the same link skips profiles that are already set up.
+  - Generate a link with `node scripts/setup-link.mjs < family.json`.
+- **Youth mode** (birth year under 16):
+  - automatic weight increases are capped at +1.25 kg, and only after an easy set (RIR 3+);
+  - no drop or failure sets, no weak-point add-on, and no load-spike warnings;
+  - a rest day can be marked done only once it has actually passed.
+- **Calisthenics Start (dip bars, youth)** program:
+  - 3 non-consecutive days: support hold, negative dips, tuck L-sit, knee raises, rows, legs and core, plus light TYTAX cable work;
+  - comes with a note that it is supervised training.
+- **Progression prompts:** after 2 sessions with every prescribed set at the top of its range, the finish screen offers the next step.
+  - For youth profiles, prompts stop at safe steps (for example parallel-bar dips) and need an adult's confirmation.
+- New bodyweight exercises: Negative Dip, Tuck L-Sit, Dip-Bar Knee Raise.
+
 ## [2.1.0] - 2026-09-27
 
 ### Changed
