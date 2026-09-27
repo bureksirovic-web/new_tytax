@@ -197,3 +197,79 @@ An earlier aborted attempt (branch `v2-integration-wave1-attempt`, older SHAs) i
     - Proposed fix: once G5's LocaleProvider (G4-01) lands, load the non-active locale's dictionary lazily (`en` for the hr default; the provider awaits it before switching), or split the dictionary per route. Owner: i18n (G4 scope).
   - Carried from G4-REPORT, not integration breakage, not worked here: `prCount`/PR records stale after editing a PR set (G4-47, G2 `logs.update`); e1RM blow-up near 36 reps (G4-41, owner decision); page `<title>` metadata not localised; Recovery thresholds owner question.
   - Mobile Playwright project not run (chromium only, per the task).
+
+## 7. merge v2-g5 (2026-09-27)
+- Merge: `2fef833` "merge v2-g5 into v2" (`git merge --no-ff v2-g5`; tip 7490d3a "docs(v2): G5 report"; merge base 0cfb58e = v2-wave0). 144 files, +13400/-2785.
+- Conflicts: none. The only file changed on both sides since the merge base is `playwright.config.ts`; git auto-merged it and both sides are kept (G5: required PORT, `testMatch`, `failOnFlakyTests` in CI, no-skips reporter, pinned Supabase/APP_URL webServer env; step 6: `serviceWorkers: 'block'`). eslint.config.mjs, vitest configs, ci.yml, e2e/fixtures, providers, CHANGELOG and README were changed on the G5 side only, so no hand merge was needed.
+- Read: `docs/v2/goals/G5-REPORT.md`, requests G4-01, G4-40, G4-37, G4-W2-01, G4-W2-05, G4-W2-07.
+- Gate on 2fef833: ci=0 lint=1 tsc=2 test=1 build=1.
+  - lint: `✖ 10 problems (7 errors, 3 warnings)`. The 7 errors are G5's R08 state-query bans hitting G2/G3/G4 specs (`nav.spec.ts:37,53`, `profiles-ui.spec.ts:25`, `profiles.spec.ts:88`, `tools.spec.ts:119`, `workout-loop.spec.ts:32`, `workout-wave2.spec.ts:223`).
+  - tsc and build: `.next/types/validator.ts(251,39): error TS2307: Cannot find module '../../src/app/api/profile/route.js'` (also sync, workout). These were stale generated types for the routes G5 deleted. `.next` is git-ignored build output; `rm -rf .next` cleared it, and a fresh clone never has it.
+  - test: `Tests 1 failed | 2398 passed (2399)`, namely `settings-flag-off.test.tsx`: `Unable to find an element by: [data-testid="settings-account"]` (G4-W2-07).
+- Fixes:
+  - `4c29591` fix(integration): G4-W2-07. `settings-flag-off.test.tsx` now waits for `settings-sync-slot`, with a comment. The zero-network assertions are unchanged. (G5's copy of `settings/page-client.test.tsx` did not exist; G4's version is the only one.)
+  - `9484c41` + `c68d603` fix(integration): LocaleProvider reconcile (G4-01/G4-40).
+    - The provider was not in conflict. v2 still had wave0's version (initial `'en'`, localStorage read in a `useState` initialiser). G5 brought the `useSyncExternalStore` version: server snapshot `DEFAULT_LOCALE`, stored locale after hydration, blocked-storage guard, `t(key, vars)`. G5's `locale-core.ts` was a shim with `DEFAULT_LOCALE = 'en'`, so it is now a re-export of G4's `@/lib/i18n` (`DEFAULT_LOCALE = 'hr'`).
+    - The profile language after hydration comes from G4's `ProfilePrefsSync` (in the `(app)` layout), through `setLocale`.
+    - With the real `'hr'` default, 186 G1-G4 unit tests failed. They assert English copy that was written against the `'en'` default.
+    - `src/test-setup.ts` now mocks `locale-core`'s `DEFAULT_LOCALE`/`readStoredLocale` to `'en'` for unit tests, with a comment. No assertion changed. `locale-provider.test.tsx` calls `vi.unmock` and pins the real module: a new test checks `DEFAULT_LOCALE === 'hr'` and that it is the same function as `@/lib/i18n`. The hr SSR and hydration cases were already there.
+    - The context default `t` outside a provider still echoes the key; G4-01 proposed translating. Nothing in the app renders outside `<Providers>`, and 30 programs tests query by key without a provider. This deviation is recorded in a code comment.
+  - `bb4448c` fix(integration): 7 e2e specs comply with R08 without weakening:
+    - nav: `String(getAttribute('href'))` on `a[href]`;
+    - profiles-ui: the count comes from `tytax.listProfiles()`, plus a new `toHaveCount(before)`;
+    - profiles: `repo.logs.list().length` replaces the repository's `count()`, which clashes by name with the ban;
+    - tools: `textContent` is checked with `expect`;
+    - workout-loop: `addExercise` takes the expected card count and asserts the count before and after;
+    - workout-wave2: the row count is a constant.
+  - `7108a07` fix(integration): with sync on, `/settings` mounts G5's `SyncDetails` in G4's sync slot. `role="status"` on its `<dd>` failed `a11y.spec.ts:33` with `"definition-list: dl"` (serious). The role now sits on an inner span; the test ids stay on the `<dd>`.
+  - `5fab111` + `1033f9b` test(integration): `fillLoginEmail` in `e2e/fixtures/supabase.ts`, used by `sync-roundtrip.spec.ts` and `auth-callback.spec.ts`.
+    - Symptom: in the full parallel run, `sync-roundtrip.spec.ts:63` failed with a 120 s test timeout (the failure context shows "Nastavi s e-mailom" `[disabled]` with the email typed in), and `auth-callback.spec.ts:86` failed the same way on the second run. Both passed alone (6/6).
+    - Cause: the email was filled before hydration, and React's value tracker then drops the unchanged refill.
+    - Fix: clear, fill, and retry until the button is enabled (`toPass`, 30 s).
+- Gate on 1033f9b (final): ci=0 lint=0 tsc=0 test=0 build=0.
+  ```
+  5 vulnerabilities (1 low, 4 moderate)                # npm ci notice, unchanged
+  ✖ 3 problems (0 errors, 3 warnings)                  # i18next/no-literal-string on template literals (G5 R11): sidebar.tsx:23 headingId, program-session-list.tsx:91 editHref, profile-list.tsx:34 reasonId
+   Test Files  309 passed (309)
+        Tests  2400 passed (2400)
+  ✓ Compiled successfully
+  ```
+  Extra `check-bundle`: FAIL, `/dashboard 262.7 kB gzip (budget 250 kB): OVER`. It was 259.4 kB before this merge. `/auth/login` went down from 304.2 to 241.7 kB because G5's helpers load supabase-js lazily. See Unfixed.
+- Sync checks with the local Supabase env (stack from ../g5, project_id tytax-v2; `supabase status -o env` works from app/). Exports: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SYNC_ENABLED=true`, `NEXT_PUBLIC_APP_URL=http://localhost:3100`. The playwright config pins APP_URL to `http://127.0.0.1:3100` for its server anyway.
+  - `npm run test:sync`: exit 0, `Test Files 2 passed (2) / Tests 16 passed (16)`.
+  - `npx -y supabase@2.118.0 test db`: exit 0, `Files=9, Tests=789 … Result: PASS`.
+- E2E (`PORT=3100 npx playwright test --project=chromium`, sync env; port 3100 was free):
+  - On 2fef833 plus the unit fixes: 60 passed, 3 failed, 3 did not run.
+    - `a11y.spec.ts:33` failed with /settings `definition-list` (fixed in 7108a07).
+    - `sync-roundtrip.spec.ts:63` failed with a test timeout of 120000 ms (fixed in 5fab111/1033f9b).
+    - `offline.spec.ts:53` failed with "needs E2E_SERVER=prod"; by design under dev.
+  - After 5fab111: 60 passed, 3 failed. `auth-callback.spec.ts:86` and `sync-roundtrip` both failed with `toBeEnabled` failed on a disabled submit (fixed in 1033f9b). The third was `offline.spec.ts:53`, by design.
+  - On 1033f9b, two consecutive full runs gave 62 passed, 1 failed (`offline.spec.ts:53`, by design under dev), 3 did not run (offline serial). The no-skips reporter lists those 3 offline tests. All @sync specs pass.
+  - Prod step without the sync env: `NEXT_PUBLIC_E2E_HOOKS=1 npm run build && E2E_SERVER=prod PORT=3100 npx playwright test e2e/offline.spec.ts --project=chromium` gave build=0, 4 passed, exit 0.
+- Deferred to INTEGRATION step 2 (requests), not merge breakage:
+  - G5-02 (CSP `connect-src` from `NEXT_PUBLIC_SUPABASE_URL`), then drop the `bypassCSP`/`serviceWorkers: 'block'` workaround in `sync-roundtrip.spec.ts:29` and `auth-callback.spec.ts:84`.
+  - G5-03: `sw.js` `isExcluded` already skips cross-origin; confirm when the workaround is dropped.
+  - G5-07 (`E2EHooks.ready`/`bootError` contract, drop `E2EBootHooks` Omit and casts).
+  - G5-09 (`test:e2e:offline` npm script; not in package.json yet).
+  - G5-10 (workout-store `persist` crash with blocked storage).
+  - G5-01/04/05 (G2 `applyRemote` pending-op skip, device clock, backup `accountId`).
+  - G4-W2-01 (switch G3 local string tables to `useT`; the drift guard `src/lib/i18n/__tests__/requests.test.ts` passes on the merged tree).
+  - G4-W2-05 (`/auth/login` is now 241.7 kB, under budget without the lazy-helpers change).
+  - G4-37 §2 dead keys.
+  - S3-10 build id.
+- Deferred to step 3: the 3 R11 template-literal warnings above. They are false positives on ids and hrefs, and they become errors when `no-literal-string` is raised.
+- Unfixed:
+  - Login form loses an email typed before hydration.
+    - What: `#auth-email` is `autoFocus`, and a user who types before hydration sees the address, but React state stays `''`, so the submit stays disabled. Retyping the same text does not help; they have to change the text.
+    - Evidence: the two e2e failures above (trace: hydrated page, no errors, `[disabled]` button with the email shown).
+    - Tried: the spec helper only (about 20 min); the product component is unchanged.
+    - Proposed fix: in `login-form.tsx`, read the input's DOM value on mount (ref) or on submit (`FormData`), and enable the button from the DOM value.
+  - check-bundle `/dashboard` 262.7 kB > 250 kB. Also over: `/workout/active` 279.2, `/exercises/[id]` 270.7, `/workout/debrief` 266.1, `/workout` 265.7, `/analytics` 263.6, `/history/[id]` 263.2, `/settings` 263.0 kB. The cause is the same as step 6 (i18n dictionary chunk). Proposed fix unchanged: lazy non-active locale.
+  - Carried from G5-REPORT, not merge breakage, not worked here:
+    - stray default profile on a new device;
+    - permanently failed ops stay pending;
+    - decimal RPE into an `int` column (migration 005);
+    - hosted gateway body limit;
+    - local Supabase ports bound to 0.0.0.0 (G5 added non-persistent DOCKER-USER drops);
+    - S3-06 cursor tiebreaker.
+  - Mobile Playwright project not run (chromium only, per the task).
