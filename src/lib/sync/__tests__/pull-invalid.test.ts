@@ -28,14 +28,17 @@ describe('pull: an unmappable row holds the cursor', () => {
     table.set(String(bad.id), { ...bad, family_member_id: null });
 
     const b = makeDevice(remote);
-    await b.adapter.syncNow();
+    const held = await b.adapter.syncNow();
+    // Not "up to date": a typed error the sync panel explains, and no lastSyncedAt.
+    expect(held.state).toMatchObject({ status: 'error', lastError: 'invalid_row', lastSyncedAt: null });
     const datesOnB = async () => (await b.repo.bodyweight.list(profile.id)).map((e) => e.date).sort();
     expect(await datesOnB()).toEqual(['2026-03-01', '2026-03-03']);
     expect(b.logs).toContainEqual(expect.objectContaining({ event: 'skip', table: 'bodyweight_entries', code: 'invalid_row' }));
 
     // The row becomes mappable (fixed server-side, updated_at unchanged): the next run picks it up.
     table.set(String(bad.id), bad);
-    await b.adapter.syncNow();
+    const done = await b.adapter.syncNow();
     expect(await datesOnB()).toEqual(['2026-03-01', '2026-03-02', '2026-03-03']);
+    expect(done.state.status).toBe('idle');
   });
 });

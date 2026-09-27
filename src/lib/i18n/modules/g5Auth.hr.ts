@@ -38,6 +38,7 @@ export const g5AuthHr: Record<keyof typeof g5AuthEn, string> = {
   'sync.error.network': 'Poslužitelj za sinkronizaciju nije dostupan.',
   'sync.error.generic': 'Neke promjene nije bilo moguće sinkronizirati.',
   'sync.error.other_account': 'Neki profili na ovom uređaju pripadaju drugom računu. Ne sinkroniziraju se dok je prijavljen ovaj račun.',
+  'sync.error.invalid_row': 'Neke zapise s poslužitelja ova verzija aplikacije ne može pročitati. Čuvaju se i pokušavaju ponovno pri svakoj sinkronizaciji.',
   'sync.account.loading': 'Provjera računa…',
   'sync.account.signed_in_as': 'Prijavljeni račun',
   'sync.account.signed_out': 'Nema prijavljenog računa. Podaci ostaju na ovom uređaju dok se ne prijaviš.',

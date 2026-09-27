@@ -133,6 +133,7 @@ describe('format helpers', () => {
   it('maps error codes to keys', () => {
     expect(syncErrorKey('auth_required')).toBe('sync.error.auth_required');
     expect(syncErrorKey('other_account')).toBe('sync.error.other_account');
+    expect(syncErrorKey('invalid_row')).toBe('sync.error.invalid_row');
     expect(syncErrorKey('network')).toBe('sync.error.network');
     expect(syncErrorKey('23514')).toBe('sync.error.generic');
   });

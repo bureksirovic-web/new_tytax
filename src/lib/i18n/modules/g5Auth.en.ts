@@ -36,6 +36,7 @@ export const g5AuthEn = {
   'sync.error.network': 'The sync server could not be reached.',
   'sync.error.generic': 'Some changes could not be synced.',
   'sync.error.other_account': 'Some profiles on this device belong to another account. They are not synced while this account is signed in.',
+  'sync.error.invalid_row': 'Some records on the server could not be read by this app version. They are kept and retried on every sync.',
   'sync.account.loading': 'Checking your account…',
   'sync.account.signed_in_as': 'Signed in as',
   'sync.account.signed_out': 'Not signed in. Your data stays on this device until you sign in.',

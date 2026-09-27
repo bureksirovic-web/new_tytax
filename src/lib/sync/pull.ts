@@ -47,6 +47,8 @@ export interface PullOptions {
 export interface PullOutcome {
   pulled: number;
   abort?: RemoteError;
+  /** Rows skipped because they do not map; each holds its table's cursor (re-read next run). */
+  invalid?: number;
 }
 
 export const APPLY_FAILED: RemoteError = Object.freeze({ code: 'apply_failed', retryable: true });
@@ -119,13 +121,15 @@ async function applyPage(repo: Repository, table: SyncTable, records: LocalRecor
 
 export async function pullRun(deps: PullDeps, accountId: string, opts: PullOptions = {}): Promise<PullOutcome> {
   let pulled = 0;
+  let invalid = 0;
   const local = localIndexOf(deps.repo);
   for (const table of PUSH_ORDER) {
     const res = await pullTable(deps, accountId, table, local, opts);
     pulled += res.pulled;
-    if (res.abort) return { pulled, abort: res.abort };
+    invalid += res.invalid ?? 0;
+    if (res.abort) return { pulled, abort: res.abort, invalid };
   }
-  return { pulled };
+  return { pulled, invalid };
 }
 
 async function pullTable(deps: PullDeps, accountId: string, table: SyncTable, local: LocalIndex, opts: PullOptions): Promise<PullOutcome> {
@@ -140,9 +144,10 @@ async function pullTable(deps: PullDeps, accountId: string, table: SyncTable, lo
   // paging and applying, but the persisted cursor stays before that row, so
   // every later run re-reads it (it lands once it maps) instead of losing it.
   let held = false;
+  let skipped = 0;
   for (let page = 0; page < MAX_PAGES; page++) {
     const res = await remote.pull(remoteTable, since, afterId, limit);
-    if (!res.ok) return { pulled, abort: res.error };
+    if (!res.ok) return { pulled, abort: res.error, invalid: skipped };
     const rows = res.rows;
     const records: LocalRecord[] = [];
     let invalid = 0;
@@ -164,12 +169,13 @@ async function pullTable(deps: PullDeps, accountId: string, table: SyncTable, lo
         held = true;
       }
     }
+    skipped += invalid;
     if (invalid > 0) log({ event: 'skip', table, code: 'invalid_row', count: invalid });
     if (records.length > 0) {
       try {
         pulled += await applyPage(repo, table, records, local);
       } catch {
-        return { pulled, abort: APPLY_FAILED };
+        return { pulled, abort: APPLY_FAILED, invalid: skipped };
       }
     }
     if (lastSafe && typeof lastSafe.updated_at === 'string') {
@@ -183,5 +189,5 @@ async function pullTable(deps: PullDeps, accountId: string, table: SyncTable, lo
     }
     if (rows.length < limit || !last) break;
   }
-  return { pulled };
+  return { pulled, invalid: skipped };
 }

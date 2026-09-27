@@ -14,5 +14,6 @@ export function syncErrorKey(code: string): AuthKey {
   if (code === 'auth_required') return 'sync.error.auth_required';
   if (code === 'network') return 'sync.error.network';
   if (code === 'other_account') return 'sync.error.other_account';
+  if (code === 'invalid_row') return 'sync.error.invalid_row';
   return 'sync.error.generic';
 }

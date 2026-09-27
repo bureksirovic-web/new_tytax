@@ -20,6 +20,8 @@ type TimerId = ReturnType<typeof setTimeout>;
 
 /** `lastError` while ops of another account's profile stay queued on this device. */
 export const OTHER_ACCOUNT = 'other_account';
+/** `lastError` while pulled rows this client cannot map are held (their cursor waits; re-read every run). */
+export const INVALID_ROW = 'invalid_row';
 /** Push rounds per run (200 ops each) before the run moves on to the pull. */
 const MAX_PUSH_ROUNDS = 50;
 
@@ -144,6 +146,7 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
     await claim(accountId);
     const deps = { repo: r, remote, cursors, log, pageSize: opts.pageSize };
     let pulled = 0;
+    let invalid = 0; // rows the latest pull could not map (held, see pull.ts)
 
     // First run for this account on this device (or the cursor store was
     // lost): pull everything first, so the snapshot pushes only what the
@@ -154,6 +157,7 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
       const known = new Set<string>();
       const pre = await pullRun(deps, accountId, { full: true, seen: known });
       pulled += pre.pulled;
+      invalid = pre.invalid ?? 0;
       if (pre.abort) return stopWith(pre.abort, 0, pulled, 0);
       snapshot = { known };
     }
@@ -183,6 +187,7 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
     if (!firstPush || totals.pushed > 0) {
       const pull = await pullRun(deps, accountId);
       pulled += pull.pulled;
+      invalid = pull.invalid ?? 0;
       if (pull.abort) return stopWith(pull.abort, totals.pushed, pulled, totals.failed);
     }
 
@@ -199,6 +204,9 @@ export function createSupabaseSyncAdapter(opts: SupabaseSyncAdapterOptions): Sup
       // Ops of a profile owned by another account never leave this device
       // while this account is signed in: not "up to date".
       setState({ status: 'error', lastError: OTHER_ACCOUNT, pending });
+    } else if (invalid > 0) {
+      // Pulled rows were held back (they do not map): not "up to date".
+      setState({ status: 'error', lastError: INVALID_ROW, pending });
     } else {
       const lastSyncedAt = now().toISOString();
       writeLastSynced(storage, lastSyncedAt);
