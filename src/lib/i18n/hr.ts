@@ -15,6 +15,7 @@ import { g3SessionHr } from './modules/g3Session.hr';
 import { g5AuthHr } from './modules/g5Auth.hr';
 import { patternsHr } from './modules/patterns.hr';
 import { patterns2Hr } from './modules/patterns2.hr';
+import { setupHr } from './modules/setup.hr';
 
 // Croatian dictionary (default locale): core + every module, same keys as en.ts
 // (parity test). For server code and tests; the browser gets core.hr.ts up front
@@ -36,4 +37,5 @@ export const hr: Record<TranslationKey, string> = {
   ...g5AuthHr,
   ...patternsHr,
   ...patterns2Hr,
+  ...setupHr,
 };
