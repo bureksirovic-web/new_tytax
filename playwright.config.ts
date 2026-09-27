@@ -34,6 +34,14 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
+    // Integration fix (v2-g4 merge): the G4 service worker precaches all 12
+    // shell routes on install and again on CACHE_URLS. Under `next dev` every
+    // fresh test context makes it SSR-render ~24 pages, which at full
+    // parallelism slowed navigations past the 5 s expect timeout (pr.spec,
+    // profiles-ui.spec failed in the full run, passed solo; with workers
+    // blocked the full run passed 55/55 in 19.7 s vs 40 s). Specs that test
+    // the worker opt back in with test.use({ serviceWorkers: 'allow' }).
+    serviceWorkers: 'block',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

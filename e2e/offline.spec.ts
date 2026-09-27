@@ -25,6 +25,8 @@ async function primeOffline(page: Page, gotoApp: (p: string) => Promise<void>): 
 }
 
 test.describe.configure({ mode: 'serial' });
+// playwright.config.ts blocks service workers by default; this spec is about the worker.
+test.use({ serviceWorkers: 'allow' });
 
 // `next dev` never hydrates a page that was loaded offline (its HMR client waits
 // for the dev socket), so this spec is only meaningful against a production
