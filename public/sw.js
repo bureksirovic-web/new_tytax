@@ -7,6 +7,8 @@
  * - message {type:'CACHE_URLS', urls}: the page hands over the chunk URLs it
  *   loaded before this worker controlled it, plus every catalog chunk, so a
  *   chunk never opened online still works offline (AC15, AC18).
+ * - every cached chunk is scanned for the lazy chunks it can load, and those
+ *   are cached too (cacheChunksDeep).
  * - never caches /api/**, /auth/** or cross-origin requests.
  */
 const CACHE_VERSION = 'v2-1';
@@ -61,23 +63,42 @@ function chunkUrlsIn(html) {
   return [...new Set(found.map((m) => (m.startsWith('/_next/') ? m : `/_next/${m}`)))];
 }
 
-// A URL that fails to precache (e.g. offline, not built yet) must not abort install.
-async function cacheEach(cacheName, urls) {
-  const cache = await caches.open(cacheName);
-  await Promise.all(
-    urls.map(async (u) => {
-      try {
-        const res = await fetch(u, { cache: 'no-cache' });
-        if (res.ok) await cache.put(u, res);
-      } catch {
-        /* skip: the network-first paths fill it later */
-      }
-    })
-  );
+// Lazy chunks (next/dynamic, import()) are named only inside other chunks'
+// loader code ("static/chunks/x.js"), never in a page's HTML. Cache `urls` and
+// follow those references transitively, so every chunk a shell route can load
+// later (settings panels, the backup service and its row validator, analytics
+// cards) works offline even if that screen was never opened online.
+async function cacheChunksDeep(urls) {
+  const statics = await caches.open(STATIC_CACHE);
+  const seen = new Set();
+  let queue = [...new Set(urls)];
+  while (queue.length > 0) {
+    const next = [];
+    await Promise.all(
+      queue.map(async (u) => {
+        if (seen.has(u)) return;
+        seen.add(u);
+        let res = await statics.match(u);
+        if (!res) {
+          try {
+            const fetched = await fetch(u, { cache: 'no-cache' });
+            if (!fetched.ok) return;
+            await statics.put(u, fetched.clone());
+            res = fetched;
+          } catch {
+            return; /* offline: keep what is cached */
+          }
+        }
+        if (!new URL(u, self.location.origin).pathname.endsWith('.js')) return;
+        for (const c of chunkUrlsIn(await res.text())) if (!seen.has(c)) next.push(c);
+      })
+    );
+    queue = next;
+  }
 }
 
-// Cache pages plus every chunk their HTML references, so a page first opened
-// offline still has its route JS.
+// Cache pages plus every chunk their HTML references (and, transitively, the
+// lazy chunks those load), so a page first opened offline still has its JS.
 async function cachePages(paths) {
   const shell = await caches.open(SHELL_CACHE);
   const chunks = new Set();
@@ -94,10 +115,7 @@ async function cachePages(paths) {
       }
     })
   );
-  const statics = await caches.open(STATIC_CACHE);
-  const missing = [];
-  for (const c of chunks) if (!(await statics.match(c))) missing.push(c);
-  await cacheEach(STATIC_CACHE, missing);
+  await cacheChunksDeep([...chunks]);
 }
 
 self.addEventListener('install', (event) => {
@@ -143,7 +161,7 @@ self.addEventListener('message', (event) => {
       const cache = await caches.open(STATIC_CACHE);
       const missing = [];
       for (const u of statics) if (!(await cache.match(u))) missing.push(u);
-      await cacheEach(STATIC_CACHE, missing);
+      await cacheChunksDeep(statics);
       // Re-fetch all shell routes: their chunks may be new since install.
       await cachePages([...new Set([...pages, ...SHELL_ROUTES])]);
       if (port) port.postMessage({ type: 'CACHE_URLS_DONE', cached: missing.length + pages.length });

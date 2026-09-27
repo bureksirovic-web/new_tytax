@@ -108,3 +108,40 @@ test('an uncached route offline falls back to the offline page', async ({ page, 
   await expect(page.getByRole('link', { name: /Početna/ })).toHaveAttribute('href', '/dashboard');
   await context.setOffline(false);
 });
+
+// Integration (v2-g3/v2-g4 merge log): restore loads G2's backup service and
+// the BackupV3 row validator lazily (zod stays out of first-load JS), so those
+// chunks are never referenced by a page's HTML. After one online visit they
+// must still be available offline, although Settings was never opened online.
+// `setOffline` alone let fetches made by the worker itself reach the server in
+// this setup (a chunk never cached still loaded), so the network is also
+// aborted with context.route, which in Chromium routes worker requests too.
+test('a backup can be restored while offline', async ({ page, context, tytax }) => {
+  test.setTimeout(180_000);
+  await tytax.gotoApp('/dashboard');
+  await tytax.reset();
+  await primeOffline(page, tytax.gotoApp);
+
+  // Settings was never opened online: everything below runs offline, on a fresh load.
+  await context.route('**/*', (route) => route.abort('internetdisconnected'));
+  await context.setOffline(true);
+  await page.goto('/settings');
+  const downloadButton = page.getByTestId('settings-backup-download');
+  await expect(downloadButton).toBeEnabled({ timeout: 30_000 });
+  const [download] = await Promise.all([page.waitForEvent('download'), downloadButton.click()]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const backup = Buffer.concat(chunks);
+  expect(JSON.parse(backup.toString('utf8')).format).toBe('tytax-backup');
+
+  const input = page.getByTestId('settings-restore-input');
+  await input.setInputFiles({ name: 'tytax-backup.json', mimeType: 'application/json', buffer: backup });
+  await expect(page.getByTestId('settings-restore-preview')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('settings-restore-ack').check();
+  await page.getByTestId('settings-restore-confirm').click();
+  await expect(page.getByText(/Kopija vraćena/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('settings-restore-failed')).toHaveCount(0);
+  await context.setOffline(false);
+  await context.unrouteAll();
+});
