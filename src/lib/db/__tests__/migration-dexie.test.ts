@@ -6,7 +6,7 @@ import { ACTIVE_PROFILE_KEY } from '../repo/profiles';
 import { ACTIVE_PROFILE_META_KEY, createV3Upgrade, getPreMigrationExport } from '../migrations';
 import { migrateSnapshotV2toV3 } from '../migrations/index';
 import type { SnapshotV2 } from '../migrations/index';
-import { CTX, v2Snapshot } from '../migrations/__tests__/fixture';
+import { CTX, v2Program, v2Snapshot } from '../migrations/__tests__/fixture';
 import { dbName, dump, seedLegacy, sortById } from '../migrations/__tests__/v2-db';
 
 const NOW = new Date(CTX.now);
@@ -140,6 +140,31 @@ describe('Dexie v2 -> v3 upgrade on a real (fake-indexeddb) database', () => {
     expect(after).toStrictEqual(before);
     expect(Object.values(after).map((rows) => rows.length)).toEqual(Object.values(before).map((rows) => rows.length));
     reopened.close();
+  });
+
+  // Refuter R1 (2026-09-27): a re-run over v3 rows plus an injected v2-looking
+  // active program re-pointed the profile's valid activeProgramId.
+  it('a re-run with an injected v2-looking active program keeps a valid v3 activeProgramId', async () => {
+    const db = await migrated();
+    expect((await db.profiles.get('u-1'))?.activeProgramId).toBe('p-2');
+    const before = await db.profiles.get('u-1');
+    await db.programs.put(v2Program('p-fake', { isActive: true, updatedAt: '2026-09-01' }) as never);
+    await db.transaction('rw', db.tables, (tx) => createV3Upgrade(deps)(tx));
+    expect(await db.profiles.get('u-1')).toStrictEqual(before);
+    const fake = await db.programs.get('p-fake');
+    expect(fake?.profileId).toBe('u-1');
+    expect(fake && 'isActive' in fake).toBe(false);
+    db.close();
+  });
+
+  it('a re-run gives a v3 profile whose active program is dangling the v2 isActive winner', async () => {
+    const db = await migrated();
+    await db.profiles.update('u-1', { activeProgramId: 'p-gone' });
+    await db.programs.put(v2Program('p-fake', { isActive: true, updatedAt: '2026-09-01' }) as never);
+    await db.transaction('rw', db.tables, (tx) => createV3Upgrade(deps)(tx));
+    expect((await db.profiles.get('u-1'))?.activeProgramId).toBe('p-fake');
+    expect(await db.programs.get('p-fake')).toMatchObject({ profileId: 'u-1' });
+    db.close();
   });
 
   it('the pure transform over the migrated v3 rows is the identity', async () => {

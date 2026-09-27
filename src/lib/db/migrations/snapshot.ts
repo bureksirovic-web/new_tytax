@@ -71,13 +71,21 @@ export function migrateSnapshotV2toV3(snapshot: SnapshotV2, ctx: MigrationCtx): 
   const v3Equipment = snapshot.equipment ?? [];
   const chosenEq = pickEquipment(snapshot.equipmentProfiles ?? [], (id) => owners.resolve(id), users);
   const activeOf = (id: string): string | null => active[id] ?? null;
+  const livePrograms = new Set(programs.filter((p) => !p.deletedAt).map((p) => `${p.profileId}:${p.id}`));
+  const ownsLive = (profileId: string, programId: string | null | undefined): boolean =>
+    typeof programId === 'string' && livePrograms.has(`${profileId}:${programId}`);
 
   const profiles: Profile[] = [];
   const settingsById = new Map<string, ProfileSettings>();
   for (const p of profileRows) {
     const opts = { plateWeights: chosenEq.get(p.id)?.plateWeights, now: ctx.now, device: ctx.legacyDeviceSettings };
     let migrated = migrateProfileV2(p, activeOf(p.id), opts);
-    if (isV3Profile(p) && active[p.id] !== undefined) migrated = { ...p, activeProgramId: activeOf(p.id) };
+    // A v3 profile keeps an active program that is still a live program of its own;
+    // only a missing or dangling one takes the legacy `isActive` winner (a re-run
+    // over v3 rows plus v2-looking programs must not re-point it).
+    if (isV3Profile(p) && active[p.id] !== undefined && !ownsLive(p.id, p.activeProgramId)) {
+      migrated = { ...p, activeProgramId: activeOf(p.id) };
+    }
     profiles.push(migrated);
     settingsById.set(p.id, isV3Profile(p) ? p.settings : settingsFromV2(p, opts));
   }
