@@ -10,6 +10,9 @@ export function GET() {
     {
       status: 'ok',
       sha: process.env.NEXT_PUBLIC_GIT_SHA ?? 'unknown',
+      // Content-aware build identity (next.config.ts, scripts/tree-id.mjs): the
+      // e2e guard refuses a prod server whose build is not this work tree.
+      tree: process.env.NEXT_PUBLIC_TREE_ID ?? 'unknown',
       version: '0.1.0',
       timestamp: new Date().toISOString(),
     },

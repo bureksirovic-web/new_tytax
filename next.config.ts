@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { execSync } from "node:child_process";
+import { treeState } from "./scripts/tree-id.mjs";
 
 /**
  * Git SHA the app is built from, computed once when the config loads.
@@ -18,6 +19,25 @@ function resolveGitSha(): string {
 }
 
 const gitSha = resolveGitSha();
+
+/**
+ * Content-aware build identity (WAVE0_REVIEW S3-10): HEAD for a clean tree,
+ * `<HEAD>-dirty-<hash of diff + untracked files>` otherwise
+ * (scripts/tree-id.mjs). Served by /api/health as `tree`; an
+ * `E2E_SERVER=prod` run refuses a dirty tree or a build of another tree.
+ * A deploy build that passes GIT_SHA/RENDER_GIT_COMMIT builds a checkout of
+ * that commit, so its tree id is the SHA itself.
+ */
+function resolveTreeId(sha: string): string {
+  if (process.env.GIT_SHA || process.env.RENDER_GIT_COMMIT) return sha;
+  try {
+    return treeState().tree;
+  } catch {
+    return "unknown";
+  }
+}
+
+const treeId = resolveTreeId(gitSha);
 
 const isDev = process.env.NODE_ENV === 'development';
 const scriptSrc = isDev 
@@ -51,6 +71,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   env: {
     NEXT_PUBLIC_GIT_SHA: gitSha,
+    NEXT_PUBLIC_TREE_ID: treeId,
   },
   images: {
     remotePatterns: [

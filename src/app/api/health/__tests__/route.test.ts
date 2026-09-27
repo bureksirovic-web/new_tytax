@@ -4,6 +4,7 @@ import { GET } from '../route';
 interface HealthBody {
   status: string;
   sha: string;
+  tree: string;
   version: string;
   timestamp: string;
 }
@@ -35,6 +36,13 @@ describe('GET /api/health', () => {
     expect(body.status).toBe('ok');
     expect(body.sha).toBe('0123456789abcdef0123456789abcdef01234567');
     expect(body.version).toBe('0.1.0');
+  });
+
+  it('reports the content-aware tree id, "unknown" when none was injected (S3-10)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TREE_ID', 'abc123-dirty-0123456789ab');
+    expect((await readBody(GET())).tree).toBe('abc123-dirty-0123456789ab');
+    vi.stubEnv('NEXT_PUBLIC_TREE_ID', undefined);
+    expect((await readBody(GET())).tree).toBe('unknown');
   });
 
   it('falls back to "unknown" when no SHA was injected', async () => {
