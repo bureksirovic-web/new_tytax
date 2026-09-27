@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Program } from '@/contracts/domain';
 import { getRepository } from '@/lib/db';
-import { loadCatalog } from '@/lib/catalog';
+import { loadCatalogRemembering } from '@/stores/measure-cache';
 import { useProgramStartFlow } from '@/components/workout/start-program-flow';
 import { useUIStore } from '@/stores/ui-store';
 import { useT } from '@/lib/i18n/use-t';
@@ -33,7 +33,7 @@ export function useStartWorkout(profileId: string | undefined) {
   const fail = () => addToast(t('dash_start_failed'), 'error');
 
   const repo = getRepository();
-  const orch = useMemo(() => createWorkoutOrchestrator({ repo, loadCatalog: () => loadCatalog() }), [repo]);
+  const orch = useMemo(() => createWorkoutOrchestrator({ repo, loadCatalog: loadCatalogRemembering }), [repo]);
   const plan = useRef<PreparedProgramStart | null>(null);
   const flow = useProgramStartFlow({
     async prepareProgramStart() {

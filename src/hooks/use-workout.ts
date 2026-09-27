@@ -31,8 +31,9 @@
  *   a log of another profile or in the trash, or while a draft exists unless `replace: true`
  *   (ask the user first).
  * - `measureOfExercise(exerciseId)` → 'reps' | 'time': `measureOf` over the
- *   catalog (loaded once a draft exists); until then, or for an id the catalog
- *   does not know, 'time' when a draft set of that exercise carries
+ *   catalog (loaded once a draft exists, retried on online/visibility after a
+ *   failure); until then, or for an id the catalog does not know, 'time' when
+ *   a catalog seen on this device tagged it so (stores/measure-cache), or when a draft set of that exercise carries
  *   `durationSeconds` or `ghostDurationSeconds` (a prefilled hold has only the ghost).
  * - `lastDurations(exerciseId)` → Promise of last session's working-set
  *   seconds by working index (undefined: not done / no seconds), from
@@ -61,8 +62,8 @@ import type {
 import type { Catalog } from '@/contracts/exercise-catalog';
 import type { FinishResult } from '@/contracts/repo';
 import { useActiveProfile, useRepo, useRepoQuery } from '@/hooks/use-repo';
-import { loadCatalog } from '@/lib/catalog';
 import { measureOf } from '@/stores/measure';
+import { cachedMeasure, loadCatalogRemembering } from '@/stores/measure-cache';
 import { lastDurations as lastDurationsOf } from '@/stores/session-exercise';
 import { wrapIndex } from '@/stores/session-builder';
 import { canSaveSetup, loadSetup, saveSetup, type SaveSetupResult } from '@/stores/setup-adapter';
@@ -133,7 +134,7 @@ export function useWorkout(): UseWorkoutResult {
     (r) => (profileId ? r.programs.getActive(profileId) : Promise.resolve(undefined)),
     [profileId],
   );
-  const orch = useMemo(() => createWorkoutOrchestrator({ repo, loadCatalog: () => loadCatalog() }), [repo]);
+  const orch = useMemo(() => createWorkoutOrchestrator({ repo, loadCatalog: loadCatalogRemembering }), [repo]);
   const planRef = useRef<PreparedProgramStart | null>(null);
   const ready = !loading && hydrated;
   const foreignDraft = ready && isForeignDraft(draft, profileId ?? null);
@@ -188,19 +189,36 @@ export function useWorkout(): UseWorkoutResult {
 
   const hasDraft = draft !== null;
   const [catalog, setCatalog] = useState<Catalog | null>(null);
+  // A failed load (offline, stale chunk) is retried when the device comes back
+  // online or the page becomes visible again; `measureOfExercise` falls back
+  // to the device's cached time ids meanwhile (./measure-cache).
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
   useEffect(() => {
     if (!hasDraft || catalog) return;
     let live = true;
-    loadCatalog().then(
+    let unlisten = (): void => undefined;
+    loadCatalogRemembering().then(
       (c) => {
         if (live) setCatalog(c);
       },
-      () => undefined,
+      () => {
+        if (!live) return;
+        const retry = (): void => {
+          if (document.visibilityState !== 'hidden') setCatalogAttempt((n) => n + 1);
+        };
+        window.addEventListener('online', retry);
+        document.addEventListener('visibilitychange', retry);
+        unlisten = () => {
+          window.removeEventListener('online', retry);
+          document.removeEventListener('visibilitychange', retry);
+        };
+      },
     );
     return () => {
       live = false;
+      unlisten();
     };
-  }, [hasDraft, catalog]);
+  }, [hasDraft, catalog, catalogAttempt]);
 
   const orderByStation = useCallback(
     async () => (profileId ? orch.orderByStation(profileId) : false),
@@ -220,6 +238,7 @@ export function useWorkout(): UseWorkoutResult {
     (exerciseId: string): ExerciseMeasure => {
       const known = catalog?.getById(exerciseId);
       if (known) return measureOf(known);
+      if (cachedMeasure(exerciseId) === 'time') return 'time';
       const timed = draft?.exercises.some(
         (e) => e.exerciseId === exerciseId && e.sets.some((x) => typeof x.durationSeconds === 'number' || typeof x.ghostDurationSeconds === 'number'),
       );
