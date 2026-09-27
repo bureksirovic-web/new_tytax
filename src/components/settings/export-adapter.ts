@@ -49,14 +49,19 @@ export async function loadCsvApi(): Promise<CsvApi> {
 }
 
 /**
- * Legacy (tytax-autonomous) import through G2's service. `@/lib/import` does
- * not exist in branch v2-g4 and importing a missing module breaks the build,
- * so this returns null here (the UI shows a disabled control). At integration
- * (request G4-35) the body becomes:
- * `const mod = await import('@/lib/import'); return { preview: mod.previewLegacyImport, run: mod.importLegacy };`
+ * Legacy (tytax-autonomous) import through G2's service (`@/lib/import`),
+ * loaded on demand. The assignment to `LegacyImportApi` makes tsc check that
+ * G2's signatures still match the settings mirror (legacy-import-api.ts).
  */
 export async function loadLegacyImportApi(): Promise<LegacyImportApi | null> {
-  return null;
+  try {
+    const mod = await import('@/lib/import');
+    const api: LegacyImportApi = { preview: mod.previewLegacyImport, run: mod.importLegacy };
+    return api;
+  } catch (error: unknown) {
+    console.error('[settings] legacy import module failed to load', error);
+    return null;
+  }
 }
 
 export function csvFilename(kind: 'workouts' | 'bodyweight', day: string): string {

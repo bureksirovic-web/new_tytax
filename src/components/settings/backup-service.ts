@@ -83,9 +83,8 @@ export function fromG2Service(mod: Record<string, unknown>): BackupService | nul
 }
 
 export async function loadBackupService(): Promise<BackupService> {
-  // Integration switch (G4-W2-06): replace the next line with
-  // return fromG2Service((await import('@/lib/import/service')) as unknown as Record<string, unknown>) ?? localBackupService;
-  return localBackupService;
+  // Integration switch (G4-W2-06), applied at the v2-g4 merge: G2's service, loaded on demand.
+  return fromG2Service((await import('@/lib/import/service')) as unknown as Record<string, unknown>) ?? localBackupService;
 }
 
 /** Error code (G2 `ImportError.code`, `RepoError.code`, `BackupFileError.code`) → settings i18n key. */
