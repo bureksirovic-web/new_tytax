@@ -23,6 +23,16 @@ export { impactDistribution, laggingMuscle, IDEAL_DISTRIBUTION } from './impact'
 export { recoveryStatus, RECOVERY_WINDOW_HOURS, RECOVERY_FRIED_LOAD } from './recovery';
 export { acwr, historyWeeks, ACWR_FRIED_ABOVE, ACWR_FRESH_BELOW, ACWR_TREND_BAND } from './acwr';
 export { deload, DELOAD_FACTOR } from './deload';
+export { parseTarget, type ParsedTarget, type TargetUnit } from './targets';
+export {
+  readyToProgress,
+  isYouthProfile,
+  YOUTH_PROGRESSION_ALLOWLIST,
+  type ProgressionSession,
+  type ProgressionReason,
+  type ReadyToProgressInput,
+  type ReadyToProgressResult,
+} from './progression-ready';
 
 export const training: TrainingApi = {
   e1rm,

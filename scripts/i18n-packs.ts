@@ -43,6 +43,7 @@ export const PACKS = [
   'g5Auth',
   'patterns',
   'patterns2',
+  'progression',
 ] as const;
 export type Pack = (typeof PACKS)[number];
 
