@@ -9,10 +9,11 @@
  *   src/lib/db/repo/transfer.ts). It never changes the active profile.
  */
 import { RepoError, type BackupV3, type Repository } from '@/contracts';
-import { isDataRow, sameRow, timeOf, type DataRow } from '@/lib/db/repo/tables';
+import { isDataRow, type DataRow } from '@/lib/db/repo/tables';
 import { backupV3Schema, formatIssuePath, parseBackupV3, serializeBackupV3, validateReferences } from '../backup-v3';
 import type { BackupV3ParseOptions } from '../backup-v3';
 import { ImportError } from '../errors';
+import { OWNED, resurrectedIds, rowWins, wins, withoutPinnedRows } from './guards';
 import type { BackupInspection, BackupOwnedTable, BackupProfileConflict, RestoreResult } from './types';
 
 /** restoreBackupJson options: the parser's, plus the hostile-restore guard. */
@@ -20,8 +21,6 @@ export type RestoreBackupOptions = BackupV3ParseOptions & {
   /** Required (true) when `inspectBackupJson(..).requiresConfirmation`; otherwise the restore throws RepoError CONFLICT. */
   confirmOverwrite?: boolean;
 };
-
-const OWNED: readonly BackupOwnedTable[] = ['workoutLogs', 'programs', 'prRecords', 'bodyweightEntries', 'exerciseNotes', 'arsenal', 'equipment'];
 
 export async function exportBackupJson(repo: Repository, profileId?: string, opts: { pretty?: boolean } = {}): Promise<string> {
   return serializeBackupV3(await repo.exportBackup(profileId), opts);
@@ -43,20 +42,24 @@ function rowCount(b: BackupV3): number {
 /**
  * @throws ImportError for a malformed file; RepoError (VALIDATION/CONFLICT) when
  * it clashes with local data; RepoError CONFLICT when the file would overwrite
- * or add to a profile that exists on this device and `confirmOverwrite` is not
- * true (default-safe). Either way nothing is written.
+ * or add to a profile that exists on this device, or bring back a profile deleted
+ * on this device, and `confirmOverwrite` is not true (default-safe). Either way
+ * nothing is written. Rows with a clamped far-future stamp never replace a row
+ * this device already has (./guards withoutPinnedRows).
  */
 export async function restoreBackupJson(repo: Repository, text: string, opts: RestoreBackupOptions = {}): Promise<RestoreResult> {
   const { confirmOverwrite, ...parseOpts } = opts;
-  const { backup, warnings } = parseBackupV3(text, parseOpts);
-  const existingProfileIds = await existingIds(repo, backup);
+  const parsed = parseBackupV3(text, parseOpts);
+  const { warnings } = parsed;
+  const backup = await withoutPinnedRows(repo, parsed.backup);
+  const existingProfileIds = await existingIds(repo, parsed.backup);
   if (confirmOverwrite !== true) {
     const conflicts = await conflictsOf(repo, backup, existingProfileIds);
-    const hit = conflicts.filter(needsConfirmation).map((c) => c.profileId);
+    const hit = [...conflicts.filter(needsConfirmation).map((c) => c.profileId), ...(await resurrectedIds(repo, backup, existingProfileIds))];
     if (hit.length > 0) throw new RepoError('CONFLICT', `Restore would change existing profiles (${hit.join(', ')}); confirm first`);
   }
   const { inserted, updated } = await repo.importBackup(backup);
-  return { inserted, updated, skipped: rowCount(backup) - inserted - updated, warnings, existingProfileIds };
+  return { inserted, updated, skipped: rowCount(parsed.backup) - inserted - updated, warnings, existingProfileIds };
 }
 
 const needsConfirmation = (c: BackupProfileConflict): boolean => c.wouldOverwrite || c.wouldAdd;
@@ -75,26 +78,25 @@ async function existingIds(repo: Repository, backup: BackupV3): Promise<string[]
  * profile. Writes nothing.
  */
 export async function inspectBackupJson(repo: Repository, text: string, opts: BackupV3ParseOptions = {}): Promise<BackupInspection> {
-  const { backup, warnings } = parseBackupV3(text, opts);
-  const ids = await existingIds(repo, backup);
+  const parsed = parseBackupV3(text, opts);
+  const { warnings } = parsed;
+  const backup = await withoutPinnedRows(repo, parsed.backup);
+  const ids = await existingIds(repo, parsed.backup);
   const existing = new Set(ids);
-  const profiles = backup.profiles.map((p) => ({ id: p.id, name: p.name, existsLocally: existing.has(p.id) }));
+  const profiles = parsed.backup.profiles.map((p) => ({ id: p.id, name: p.name, existsLocally: existing.has(p.id) }));
   const conflicts = await conflictsOf(repo, backup, ids);
-  return { profiles, rows: rowCount(backup), warnings, conflicts, requiresConfirmation: conflicts.some(needsConfirmation) };
+  const resurrects = await resurrectedIds(repo, backup, ids);
+  return {
+    profiles,
+    rows: rowCount(parsed.backup),
+    warnings,
+    conflicts,
+    resurrectsProfileIds: resurrects,
+    requiresConfirmation: conflicts.some(needsConfirmation) || resurrects.length > 0,
+  };
 }
 
 const live = (rows: readonly DataRow[]): number => rows.filter((r) => !r.deletedAt).length;
-
-/** Would importBackup write `incoming` over `local`? Mirrors the LWW rule of src/lib/db/repo/import-plan.ts. */
-function wins(incoming: DataRow, local: DataRow): boolean {
-  const localTime = timeOf(local.updatedAt);
-  const time = timeOf(incoming.updatedAt);
-  if (Number.isFinite(localTime) && time > localTime) return true;
-  if (Number.isFinite(localTime) && time !== localTime) return false;
-  return !sameRow(incoming, local);
-}
-
-const rowWins = (incoming: unknown, local: unknown): boolean => isDataRow(incoming) && isDataRow(local) && wins(incoming, local);
 
 /** Notes/arsenal keep one live row per exercise: a different live id for the same exercise replaces one side. */
 function keyedClash(table: BackupOwnedTable, row: DataRow, local: readonly DataRow[]): boolean {
@@ -105,9 +107,10 @@ function keyedClash(table: BackupOwnedTable, row: DataRow, local: readonly DataR
 async function conflictsOf(repo: Repository, backup: BackupV3, ids: readonly string[]): Promise<BackupProfileConflict[]> {
   const out: BackupProfileConflict[] = [];
   for (const id of ids) {
-    const incomingProfile = backup.profiles.find((p) => p.id === id);
     const local = await repo.exportBackup(id);
     const localProfile = local.profiles[0];
+    // Absent when its clamped row was dropped (withoutPinnedRows): the local row stays.
+    const incomingProfile = backup.profiles.find((p) => p.id === id) ?? localProfile;
     if (!incomingProfile || !localProfile) continue;
     let wouldOverwrite = rowWins(incomingProfile, localProfile);
     let wouldAdd = false;

@@ -6,6 +6,10 @@
  * hostile file could pin an overwritten profile against its owner's genuine
  * backup. Any createdAt / updatedAt / deletedAt later than now plus a small
  * clock skew is rewritten to now, with an INVALID_VALUE warning per field.
+ *
+ * "Now" moves on every restore, so a clamped row is also remembered
+ * (`hasClampedStamp`): the restore service never lets such a row replace a row
+ * this device already has, or the same file would win again at each restore.
  */
 import type { BackupV3 } from '@/contracts';
 import type { ImportWarning } from '../types';
@@ -18,12 +22,21 @@ const STAMP_FIELDS = ['createdAt', 'updatedAt', 'deletedAt'] as const;
 
 type Stamped = Partial<Record<(typeof STAMP_FIELDS)[number], string>>;
 
+/** Row objects of parsed backups that had at least one stamp clamped. */
+const clampedRows = new WeakSet<object>();
+
+/** True when `row` (a row object of a parsed backup) had a far-future stamp clamped to now. */
+export function hasClampedStamp(row: object): boolean {
+  return clampedRows.has(row);
+}
+
 function clampRows(table: string, rows: readonly Stamped[], limitMs: number, now: string, warnings: ImportWarning[]): void {
   rows.forEach((row, i) => {
     for (const field of STAMP_FIELDS) {
       const value = row[field];
       if (typeof value !== 'string' || Date.parse(value) <= limitMs) continue;
       row[field] = now;
+      clampedRows.add(row);
       warnings.push({
         code: 'INVALID_VALUE',
         path: `${table}[${i}].${field}`,

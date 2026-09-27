@@ -118,8 +118,10 @@ export interface BackupInspection {
   warnings: ImportWarning[];
   /** One entry per backup profile that exists locally (order of the file). */
   conflicts: BackupProfileConflict[];
+  /** Backup profile ids deleted on this device that the restore would bring back (LWW winner over the tombstone). */
+  resurrectsProfileIds: string[];
   /**
-   * True when some conflict would overwrite or add rows. restoreBackupJson
+   * True when some conflict would overwrite or add rows, or a deleted profile would come back. restoreBackupJson
    * then refuses (RepoError CONFLICT) unless `confirmOverwrite: true`.
    * Re-restoring a file already applied is a no-op and needs no confirmation.
    */

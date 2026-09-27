@@ -23,6 +23,9 @@ export const setEntrySchema = z.object({
   tempo: z.string().optional(),
   ghostKg: z.number().optional(),
   ghostReps: z.number().optional(),
+  /** Time-measured sets only: seconds held (no e1RM, no kg volume). */
+  durationSeconds: z.number().nonnegative().optional(),
+  ghostDurationSeconds: z.number().nonnegative().optional(),
 }) satisfies z.ZodType<SetEntry>;
 
 export const sessionExerciseSchema = z.object({

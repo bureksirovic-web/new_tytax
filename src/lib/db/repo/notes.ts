@@ -5,6 +5,9 @@
  * that still carries a setup keeps the row (content becomes ''), and
  * `setSetup(.., null)` on a note with empty content soft-deletes it. A
  * tombstoned row that comes back never resurrects its old content or setup.
+ * A setup holding no field (`{}`, e.g. from a restored or pulled row) counts
+ * as no setup, like `setSetup(.., {})`: an undeleted row with blank content
+ * and no field is not live (reads skip it) and `set(.., '')` tombstones it.
  */
 import type { ExerciseNote, MachineSetup } from '@/contracts/domain';
 import { RepoError, type NotesRepo, type Repository } from '@/contracts/repo';
@@ -43,6 +46,15 @@ export function normalizeSetup(setup: unknown): MachineSetup | undefined {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** True when `setup` holds at least one field. */
+const hasSetup = (setup: MachineSetup | undefined): setup is MachineSetup =>
+  setup !== undefined && setup !== null && Object.keys(setup).length > 0;
+
+/** Live: not tombstoned and carrying content or a non-empty setup. */
+export function isLiveNote(n: ExerciseNote): boolean {
+  return !n.deletedAt && (n.content.trim() !== '' || hasSetup(n.setup));
+}
+
 /** The notes repo of `repo` with the setup methods. @throws RepoError NOT_IMPLEMENTED on a repo without them. */
 export function getNotesExt(repo: Pick<Repository, 'notes'>): NotesRepoExt {
   const notes = repo.notes as Partial<NotesRepoExt>;
@@ -59,24 +71,25 @@ export function createNotesRepo(ctx: RepoContext): NotesRepoExt {
   /** Writes `content` + `setup` onto the live row (or a fresh one); soft-deletes when both are empty. */
   async function write(w: WriteScope, profileId: string, exerciseId: string, next: (live?: ExerciseNote) => { content: string; setup?: MachineSetup }) {
     const rows = await rowsFor(profileId, exerciseId);
-    const live = rows.find((n) => !n.deletedAt);
+    const open = rows.find((n) => !n.deletedAt);
+    const live = open && isLiveNote(open) ? open : undefined;
     const { content, setup } = next(live);
     const stamp = ctx.stamp();
-    if (content.trim() === '' && !setup) {
-      if (live) {
-        await ctx.db.exerciseNotes.put({ ...live, deletedAt: stamp, updatedAt: stamp });
-        await w.queue('exercise_notes', 'delete', live.id, profileId);
+    if (content.trim() === '' && !hasSetup(setup)) {
+      if (open) {
+        await ctx.db.exerciseNotes.put({ ...open, deletedAt: stamp, updatedAt: stamp });
+        await w.queue('exercise_notes', 'delete', open.id, profileId);
       }
       return undefined;
     }
     await getLiveProfile(ctx, profileId);
-    const base = live ?? rows[0];
+    const base = open ?? rows[0];
     const kept: ExerciseNote | undefined = base ? undeleted(base) : undefined;
     if (kept) delete kept.setup;
     const note: ExerciseNote = kept
       ? { ...kept, content, updatedAt: stamp }
       : { id: ctx.newId(), profileId, exerciseId, content, createdAt: stamp, updatedAt: stamp };
-    if (setup) note.setup = setup;
+    if (hasSetup(setup)) note.setup = setup;
     await ctx.db.exerciseNotes.put(note);
     await w.queue('exercise_notes', 'upsert', note.id, profileId);
     return note;
@@ -84,7 +97,7 @@ export function createNotesRepo(ctx: RepoContext): NotesRepoExt {
 
   return {
     async get(profileId, exerciseId) {
-      return (await rowsFor(profileId, exerciseId)).find((n) => !n.deletedAt);
+      return (await rowsFor(profileId, exerciseId)).find(isLiveNote);
     },
 
     set: (profileId, exerciseId, content) =>
@@ -95,8 +108,8 @@ export function createNotesRepo(ctx: RepoContext): NotesRepoExt {
       }),
 
     async getSetup(profileId, exerciseId) {
-      const live = (await rowsFor(profileId, exerciseId)).find((n) => !n.deletedAt);
-      return live?.setup ? { ...live.setup } : undefined;
+      const live = (await rowsFor(profileId, exerciseId)).find(isLiveNote);
+      return live && hasSetup(live.setup) ? { ...live.setup } : undefined;
     },
 
     setSetup: (profileId, exerciseId, setup) =>
@@ -107,7 +120,8 @@ export function createNotesRepo(ctx: RepoContext): NotesRepoExt {
       }),
 
     async list(profileId, opts) {
-      const rows = visible(await byProfile(ctx.db.exerciseNotes, profileId), opts?.includeDeleted);
+      const all = await byProfile(ctx.db.exerciseNotes, profileId);
+      const rows = opts?.includeDeleted ? visible(all, true) : all.filter(isLiveNote);
       rows.sort((a, b) => desc(a.updatedAt, b.updatedAt));
       return paginate(rows, opts);
     },

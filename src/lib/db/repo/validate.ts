@@ -1,4 +1,5 @@
 /** Input validation helpers; every failure is a `RepoError('VALIDATION')`. */
+import { localDay } from '@/contracts/fixtures';
 import { RepoError } from '@/contracts/repo';
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -54,4 +55,19 @@ export function assertNonEmpty(v: unknown, field: string): asserts v is string {
 
 export function notFound(what: string, id: string): RepoError {
   return new RepoError('NOT_FOUND', `${what} ${id} not found`);
+}
+
+/**
+ * `WorkoutLog.date` of an edited log: the local calendar day of its `startedAt`
+ * (domain.ts), derived as finishWorkout derives it. A patched `startedAt` sets
+ * the day; a patched `date` must name that day (or, without a new `startedAt`,
+ * keep the stored one), so the two can never disagree after an edit.
+ */
+export function editedDay(current: { date: string; startedAt: string }, patch: { date?: string; startedAt?: string }): string | undefined {
+  if (patch.date !== undefined) assertDay(patch.date, 'date');
+  if (patch.startedAt !== undefined) assertTimestamp(patch.startedAt, 'startedAt');
+  if (patch.startedAt === undefined && (patch.date === undefined || patch.date === current.date)) return patch.date;
+  const day = localDay(new Date(patch.startedAt ?? current.startedAt));
+  if (patch.date !== undefined && patch.date !== day) throw new RepoError('VALIDATION', `date must be the local day of startedAt (${day})`);
+  return day;
 }

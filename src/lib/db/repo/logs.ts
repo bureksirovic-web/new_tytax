@@ -7,6 +7,7 @@ import {
   assertNonNegative,
   assertTimestamp,
   chrono,
+  editedDay,
   compact,
   desc,
   isTimeSet,
@@ -18,6 +19,7 @@ import {
   visible,
   type RepoContext,
 } from './context';
+import { getOwnedProgram } from './programs';
 import { countsAsWork, rebuildPRsFrom } from './prs';
 
 export { countsAsWork };
@@ -115,13 +117,16 @@ export function createLogsRepo(ctx: RepoContext): LogsRepo {
         if (!current || current.deletedAt) throw notFound('WorkoutLog', id);
         // Totals, prCount and bookkeeping are server-owned: never taken from the patch.
         const clean = stripKeys(patch ?? {}, SERVER_OWNED);
-        if (clean.date !== undefined) assertDay(clean.date, 'date');
-        if (clean.startedAt !== undefined) assertTimestamp(clean.startedAt, 'startedAt');
+        const date = editedDay(current, clean);
+        if (date !== undefined) clean.date = date;
         if (clean.finishedAt !== undefined) assertTimestamp(clean.finishedAt, 'finishedAt');
         if (clean.durationSeconds !== undefined) assertNonNegative(clean.durationSeconds, 'durationSeconds');
         if (clean.bodyweightKg !== undefined) assertNonNegative(clean.bodyweightKg, 'bodyweightKg');
         if (clean.rpe !== undefined) assertRpe(clean.rpe, 'rpe');
         if (clean.exercises !== undefined) validateExercises(clean.exercises);
+        // As finishWorkout: only a live program of this profile is referenced, a session only with a program.
+        if (clean.programId !== undefined && !(await getOwnedProgram(ctx, profileId, clean.programId))) throw notFound('Program', clean.programId);
+        if (clean.programSessionId !== undefined && !(clean.programId ?? current.programId)) throw new RepoError('VALIDATION', 'programSessionId needs a programId');
         const next: WorkoutLog = { ...current, ...clean, ...computeTotals(clean.exercises ?? current.exercises), updatedAt: laterStamp(ctx.stamp(), current.updatedAt) };
         // finishedAt feeds PR rows' achievedAt (sets without completedAt), so it takes the rebuild path too.
         if (clean.exercises === undefined && clean.date === undefined && clean.startedAt === undefined && clean.finishedAt === undefined) {

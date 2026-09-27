@@ -12,15 +12,16 @@
  *   or owned by another profile -> null;
  * - `Program.currentSessionIndex` outside `sessions` -> clamped;
  * - `WorkoutLog.totalSets` / `totalVolumeKg` disagreeing with the done working
- *   sets -> recomputed.
+ *   sets -> recomputed with the repo's own `computeTotals`, so a time-measured
+ *   set counts in totalSets but adds no kg volume (as `finishWorkout` stores it).
  */
 import type { BackupV3, Program, WorkoutLog } from '@/contracts';
 import { ImportError } from '../errors';
-import { computeTotals } from '../map/logs';
+import { computeTotals } from '@/lib/db/repo/logs';
 import type { ImportWarning } from '../types';
 
-/** Float tolerance for a recorded totalVolumeKg vs the recomputed sum. */
-const VOLUME_EPSILON = 0.001;
+/** Tolerance for a recorded totalVolumeKg vs the recomputed sum: the repo rounds to 0.01 kg. */
+const VOLUME_EPSILON = 0.01;
 
 function assertUniqueUids(log: WorkoutLog, i: number): void {
   const seen = new Set<string>();

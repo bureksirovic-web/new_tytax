@@ -14,7 +14,8 @@
  *   (not written, not counted): they could never be read, only synced.
  * - A row id existing under ANOTHER profile is CONFLICT; `activeProgramId`
  *   must name a program of the same profile (backup or DB); duplicate ids in
- *   one table are VALIDATION.
+ *   one table are VALIDATION, as is an `equipment` row whose id is not its
+ *   profileId (one inventory per profile, keyed by the profile id).
  * - Notes and arsenal keep one live row per (profileId, exerciseId) even when
  *   backup and local ids differ (./natural-key): the losing row is written as
  *   a tombstone under its own id and counted like any other written row.
@@ -64,6 +65,9 @@ export function validateBackup(backup: unknown): asserts backup is BackupV3 {
       const problem = rowProblem(key, row);
       if (problem) throw new RepoError('VALIDATION', `Backup ${key}[${i}] (id ${String(row.id)}) is malformed: ${problem}`);
     });
+    if (key === 'equipment' && rows.some((r) => r.id !== r.profileId)) {
+      throw new RepoError('VALIDATION', 'Backup equipment row id must equal its profileId');
+    }
     if (new Set(rows.map((r) => r.id)).size !== rows.length) {
       throw new RepoError('VALIDATION', `Backup field ${key} has duplicate ids`);
     }

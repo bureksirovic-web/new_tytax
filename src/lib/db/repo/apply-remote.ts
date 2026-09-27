@@ -4,6 +4,9 @@
  * - it has no id or no parseable `updatedAt`;
  * - it fails the table's domain schema (src/lib/import/backup-v3, the same
  *   check importBackup runs), so one bad pull cannot break later reads;
+ * - it is an `equipment` row whose `id !== profileId` (one inventory per
+ *   profile, stored under the profile id; the backup invariant of
+ *   src/lib/import/backup-v3/invariants.ts, which the pull path never runs);
  * - the local row belongs to another profile (a pull never moves a row
  *   between profiles; importBackup calls the same case CONFLICT);
  * - the local row is newer, or equally new — except that on an exact tie a
@@ -35,6 +38,7 @@ const SYNC_TO_BACKUP: Readonly<Record<SyncTable, BackupTableKey>> = {
 };
 
 function wellFormed(table: SyncTable, row: DataRow): boolean {
+  if (table === 'equipment' && row.id !== row.profileId) return false;
   return rowProblem(SYNC_TO_BACKUP[table], row, { nullAsAbsent: true }) === null;
 }
 
