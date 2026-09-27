@@ -8,6 +8,8 @@ export interface FixtureSet {
   done?: boolean;
   /** Default 'working'. */
   type?: SetType;
+  /** Seconds held: makes it a time set (F2). Omitted by default. */
+  durationSeconds?: number;
 }
 
 export interface FixtureExercise {
@@ -41,6 +43,7 @@ export function makeLog(date: string, exercises: FixtureExercise[], extra: Parti
         kg: s.kg,
         reps: s.reps,
         done: s.done ?? true,
+        ...(s.durationSeconds !== undefined ? { durationSeconds: s.durationSeconds } : {}),
       })),
       muscleImpactSnapshot: ex.impact ?? [],
     })),
