@@ -6,10 +6,12 @@ import type { SessionExercise, SetEntry, SetType, Units, WorkoutLog } from '@/co
 import { fromDisplayWeight, toDisplayWeight } from '@/lib/i18n';
 import { rankableE1rm } from '@/lib/training';
 import { localDay } from '@/lib/utils';
+import { MAX_SET_REPS } from '@/lib/constants';
 import { MAX_DURATION_SECONDS, formatClock, isTimeSet, parseClock } from './duration';
 
 export const MAX_KG = 1000;
-export const MAX_REPS = 100;
+/** The workout's own cap (the reps field, the store, the draft validator). */
+export const MAX_REPS = MAX_SET_REPS;
 export const RIR_OPTIONS = ['0', '1', '2', '3', '4', '5'] as const;
 
 export interface EditSet {
@@ -114,7 +116,9 @@ export function validate(draft: EditDraft, units: Units, today: string = localDa
       const reps = parseNumber(s.reps);
       const e: SetErrors = {};
       if (kg === null || kg < 0 || fromDisplayWeight(kg, units) > MAX_KG) e.kg = true;
-      if (reps === null || !Number.isInteger(reps) || reps < 0 || reps > MAX_REPS) e.reps = true;
+      // A stored count the user did not change is never an error (an import may hold more than the cap).
+      const untouched = s.original !== undefined && reps === s.original.reps;
+      if (reps === null || !Number.isInteger(reps) || reps < 0 || (reps > MAX_REPS && !untouched)) e.reps = true;
       if (e.kg || e.reps) errors.sets[s.id] = e;
     }
   }

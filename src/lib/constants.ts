@@ -182,4 +182,9 @@ export const ACWR_THRESHOLDS = {
 
 export const GAP_THRESHOLD = 0.30; // 30% gap = lagging
 
-
+/**
+ * Most reps one set can hold: the workout reps field clamps to it, the store
+ * clamps patches to it, the persisted-draft validator and the history editor
+ * accept up to it (refuter R2, 2026-09-27: they disagreed at 100 vs 1000).
+ */
+export const MAX_SET_REPS = 1000;

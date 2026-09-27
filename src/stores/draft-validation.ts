@@ -13,7 +13,8 @@
  *   (id/profileId/sessionName not strings, exercises not an array). Otherwise:
  *   rir outside 0–5 is clamped (non-numeric rir removed); non-integer reps are
  *   rounded; a set still invalid (negative / non-finite kg, reps < 0 or
- *   > `MAX_REPS`, unknown type, bad seconds, no id) is dropped; an exercise
+ *   > `MAX_REPS`, unknown type, bad seconds, no id) is dropped (the reps field
+ *   and `updateSet` clamp to `MAX_REPS`, so the app itself never writes more); an exercise
  *   with a broken shape or unknown modality is dropped; a duplicate set id or
  *   exercise uid gets a fresh one; an unparseable `startedAt` becomes the
  *   earliest valid `completedAt` of a done set, else `nowIso`. The result
@@ -21,8 +22,9 @@
  */
 import type { Modality, SessionExercise, SetEntry, SetType, WorkoutDraft } from '@/contracts/domain';
 import { newUuid } from '@/lib/db/ids';
+import { MAX_SET_REPS } from '@/lib/constants';
 
-export const MAX_REPS = 1000;
+export const MAX_REPS = MAX_SET_REPS;
 export const MAX_RIR = 5;
 
 const SET_TYPES: ReadonlySet<string> = new Set<SetType>(['warmup', 'working', 'drop', 'failure']);
