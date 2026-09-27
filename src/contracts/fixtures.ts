@@ -38,6 +38,12 @@ export interface SeedSetInput {
   done?: boolean;
   /** Default 'working'. */
   type?: SetType;
+  /**
+   * Whole seconds held: a time-measured set (`SetEntry.durationSeconds`; pass
+   * kg 0 / reps 0 as the app writes them). Excluded from kg volume. Additive,
+   * docs/v2/requests/G3-W2-03.md.
+   */
+  durationSeconds?: number;
 }
 
 export interface SeedExerciseInput {
@@ -96,6 +102,11 @@ function isWorking(type: SetType): boolean {
   return type !== 'warmup';
 }
 
+/** Same rule as `isTimeSet` in @/lib/training (contracts import no library code). */
+function isTimeSet(s: { durationSeconds?: number }): boolean {
+  return typeof s.durationSeconds === 'number' && s.durationSeconds > 0;
+}
+
 /** Build a finished, internally consistent synthetic `WorkoutLog`. */
 export function buildWorkoutLog(profileId: string, input: SeedLogInput, now: Date, nextId: IdGen): WorkoutLog {
   const started = new Date(now.getTime() - input.daysAgo * DAY_MS);
@@ -116,6 +127,7 @@ export function buildWorkoutLog(profileId: string, input: SeedLogInput, now: Dat
         rir: s.rir,
         done,
         completedAt: done ? finished.toISOString() : undefined,
+        ...(s.durationSeconds !== undefined && { durationSeconds: s.durationSeconds }),
       };
     }),
   }));
@@ -124,7 +136,7 @@ export function buildWorkoutLog(profileId: string, input: SeedLogInput, now: Dat
   for (const ex of exercises) {
     for (const s of ex.sets) {
       if (s.done && isWorking(s.type)) {
-        totalVolumeKg += s.kg * s.reps;
+        if (!isTimeSet(s)) totalVolumeKg += s.kg * s.reps;
         totalSets += 1;
       }
     }
