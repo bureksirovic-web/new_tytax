@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+- New default program **TYTAX 6-Day Balanced**: an upper/lower split built around recovery.
+  - Every muscle gets 48 h before it is trained again, and no muscle is loaded hard on two consecutive days.
+  - Intensity undulates: A heavy, B moderate, C light, with the two lightest sessions right before the rest day.
+  - One heavy squat and one heavy hinge per week.
+  - Every major muscle gets 6.5–12.5 weekly sets.
+- **Tytax Elite v3.1** replaces v3.0 on the same skeleton at higher volume: 106 weekly sets, down from 118.
+  - v3.0 trained arms and delts on back-to-back days (Upper C → Lower C).
+  - v3.0 used catalog entries with wrong muscle data (a shrug scored as side delts).
+- The original tytax-autonomous split stays available, unchanged.
+- Already-installed programs are not modified; reinstall a preset from Programs to use the new version.
+
 ## [2.0.0] - 2026-09-27
 
 v2 rewrite (plan `docs/v2/PLAN.md`, results `docs/v2/FINAL-REPORT.md`). First deploy: https://tytax.opghaha.eu (sync off). No earlier release exists to roll back to.
