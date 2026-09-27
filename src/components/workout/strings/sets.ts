@@ -106,4 +106,4 @@ export const SETS_STRINGS: StringTable<SetsKey> = {
   },
 };
 
-export const useSetsStrings = makeStringsHook(SETS_STRINGS);
+export const useSetsStrings = makeStringsHook<SetsKey>();

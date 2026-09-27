@@ -31,4 +31,4 @@ export const TIME_STRINGS: StringTable<TimeKey> = {
   },
 };
 
-export const useTimeStrings = makeStringsHook(TIME_STRINGS);
+export const useTimeStrings = makeStringsHook<TimeKey>();

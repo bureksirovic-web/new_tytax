@@ -89,4 +89,4 @@ export const START_STRINGS: StringTable<StartKey> = {
   },
 };
 
-export const useStartStrings = makeStringsHook(START_STRINGS);
+export const useStartStrings = makeStringsHook<StartKey>();

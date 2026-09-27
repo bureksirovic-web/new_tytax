@@ -42,13 +42,14 @@ const table = (name: (m: StandardMuscle) => string): Record<MuscleKey, string> =
 
 export const MUSCLE_STRINGS: StringTable<MuscleKey> = { en: table((m) => m), hr: table((m) => HR_NAMES[m]) };
 
-const useMuscleStrings = makeStringsHook(MUSCLE_STRINGS);
+const useMuscleStrings = makeStringsHook<MuscleKey>();
+const KNOWN_MUSCLE_KEYS: ReadonlySet<string> = new Set(MUSCLE_GROUPS.map((m) => muscleNameKey(m)));
 
 /** Localised muscle name; an unknown (non-standard) name is shown as is. */
 export function useMuscleName(): (muscle: string) => string {
   const t = useMuscleStrings();
   return (muscle) => {
     const key = muscleNameKey(muscle);
-    return key in MUSCLE_STRINGS.en ? t(key) : muscle;
+    return KNOWN_MUSCLE_KEYS.has(key) ? t(key) : muscle;
   };
 }

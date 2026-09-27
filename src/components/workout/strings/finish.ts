@@ -68,4 +68,4 @@ export const FINISH_STRINGS: StringTable<FinishKey> = {
   },
 };
 
-export const useFinishStrings = makeStringsHook(FINISH_STRINGS);
+export const useFinishStrings = makeStringsHook<FinishKey>();

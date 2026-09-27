@@ -57,7 +57,7 @@ const hr: Record<PickerKey, string> = {
 
 export const PICKER_STRINGS: StringTable<PickerKey> = { en, hr };
 
-export const usePickerStrings = makeStringsHook(PICKER_STRINGS);
+export const usePickerStrings = makeStringsHook<PickerKey>();
 
 /** MuscleGroup values in display order (matches the contract union). */
 export const MUSCLE_GROUP_VALUES: readonly MuscleGroup[] = [

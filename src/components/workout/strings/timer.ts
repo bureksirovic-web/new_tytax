@@ -37,7 +37,7 @@ export const TIMER_STRINGS: StringTable<TimerKey> = {
   },
 };
 
-export const useTimerStrings = makeStringsHook(TIMER_STRINGS);
+export const useTimerStrings = makeStringsHook<TimerKey>();
 
 /** BCP-47 voice language for a UI locale. */
 export function voiceLang(locale: string): string {

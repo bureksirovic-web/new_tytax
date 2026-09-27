@@ -67,4 +67,4 @@ export const SETUP_STRINGS: StringTable<SetupKey> = {
   },
 };
 
-export const useSetupStrings = makeStringsHook(SETUP_STRINGS);
+export const useSetupStrings = makeStringsHook<SetupKey>();
