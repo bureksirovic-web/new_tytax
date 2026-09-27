@@ -4,18 +4,12 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '' }: SkeletonProps) {
-  return (
-    <div
-      className={`animate-pulse rounded ${className}`}
-      style={{ backgroundColor: 'var(--bg-secondary)' }}
-      aria-hidden="true"
-    />
-  );
+  return <div className={`animate-pulse rounded bg-bg-2 ${className}`} aria-hidden="true" />;
 }
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-xl border p-4 space-y-3" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+    <div className="space-y-3 rounded-xl border border-line bg-card p-4" aria-hidden="true">
       <Skeleton className="h-4 w-2/3" />
       <Skeleton className="h-3 w-1/2" />
       <Skeleton className="h-3 w-3/4" />

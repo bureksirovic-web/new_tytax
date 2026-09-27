@@ -13,19 +13,12 @@ export function Card({ glass, hoverable, padding = 'md', className = '', childre
   return (
     <div
       className={`
-        rounded-xl border
-        ${glass ? 'backdrop-blur-sm bg-white/5' : ''}
-        ${hoverable ? 'cursor-pointer transition-colors duration-150' : ''}
+        rounded-xl border border-line
+        ${glass ? 'backdrop-blur-sm bg-white/5' : 'bg-card'}
+        ${hoverable ? 'cursor-pointer transition-colors duration-150 hover:bg-card-hover' : ''}
         ${paddingStyles[padding]}
         ${className}
       `}
-      style={{
-        backgroundColor: glass ? undefined : 'var(--bg-card)',
-        borderColor: 'var(--border-color)',
-        ...(hoverable ? { ['--hover-bg' as string]: 'var(--bg-card-hover)' } : {}),
-      }}
-      onMouseEnter={hoverable ? (e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--bg-card-hover)'; } : undefined}
-      onMouseLeave={hoverable ? (e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--bg-card)'; } : undefined}
       {...props}
     >
       {children}
@@ -43,11 +36,7 @@ export function CardHeader({ className = '', children, ...props }: HTMLAttribute
 
 export function CardTitle({ className = '', children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3
-      className={`text-sm font-semibold uppercase tracking-wider ${className}`}
-      style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-display)' }}
-      {...props}
-    >
+    <h3 className={`font-display text-sm font-semibold uppercase tracking-wider text-fg-2 ${className}`} {...props}>
       {children}
     </h3>
   );

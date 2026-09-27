@@ -1,0 +1,41 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { act } from 'react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
+import { render, screen } from '@testing-library/react';
+import { LocaleProvider } from '@/components/providers/locale-provider';
+import { SkipLink } from '@/components/layout/skip-link';
+
+const tree = () => (
+  <LocaleProvider>
+    <SkipLink />
+  </LocaleProvider>
+);
+
+describe('LocaleProvider hr default (repro)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('fresh device (empty storage) renders hr on first paint', () => {
+    render(tree());
+    expect(screen.getByRole('link').textContent).toBe('Preskoči na glavni sadržaj');
+  });
+
+  it('server HTML is hr and hydrating with stored hr has no mismatch', async () => {
+    const win = globalThis.window;
+    vi.stubGlobal('window', undefined);
+    const html = renderToString(tree());
+    vi.stubGlobal('window', win);
+    vi.unstubAllGlobals();
+    expect(html).toContain('Preskoči na glavni sadržaj');
+
+    localStorage.setItem('locale', 'hr');
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    const errors: unknown[] = [];
+    await act(async () => {
+      hydrateRoot(host, tree(), { onRecoverableError: (e) => errors.push(e) });
+    });
+    expect(errors.map(String)).toEqual([]);
+  });
+});

@@ -56,6 +56,25 @@
   --radius-xl: 16px;
 }
 
+/* Semantic tokens: use these utility names instead of inline style objects.
+   bg-bg, bg-bg-2, bg-card, bg-card-hover, border-line, text-fg, text-fg-2,
+   text-fg-muted, bg-accent, bg-accent-hover, text-accent-fg (accent as text,
+   AA on dark), text-highlight, bg-highlight. They follow the theme (OLED). */
+@theme inline {
+  --color-bg: var(--bg-primary);
+  --color-bg-2: var(--bg-secondary);
+  --color-card: var(--bg-card);
+  --color-card-hover: var(--bg-card-hover);
+  --color-line: var(--border-color);
+  --color-fg: var(--text-primary);
+  --color-fg-2: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-text);
+  --color-highlight: var(--highlight);
+}
+
 @layer base {
   :root {
     --bg-primary: theme(colors.gunmetal.900);
@@ -65,9 +84,12 @@
     --border-color: theme(colors.gunmetal.700);
     --text-primary: #f9fafb;
     --text-secondary: theme(colors.gunmetal.300);
-    --text-muted: theme(colors.gunmetal.400);
+    /* #949ba8: 5.2:1 on card (#1f2937); gunmetal-400 failed AA at 3.7:1 */
+    --text-muted: #949ba8;
     --accent: theme(colors.od-green.500);
     --accent-hover: theme(colors.od-green.400);
+    /* accent used as text on dark backgrounds: od-green-400 = 5.8:1 */
+    --accent-text: theme(colors.od-green.400);
     --highlight: theme(colors.tactical-amber.400);
   }
 

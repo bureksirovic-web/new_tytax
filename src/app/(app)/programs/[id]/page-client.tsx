@@ -1,125 +1,108 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useCallback, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useActiveProfile, useRepo, useRepoQuery } from '@/hooks/use-repo';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { BottomSheet } from '@/components/ui/bottom-sheet';
+import type { Modality, Program, ProgramSession } from '@/contracts/domain';
+import { useRepo } from '@/hooks/use-repo';
+import { useCatalog } from '@/hooks/use-exercises';
+import { useT } from '@/lib/i18n/use-t';
+import { useUIStore } from '@/stores/ui-store';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProgramHeader } from '@/components/programs/program-header';
 import { ProgramSessionList } from '@/components/programs/program-session-list';
-import { useLocale } from '@/components/providers';
+import { ProgramActions } from '@/components/programs/manager/program-actions';
+import { RotationPanel } from '@/components/programs/manager/rotation-panel';
+import { NotFoundState, LoadingState } from '@/components/programs/manager/page-states';
+import { isIncomplete } from '@/components/programs/lib/rotation';
+import { mapSession } from '@/components/programs/lib/session-edit';
+import { useMutationRunner, useProgram } from '@/components/programs/use-program';
 
-export default function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
+interface Props {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+const NO_SEARCH: Promise<Record<string, string | string[] | undefined>> = Promise.resolve({});
+
+export default function ProgramDetailPage({ params, searchParams }: Props) {
   const { id } = use(params);
+  const search = use(searchParams ?? NO_SEARCH);
   const router = useRouter();
-  const { t } = useLocale();
+  const { t } = useT();
   const repo = useRepo();
-  const { profile, profileId, loading: profileLoading } = useActiveProfile();
+  const addToast = useUIStore((s) => s.addToast);
+  const run = useMutationRunner(t('prog_error'));
+  const state = useProgram(id);
+  const { catalog } = useCatalog();
+  const [busy, setBusy] = useState(false);
+  const lookup = useCallback((exerciseId: string) => catalog?.getById(exerciseId), [catalog]);
 
-  // null = not found (or deleted); undefined = still loading.
-  const { data: program, loading } = useRepoQuery(
-    async (r) => (profileId ? ((await r.programs.get(profileId, id)) ?? null) : null),
-    [profileId, id],
-  );
+  if (state.status === 'loading') return <LoadingState />;
+  if (state.status === 'missing') return <NotFoundState />;
 
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [addSheet, setAddSheet] = useState<{ sessionId: string } | null>(null);
+  const { program, profile } = state;
+  const pid = profile.id;
+  const isActive = profile.activeProgramId === program.id;
+  const isDraft = search.builder === '1';
 
-  if (profileLoading || loading) {
-    return (
-      <div className="flex h-full items-center justify-center py-24">
-        <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
-      </div>
-    );
-  }
-
-  if (!program || !profileId) {
-    return (
-      <EmptyState
-        icon="◈"
-        title={t('program_not_found')}
-        action={{ label: t('back_to_programs'), onClick: () => router.push('/programs') }}
-      />
-    );
-  }
-
-  const pid = profileId;
-  const prog = program;
-  const isActive = profile?.activeProgramId === prog.id;
-
-  async function saveName(name: string) {
-    await repo.programs.update(pid, prog.id, { name });
-  }
-
-  async function handleDelete() {
-    setConfirmDelete(false);
-    await repo.programs.softDelete(pid, prog.id);
-    router.push('/programs');
-  }
-
-  async function removeExercise(sessionId: string, exerciseIndex: number) {
-    const sessions = prog.sessions.map((s) =>
-      s.id === sessionId ? { ...s, exercises: s.exercises.filter((_, i) => i !== exerciseIndex) } : s,
-    );
-    await repo.programs.update(pid, prog.id, { sessions });
-  }
+  const patch = (p: Partial<Program>) => run(() => repo.programs.update(pid, program.id, p));
+  const changeSession = (sessionId: string, fn: (s: ProgramSession) => ProgramSession) => {
+    const sessions = mapSession(program, sessionId, fn);
+    void patch({ sessions, sessionOrder: sessions.map((s) => s.name) });
+  };
+  const withBusy = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    const ok = await run(fn);
+    setBusy(false);
+    return ok;
+  };
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      <button
-        onClick={() => router.push('/programs')}
-        className="mb-4 flex min-h-[44px] items-center gap-1 text-xs text-[var(--text-muted)]"
-      >
-        ← {t('programs')}
-      </button>
+      <nav aria-label={t('prog_title')} className="mb-4">
+        <Link href="/programs" className="inline-flex min-h-11 items-center gap-1 rounded text-sm text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <span aria-hidden="true">←</span> {t('prog_detail_back')}
+        </Link>
+      </nav>
 
-      <ProgramHeader program={prog} isActive={isActive} onRename={saveName} />
-
-      <div className="mb-8 flex flex-wrap gap-3">
-        {!isActive && (
-          <Button variant="primary" size="md" onClick={() => void repo.programs.setActive(pid, prog.id)}>
-            {t('make_active')}
-          </Button>
-        )}
-        <Button variant="danger" size="md" onClick={() => setConfirmDelete(true)}>
-          {t('delete_program')}
-        </Button>
-      </div>
-
-      <ProgramSessionList
-        sessions={prog.sessions}
-        currentSessionIndex={prog.currentSessionIndex}
-        onAdd={(sessionId) => setAddSheet({ sessionId })}
-        onRemoveExercise={(sessionId, idx) => void removeExercise(sessionId, idx)}
+      <ProgramHeader
+        program={program}
+        isActive={isActive}
+        onRename={async (name) => void (await patch({ name }))}
+        onModality={async (m: Modality) => void (await patch({ modalitiesUsed: [m, ...program.modalitiesUsed.filter((x) => x !== m)] }))}
       />
 
-      <ConfirmDialog
-        open={confirmDelete}
-        title={t('delete_program')}
-        message={`${t('delete_program_confirm')} "${prog.name}"? ${t('delete_program_message')}`}
-        confirmLabel={t('delete')}
-        cancelLabel={t('cancel')}
-        danger
-        onConfirm={() => void handleDelete()}
-        onCancel={() => setConfirmDelete(false)}
+      <ProgramActions
+        name={program.name}
+        isActive={isActive}
+        incomplete={isIncomplete(program)}
+        isDraft={isDraft}
+        busy={busy}
+        onActivate={() =>
+          void withBusy(() => repo.programs.setActive(pid, program.id)).then((ok) => ok && addToast(t('prog_activated', { name: program.name }), 'success'))
+        }
+        onDeactivate={() => void withBusy(() => repo.programs.setActive(pid, null)).then((ok) => ok && addToast(t('prog_deactivated'), 'info'))}
+        onDelete={() =>
+          void withBusy(() => repo.programs.softDelete(pid, program.id)).then((ok) => {
+            if (!ok) return;
+            addToast(t('prog_deleted'), 'info');
+            router.replace('/programs');
+          })
+        }
       />
 
-      <BottomSheet open={!!addSheet} onClose={() => setAddSheet(null)} title={t('add_exercise')}>
-        <div className="px-4 py-6">
-          <p className="mb-4 text-sm text-[var(--text-secondary)]">{t('exercise_picker_coming')}</p>
-          <Button
-            variant="secondary"
-            fullWidth
-            onClick={() => {
-              setAddSheet(null);
-              router.push('/exercises');
-            }}
-          >
-            {t('browse_exercise_library')}
-          </Button>
-        </div>
-      </BottomSheet>
+      {program.sessions.some((s) => !s.isRest) ? (
+        <ProgramSessionList program={program} lookup={lookup} onSessionChange={changeSession} hrefSuffix={isDraft ? '?builder=1' : ''} />
+      ) : (
+        <EmptyState title={t('prog_slot_empty')} />
+      )}
+
+      <RotationPanel
+        key={`${program.id}-${program.rotationStartDate ?? ''}`}
+        program={program}
+        onPatch={patch}
+        onAligned={(name) => addToast(t('prog_rotation_synced', { session: name }), 'success')}
+      />
     </div>
   );
 }

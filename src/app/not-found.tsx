@@ -1,50 +1,23 @@
+'use client';
 import Link from 'next/link';
+import { useLocale } from '@/components/providers';
 
 export default function NotFound() {
+  const { t } = useLocale();
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      padding: '1rem',
-      backgroundColor: '#0a0f1a',
-      color: '#f9fafb',
-      fontFamily: "'Inter', system-ui, sans-serif",
-    }}>
-      <h2 style={{
-        fontFamily: "'Oswald', 'Arial Narrow', sans-serif",
-        fontSize: '1.5rem',
-        textTransform: 'uppercase',
-        color: '#fcd34d',
-        marginBottom: '0.5rem',
-      }}>
-        404
-      </h2>
-      <p style={{
-        color: '#9ca3af',
-        fontSize: '0.875rem',
-        textAlign: 'center',
-        maxWidth: '24rem',
-        marginBottom: '1.5rem',
-      }}>
-        Page not found
-      </p>
+    <main data-testid="not-found" className="flex min-h-dvh flex-col items-center justify-center bg-bg p-4 text-fg">
+      <h1 className="mb-2 font-display text-2xl uppercase text-highlight">
+        <span aria-hidden="true">404</span>
+        <span className="sr-only">{t('error_not_found_title')}</span>
+      </h1>
+      <p className="mb-6 max-w-sm text-center text-sm text-fg-2">{t('error_not_found_desc')}</p>
       <Link
         href="/dashboard"
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: '#4a7c3f',
-          color: '#f9fafb',
-          borderRadius: '4px',
-          textDecoration: 'none',
-          fontSize: '0.875rem',
-          fontWeight: 500,
-        }}
+        className="inline-flex min-h-11 items-center rounded-sm border border-od-green-500 bg-od-green-600 px-4 text-sm font-medium text-white transition-colors hover:bg-od-green-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
       >
-        Back to Dashboard
+        {t('error_back_to_dashboard')}
       </Link>
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,23 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { DEFAULT_LOCALE, readStoredLocale, t, type Locale } from '@/lib/i18n';
+import './globals.css';
+
+// global-error replaces the root layout, so no providers exist here: the
+// locale is read straight from storage. The server snapshot is the default
+// locale so the hydration pass always matches.
+const noopSubscribe = () => () => {};
+
+function getClientLocale(): Locale {
+  try {
+    return readStoredLocale(window.localStorage);
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+}
+
+const getServerLocale = (): Locale => DEFAULT_LOCALE;
 
 export default function GlobalError({
   error,
@@ -9,67 +26,35 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const locale = useSyncExternalStore(noopSubscribe, getClientLocale, getServerLocale);
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
-    <html>
-      <body style={{
-        margin: 0,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
-        backgroundColor: '#0a0f1a',
-        color: '#f9fafb',
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}>
-        <h2 style={{
-          fontFamily: "'Oswald', 'Arial Narrow', sans-serif",
-          fontSize: '1.5rem',
-          textTransform: 'uppercase',
-          color: '#fcd34d',
-          marginBottom: '0.5rem',
-        }}>
-          Something went wrong
-        </h2>
-        <p style={{
-          color: '#9ca3af',
-          fontSize: '0.875rem',
-          textAlign: 'center',
-          maxWidth: '24rem',
-          marginBottom: '0.5rem',
-        }}>
-          {error.message || 'An unexpected error occurred.'}
-        </p>
-        {error.digest && (
-          <p style={{
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            color: '#6b7280',
-            fontSize: '0.75rem',
-            marginBottom: '1.5rem',
-          }}>
-            Error digest: {error.digest}
+    <html lang={locale}>
+      <body className="m-0 flex min-h-dvh flex-col items-center justify-center bg-gunmetal-900 p-4 font-sans text-gunmetal-50">
+        <main role="alert" data-testid="error-boundary" className="flex flex-col items-center">
+          <h1 className="mb-2 font-display text-2xl uppercase text-tactical-amber-300">
+            {t('error_title', locale)}
+          </h1>
+          <p className="mb-2 max-w-sm text-center text-sm text-gunmetal-300">
+            {error.message || t('error_unexpected', locale)}
           </p>
-        )}
-        <button
-          onClick={reset}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#4a7c3f',
-            color: '#f9fafb',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          Try again
-        </button>
+          {error.digest && (
+            <p className="mb-6 font-mono text-xs text-gunmetal-300">
+              {t('error_digest', locale, { digest: error.digest })}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={reset}
+            className="min-h-11 cursor-pointer rounded-sm border border-od-green-500 bg-od-green-600 px-4 text-sm font-medium text-white hover:bg-od-green-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tactical-amber-300"
+          >
+            {t('error_try_again', locale)}
+          </button>
+        </main>
       </body>
     </html>
   );

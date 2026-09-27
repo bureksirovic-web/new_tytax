@@ -2,84 +2,57 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/components/providers';
-import type { TranslationKey } from '@/lib/i18n';
-
-const NAV_SECTIONS: Array<{ label: TranslationKey; items: Array<{ href: string; label: TranslationKey; icon: string }> }> = [
-  {
-    label: 'sidebar_training',
-    items: [
-      { href: '/dashboard', label: 'sidebar_command_center', icon: '⌂' },
-      { href: '/workout', label: 'sidebar_training_center', icon: '◈' },
-      { href: '/history', label: 'sidebar_vault', icon: '◫' },
-    ],
-  },
-  {
-    label: 'sidebar_intel',
-    items: [
-      { href: '/exercises', label: 'sidebar_meta_library', icon: '⊞' },
-      { href: '/exercises/arsenal', label: 'sidebar_arsenal', icon: '⋈' },
-      { href: '/programs', label: 'nav_programs', icon: '▦' },
-    ],
-  },
-  {
-    label: 'sidebar_analysis',
-    items: [
-      { href: '/analytics', label: 'sidebar_force_analytics', icon: '▲' },
-    ],
-  },
-  {
-    label: 'sidebar_system',
-    items: [
-      { href: '/tools/plate-calculator', label: 'sidebar_plate_calc', icon: '⚖' },
-      { href: '/tools/rm-calculator', label: 'sidebar_rm_calc', icon: '⟨' },
-      { href: '/settings', label: 'nav_settings', icon: '≡' },
-    ],
-  },
-];
+import { FOCUS_RING, NAV_SECTIONS, isNavActive } from './nav-items';
 
 export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLocale();
 
   return (
-    <aside
-      className="hidden md:flex flex-col w-56 border-r min-h-dvh flex-shrink-0"
-      style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}
-    >
-      <div className="px-4 py-5 border-b" style={{ borderColor: 'var(--border-color)' }}>
-        <span
-          className="text-xl font-bold tracking-[0.2em] uppercase"
-          style={{ color: 'var(--highlight)', fontFamily: 'var(--font-display)' }}
-        >
-          TYTAX
+    <aside className="hidden md:flex flex-col w-56 min-h-dvh shrink-0 border-r border-line bg-bg">
+      <div className="px-4 py-5 border-b border-line">
+        <span className="font-display text-xl font-bold uppercase tracking-[0.2em] text-highlight">
+          {t('layout_app_name')}
         </span>
-        <div className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          Training Companion
+        <div className="mt-0.5 text-[10px] uppercase tracking-widest text-fg-muted">
+          {t('layout_tagline')}
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.label} className="mb-4">
-            <div className="px-4 py-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>
-              {t(section.label)}
+      <nav data-app-nav="sidebar" className="flex-1 overflow-y-auto py-3" aria-label={t('layout_main_nav')}>
+        {NAV_SECTIONS.map((section) => {
+          const headingId = `sidebar-section-${section.label}`;
+          return (
+            <div key={section.label} className="mb-4">
+              <div
+                id={headingId}
+                className="px-4 py-1 font-display text-[10px] font-semibold uppercase tracking-widest text-fg-muted"
+              >
+                {t(section.label)}
+              </div>
+              <ul aria-labelledby={headingId}>
+                {section.items.map((item) => {
+                  const active = isNavActive(pathname, item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={`flex min-h-11 items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gunmetal-800 ${FOCUS_RING} focus-visible:-outline-offset-2 ${
+                          active ? 'bg-bg-2 font-display text-highlight' : 'text-fg-2'
+                        }`}
+                      >
+                        <span className="w-5 shrink-0 text-center text-base" aria-hidden="true">
+                          {item.icon}
+                        </span>
+                        <span>{t(item.label)}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            {section.items.map((item) => {
-              const active = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gunmetal-800"
-                  style={{ color: active ? 'var(--highlight)' : 'var(--text-secondary)', backgroundColor: active ? 'var(--bg-secondary)' : undefined }}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <span className="text-base w-5 text-center flex-shrink-0" aria-hidden="true">{item.icon}</span>
-                  <span style={{ fontFamily: active ? 'var(--font-display)' : undefined }}>{t(item.label)}</span>
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+          );
+        })}
       </nav>
     </aside>
   );

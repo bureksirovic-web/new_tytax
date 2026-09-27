@@ -1,101 +1,73 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Modality, SplitType } from '@/contracts/domain';
 import { useActiveProfile, useRepo } from '@/hooks/use-repo';
-import { useLocale } from '@/components/providers';
-import { StepNameModality, StepReview, StepStructure } from '@/components/programs/builder-steps';
-import { buildProgramTemplate, generateSessions } from '@/components/programs/program-builder';
+import { useT } from '@/lib/i18n/use-t';
+import { useUIStore } from '@/stores/ui-store';
+import { StepFrequency, StepSplit } from '@/components/programs/builder-steps';
+import { buildBuilderTemplate, type BuilderSplit } from '@/components/programs/lib/builder';
+import { SPLIT_KEYS } from '@/components/programs/lib/labels';
+import { todayLocal } from '@/lib/programs/calendar';
+import { useMutationRunner } from '@/components/programs/use-program';
 
-type Step = 1 | 2 | 3;
-const STEPS: readonly Step[] = [1, 2, 3];
-
+/**
+ * Builder wizard: days → split. Picking the split persists the program
+ * (inactive) right away and opens its manager with `?builder=1`, so a
+ * reload or tab change never loses the draft (legacy bug B8).
+ */
 export default function NewProgramPage() {
   const router = useRouter();
-  const { t } = useLocale();
+  const { t } = useT();
   const repo = useRepo();
+  const addToast = useUIStore((s) => s.addToast);
+  const run = useMutationRunner(t('prog_error'));
   const { profileId } = useActiveProfile();
+  const [days, setDays] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const [step, setStep] = useState<Step>(1);
-  const [name, setName] = useState('');
-  const [modality, setModality] = useState<Modality>('custom');
-  const [split, setSplit] = useState<SplitType>('full_body');
-  const [frequency, setFrequency] = useState<number>(3);
-  const [saving, setSaving] = useState(false);
-
-  const previewSessions = useMemo(() => generateSessions(split, frequency), [split, frequency]);
-
-  async function handleSave() {
-    if (!name.trim() || !profileId || saving) return;
-    setSaving(true);
-    try {
-      const template = buildProgramTemplate({ name, modality, split, frequency });
-      const created = await repo.programs.create(profileId, template);
-      router.push(`/programs/${created.id}`);
-    } finally {
-      setSaving(false);
+  async function create(split: BuilderSplit) {
+    if (!profileId || days === null || busy) return;
+    setBusy(true);
+    const name = t('prog_builder_default_name', { days, split: t(SPLIT_KEYS[split]) });
+    const template = buildBuilderTemplate({ days, split, name, restDayName: t('prog_rest_day'), today: todayLocal() });
+    let id: string | null = null;
+    const ok = await run(async () => {
+      id = (await repo.programs.create(profileId, template)).id;
+    });
+    if (!ok || !id) {
+      setBusy(false);
+      return;
     }
+    addToast(t('prog_builder_created', { name }), 'success');
+    router.replace(`/programs/${id}?builder=1`);
   }
 
-  const stepTitles: Record<Step, string> = {
-    1: t('name_modality'),
-    2: t('structure'),
-    3: t('review'),
-  };
+  const step = days === null ? 1 : 2;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
       <button
-        onClick={() => (step > 1 ? setStep((s) => (s - 1) as Step) : router.push('/programs'))}
-        className="mb-4 flex min-h-[44px] items-center gap-1 text-xs text-[var(--text-muted)]"
+        type="button"
+        onClick={() => (days === null ? router.push('/programs') : setDays(null))}
+        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded text-sm text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        ← {step > 1 ? t('back') : t('programs')}
+        <span aria-hidden="true">←</span> {days === null ? t('prog_builder_cancel') : t('prog_builder_back')}
       </button>
 
-      <div className="mb-6 flex gap-2">
-        {STEPS.map((s) => (
-          <div
-            key={s}
-            className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-[var(--accent)]' : 'bg-[var(--border-color)]'}`}
-          />
-        ))}
-      </div>
-
-      <h1 className="mb-1 font-display text-xl font-bold uppercase tracking-wide text-[var(--highlight)]">
-        {t('new_program_page')}
+      <h1 data-testid="page-heading-program-new" className="font-display text-2xl font-bold uppercase tracking-wide text-highlight">
+        {t('prog_builder_title')}
       </h1>
-      <p className="mb-6 text-xs text-[var(--text-muted)]">
-        {t('step_of')} {step} {t('of')} {STEPS.length} — {stepTitles[step]}
+      <p className="mb-6 text-xs text-fg-muted">
+        {t('prog_builder_step', { n: step, total: 2 })} · {step === 1 ? t('prog_builder_frequency') : t('prog_builder_split')}
       </p>
 
-      {step === 1 && (
-        <StepNameModality name={name} modality={modality} onName={setName} onModality={setModality} onNext={() => setStep(2)} />
-      )}
+      {days === null ? <StepFrequency onPick={setDays} /> : <StepSplit days={days} busy={busy || !profileId} onPick={(s) => void create(s)} />}
 
-      {step === 2 && (
-        <StepStructure
-          split={split}
-          frequency={frequency}
-          onSplit={(value, minDays) => {
-            setSplit(value);
-            if (frequency < minDays) setFrequency(minDays);
-          }}
-          onFrequency={setFrequency}
-          onNext={() => setStep(3)}
-        />
-      )}
-
-      {step === 3 && (
-        <StepReview
-          name={name}
-          modality={modality}
-          split={split}
-          frequency={frequency}
-          sessions={previewSessions}
-          saving={saving || !profileId}
-          onSave={() => void handleSave()}
-        />
-      )}
+      {busy ? (
+        <p role="status" aria-live="polite" className="mt-4 text-sm text-fg-muted">
+          {t('prog_builder_creating')}
+        </p>
+      ) : null}
     </div>
   );
 }
