@@ -4,8 +4,20 @@ Target repo: `bureksirovic-web/new_tytax`. Every unfixed finding from `docs/v2/F
 
 Format: `- [ ] <title> — labels — severity`. When an issue is filed, tick its box and append `#N`.
 
-Two AC17 items are not issues. The owner does them in the morning (FINAL-REPORT §8):
-- close the tytax-autonomous PRs #67–76, plus #61–66, which were outside the mandate;
+**Create the labels first.** At 06:17 `gh label list -R bureksirovic-web/new_tytax` showed only GitHub's defaults (bug, documentation, duplicate, enhancement, good first issue, help wanted, invalid, question, wontfix). Without these four, every `gh issue create --label …` below fails:
+
+```
+gh label create security -R bureksirovic-web/new_tytax --color B60205 --description "Security finding"
+gh label create debt     -R bureksirovic-web/new_tytax --color FBCA04 --description "Technical debt"
+gh label create S2       -R bureksirovic-web/new_tytax --color D93F0B --description "Severity 2: one feature broken"
+gh label create S3       -R bureksirovic-web/new_tytax --color C5DEF5 --description "Severity 3: cosmetic or minor"
+```
+
+**The repo is public** (`gh repo view --json visibility` → `PUBLIC`). The bodies name no host user, interface or process id. Decide before filing whether U1 (S2 security, local dev-stack exposure) is filed publicly as written or kept private.
+
+Three AC17 items are not issues. The owner does them in the morning (FINAL-REPORT §8):
+- close the tytax-autonomous PRs #67–76 (the mandate), plus the bot drafts #61–65 by `app/google-labs-jules`, which were outside the mandate;
+- decide on #66: it is open, not a draft, authored by the owner account, and outside the #67–76 mandate;
 - archive that repo.
 
 - [ ] U1. Local Supabase dev stack publishes ports 54420-54431 on every host interface — security — S2

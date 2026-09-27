@@ -213,8 +213,8 @@ The browser talks to Supabase directly: supabase-js, with RLS as the security bo
 
 ## Environment actions taken on the host (none persistent)
 - **Docker daemon:** started for this boot, not enabled. Now: `systemctl is-enabled docker` gives `disabled`, and `is-active` gives `active`.
-- **Docker socket ACL:** `setfacl -m u:tomi:rw /var/run/docker.sock`, which is lost on reboot or socket re-creation. Now: `getfacl` shows `user:tomi:rw-`.
-- **iptables:** `DOCKER-USER` rules drop inbound connections to 54420:54431 on `wlp206s0`, `enp211s0f0np0`, `enp211s0f1np1`, `usb0`, `wg0` and `tailscale0` (`-m conntrack --ctorigdstport 54420:54431 --ctdir ORIGINAL -j DROP`). They are not saved.
+- **Docker socket ACL:** a `setfacl` rw entry on `/var/run/docker.sock` for the invoking user, which is lost on reboot or socket re-creation.
+- **iptables:** `DOCKER-USER` rules drop inbound connections to 54420:54431 on the dev host's external interfaces (`-m conntrack --ctorigdstport 54420:54431 --ctdir ORIGINAL -j DROP`), for this boot only. (Host-specific names redacted: the repo is public.)
 - **Local Supabase stack:** `project_id tytax-v2`, ports 5442x. Left running for integration.
 
 ## Files in this pass (uncommitted on `a8b5843`)

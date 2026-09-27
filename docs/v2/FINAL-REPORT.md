@@ -2,7 +2,7 @@
 
 ## 1. Header
 
-- **Branch** `v2` in `~/Projects/tytax-v2/app`. **HEAD at the proving runs:** `f75babb28a82f4bfe1813a6f9f9620e0a6fbc309` ("docs(integration): critic verdict for step 5"). The only commit after it adds this report and `docs/v2/ISSUES-TO-FILE.md` (docs only).
+- **Branch** `v2` in `~/Projects/tytax-v2/app`. **HEAD at the proving runs:** `f75babb28a82f4bfe1813a6f9f9620e0a6fbc309` ("docs(integration): critic verdict for step 5"). The commits after it are docs only: `d3bb596` adds this report and `docs/v2/ISSUES-TO-FILE.md`, and the next one applies the review corrections to both and redacts host details in `docs/v2/goals/G5-REPORT.md` and `docs/v2/integration-log.md`.
 - **Date:** 2026-09-27. The proving runs in §2 were made 06:04 to 06:11 CEST on that HEAD, with a clean work tree.
 - **Merged into `v2`** (`git merge --no-ff`, in this order, no conflicts; details in `docs/v2/integration-log.md` §1 to §7):
 
@@ -20,39 +20,82 @@
 - **Nothing is merged to `main`.** `main` is `bdaea46` on origin, unchanged. **`v2` is not pushed** (`git ls-remote --heads origin v2` prints nothing), so no PR exists yet.
 - **Nothing is deployed.** No tag was made. Render and cloud Supabase were not touched. Only the local Supabase stack (`project_id tytax-v2`, ports 5442x) was used.
 
-Environment for every e2e and sync command below: `eval "$(npx -y supabase@2.118.0 status -o env | sed 's/^/export /')"`, then `NEXT_PUBLIC_SUPABASE_URL=$API_URL NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY NEXT_PUBLIC_SYNC_ENABLED=true PORT=3110 NEXT_PUBLIC_APP_URL=http://localhost:3110`. Port 3100 (the planned integration port) is held by an unrelated process (paperclip), so 3110 was used.
+Environment for every e2e and sync command below: `eval "$(npx -y supabase@2.118.0 status -o env | sed 's/^/export /')"`, then `NEXT_PUBLIC_SUPABASE_URL=$API_URL NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY NEXT_PUBLIC_SYNC_ENABLED=true PORT=3110 NEXT_PUBLIC_APP_URL=http://localhost:3110`. Port 3100 (the planned integration port) is held by an unrelated local service, so 3110 was used.
 
 ## 2. Acceptance criteria AC1 to AC18
 
-Every excerpt below comes from a fresh run on `f75babb`. Full logs were kept in the session scratchpad.
+Every excerpt below comes from a fresh run on `f75babb`, except four re-runs made at 06:16–06:18 on `d3bb596` (the docs-only commit that adds this report, so the product code is identical to `f75babb`): the mobile e2e run without `--grep-invert @sync` (AC3, AC9, AC12 and the e2e summary below), the PR-specific unit files (AC6), the auth missing-env unit tests (AC13) and the raw `gh` listings (AC17). The logs lived in the session scratchpad, which is not kept, so the excerpts pasted here are the durable record; each command below re-creates its log.
 
-**Summary: 16 MET, 2 PARTIAL (AC16, AC17), 0 NOT MET.** Morning and owner items are marked inside AC16 and AC17.
+**Summary: 15 MET, 3 PARTIAL (AC12, AC16, AC17), 0 NOT MET.** AC12 and AC16 wait only for the first GitHub Actions run; the morning and owner items are marked inside AC16 and AC17.
 
 | AC | Status | Proving command | Output excerpt (fresh) |
 |---|---|---|---|
 | AC1 checks green | **MET** | `npm ci && npm run gate` (gate = `npm run lint && tsc --noEmit && npm test && npm run build`) | `npm ci` rc=0 (`5 vulnerabilities (1 low, 4 moderate)`); gate rc=0: lint prints no problems (only the Babel ">500KB" note on `scripts/data/source`), `Test Files 332 passed (332)`, `Tests 2517 passed (2517)`, `✓ Compiled successfully in 694ms` |
 | AC2 coverage ≥ 70 % lines on `src/lib/**`, `src/stores/**` | **MET** | `npm run test:coverage` (thresholds in `vitest.config.ts`: 70 lines/stmts/funcs, 60 branches per glob), then an aggregate over `coverage/coverage-summary.json` | rc=0, `All files 97.39 / 93.08 / 97.24 / 98.45` (stmts/branch/funcs/lines). Aggregates: `src/lib/** files 213 lines 98.93% (4056/4100) branches 94.47%`; `src/stores/** files 17 lines 99.51% (605/608) branches 95.36%` |
-| AC3 quick workout, fresh profile | **MET** | `npx playwright test --project=chromium` (full suite; spec `e2e/workout-quick.spec.ts`), and `--project=mobile` | `✓ e2e/workout-quick.spec.ts:18:5 › quick workout logs three sets, survives a reload and is saved with its debrief (8.4s)` on chromium, and passes on mobile too. Zero `test.skip` in the spec (grep row below) |
+| AC3 quick workout, fresh profile | **MET** | `npx playwright test --project=chromium` (full suite; spec `e2e/workout-quick.spec.ts`), and `npx playwright test --project=mobile` | chromium: `✓ e2e/workout-quick.spec.ts:18:5 › quick workout logs three sets, survives a reload and is saved with its debrief (8.4s)`. mobile: `✓ 63 [mobile] › e2e/workout-quick.spec.ts:18:5 › quick workout logs three sets, survives a reload and is saved with its debrief (8.4s)`. Zero `test.skip` in the spec (grep row below) |
 | AC4 program workout | **MET** | same run, `e2e/program-rotation.spec.ts` | `✓ …:94:5 › installing the TYTAX preset through the programs UI names its first session on the dashboard`; `✓ …:14:5 › finishing the first program session advances /workout to the second`; `✓ …:64:5 › a rest session is completed from /workout and the rotation wraps to the first session` |
 | AC5 progression | **MET** | `npx vitest run progression`; e2e `e2e/progression.spec.ts` | unit `Test Files 1 passed (1) Tests 14 passed (14)`; e2e `✓ RIR 3 adds 2.5 kg, RIR 2 adds 1.25 kg, and ghost reps mark a beaten set`, `✓ standard / heavy / pyramid warm-up strategy generates 2 / 4 / 3 warm-up sets`, `✓ 'none' warm-up strategy adds no warm-ups…`, `✓ starting today's program session from the dashboard generates warm-ups, as /workout does` |
-| AC6 PRs | **MET** | `npx vitest run pr` (matches `prs.test.ts` and 58 other files); e2e `e2e/pr.spec.ts` | unit `Test Files 59 passed (59) Tests 330 passed (330)`; e2e `✓ beating the stored best e1RM celebrates the PR and persists it` (reads `prRecords` through the `listPRRecords` hook, 3fa944f), `✓ a heavier warm-up or undone set is not a PR: straight to history`, `✓ a first-ever exercise is a baseline: no celebration` |
+| AC6 PRs | **MET** | `npx vitest run` on the 13 PR-specific files: `src/lib/training/__tests__/prs.test.ts`, `src/lib/analytics/__tests__/pr-tracker.test.ts`, `src/hooks/__tests__/use-pr-celebrated.test.ts`, `src/lib/db/__tests__/{finish-workout-pr-history,review-r01-pr-live-logs,w2-import-prs,w2-prs-chains,w2-prs-f3-time,w2-prs-rebuild,w2-prs-rebuild-all,w2-prs-restore-stamp-perf}.test.ts`, `src/lib/import/__tests__/{legacy-import-service-prs,w2-import-prs}.test.ts`; e2e `e2e/pr.spec.ts` | unit rc=0, `Test Files 13 passed (13) Tests 77 passed (77)`: prs 8, pr-tracker 14, use-pr-celebrated 3, finish-workout-pr-history 2, review-r01-pr-live-logs 8, db w2-import-prs 5, w2-prs-chains 4, w2-prs-f3-time 8, w2-prs-rebuild 8, w2-prs-rebuild-all 5, w2-prs-restore-stamp-perf 3, legacy-import-service-prs 5, import w2-import-prs 4; e2e `✓ beating the stored best e1RM celebrates the PR and persists it` (reads `prRecords` through the `listPRRecords` hook, 3fa944f), `✓ a heavier warm-up or undone set is not a PR: straight to history`, `✓ a first-ever exercise is a baseline: no celebration` |
 | AC7 analytics correctness | **MET** | `npx vitest run analytics` | `Test Files 20 passed (20) Tests 169 passed (169)`. `src/lib/analytics/__tests__/ac7-correctness.test.ts` holds the hand-derived values (48 h window, ACWR/volume/impact over done working sets of live logs) |
 | AC8 data integrity | **MET** (real figures below) | `npx vitest run data-integrity --reporter=verbose`; `npm run catalog:build -- --check`; `npm run check-bundle` | `Tests 16 passed (16)`, including `✓ every preset exercise id resolves in the catalog`, `✓ no TYTAX exercise has the generic station "Tytax"`, `✓ every station and attachment is a valid library.json id with a provenance`, `✓ AC8: exercises with an unresolved station are ≤ 5 % of 1,436 (28 ambiguous machine moves = 1.9 %)`, `✓ the catalog is lazy…`. Catalog: `source 1436, excluded 27, catalog 1409, unresolved 28 (1.9% of 1436), no station by design 53, without station 81 (5.6% of 1436)`. Bundle: `first-load JS for /dashboard: 238.7 kB gzip (budget 250 kB)`, `check-bundle: OK`, all 24 routes within 250 kB, `catalog leak: no` on every route |
-| AC9 family profiles | **MET** | e2e `e2e/profiles.spec.ts`, `e2e/profiles-ui.spec.ts`, `e2e/fixtures-profiles.spec.ts` | `✓ two profiles see only their own history; switching swaps it`, `✓ deleting a profile wipes only its data and hands over to the other`, `✓ create, switch and delete profiles from settings; data stays isolated` (chromium and mobile) |
+| AC9 family profiles | **MET** (known flake, U21) | e2e `e2e/profiles.spec.ts`, `e2e/profiles-ui.spec.ts`, `e2e/fixtures-profiles.spec.ts` | chromium: `✓ two profiles see only their own history; switching swaps it`, `✓ deleting a profile wipes only its data and hands over to the other`, `✓ create, switch and delete profiles from settings; data stays isolated`. mobile: `✓ 36 [mobile] › e2e/profiles.spec.ts:114:5 › two profiles see only their own history; switching swaps it (9.1s)`, `✓ 37 [mobile] › e2e/profiles.spec.ts:128:5 › deleting a profile wipes only its data and hands over to the other (7.9s)`, `✓ 33 [mobile] › e2e/profiles-ui.spec.ts:11:5 › create, switch and delete profiles from settings; data stays isolated (13.4s)`, `✓ 4 [mobile] › e2e/fixtures-profiles.spec.ts:8:5 › tytax fixture switches and removes profiles through the app repository (5.0s)`. **Known flake:** `profiles.spec.ts:114`, the proving test for the isolation clause, failed once on mobile in 3 full dev runs during integration (`window.__tytaxE2E is missing` after a bare reload; test-harness timing, not a data leak; 0 failures in 20 isolated runs). Filed as U21 |
 | AC10 legacy import | **MET** | `npx vitest run legacy-import` | `Test Files 16 passed (16) Tests 150 passed (150)`. Counts are asserted against `src/lib/import/__fixtures__/expected.ts` for the three fixtures |
 | AC11 tools and navigation | **MET** | e2e `e2e/nav.spec.ts` (routes in `e2e/routes.ts`), `e2e/tools.spec.ts` | nav: 12 tests pass, including `✓ no navigation link is dead` and `✓ /tools/plate-calculator answers 200 and renders its heading`. tools: `✓ plate calculator: 100 kg on a 20 kg bar is 25 + 15 per side`, `✓ 1RM calculator: 100 kg × 5 estimates 112.5 kg`, `✓ rest timer starts at the profile default, takes +30 s and counts down`, `✓ swap: picking a suggestion replaces the exercise on the card` |
-| AC12 sync, flag on, local Supabase | **MET** (locally; the CI `sync-e2e` job has not run on GitHub yet, see AC16) | `npm run test:sync`; `npx -y supabase@2.118.0 test db`; e2e `@sync` specs in the chromium run | test:sync rc=0: `Test Files 3 passed (3) Tests 20 passed (20)` (round trip, RLS, tombstones, LWW, retry cursor, idempotent re-push, request limit). test db rc=0: `Files=10, Tests=810 … Result: PASS` (including `01_signup_profile.test.sql` for the profile on signup). e2e: `✓ a workout logged on device A reaches device B through Supabase @sync`, `✓ sync on, signed out: the app still works and nothing is sent @sync` |
-| AC13 auth failure handling | **MET** | `npx vitest run auth`; `npx vitest run callback`; e2e `e2e/auth-callback.spec.ts` | `auth` `Test Files 6 passed (6) Tests 109 passed (109)`; `callback` `Tests 16 passed (16)`; e2e `✓ provider error lands on login with the code only…`, `✓ callback without a code lands on login with a deterministic error`, `✓ a failed exchange with next=//evil.com lands on login on this origin`, `✓ next=//evil.com on a successful exchange lands on /dashboard on this origin @sync` |
+| AC12 sync, flag on, local Supabase | **PARTIAL** (every test clause is met locally; the clause "a mandatory CI job `sync-e2e`" is proven only by `scripts/ci-local.sh`, whose `sync-e2e` step passes (AC16). The job has not run on GitHub, because `v2` is not pushed) | `npm run test:sync`; `npx -y supabase@2.118.0 test db`; e2e `@sync` specs in the chromium run | test:sync rc=0: `Test Files 3 passed (3) Tests 20 passed (20)` (round trip, RLS, tombstones, LWW, retry cursor, idempotent re-push, request limit). test db rc=0: `Files=10, Tests=810 … Result: PASS` (including `01_signup_profile.test.sql` for the profile on signup). e2e chromium: `✓ a workout logged on device A reaches device B through Supabase @sync`, `✓ sync on, signed out: the app still works and nothing is sent @sync`; e2e mobile: `✓ 50 [mobile] › e2e/sync-roundtrip.spec.ts:64:5 › a workout logged on device A reaches device B through Supabase @sync (12.3s)`, `✓ 52 [mobile] › e2e/sync-roundtrip.spec.ts:111:5 › sync on, signed out: the app still works and nothing is sent @sync (6.0s)` |
+| AC13 auth failure handling | **MET** | `npx vitest run auth`; `npx vitest run callback`; for the missing-env clause `npx vitest run src/lib/auth/__tests__/helpers.test.ts src/app/auth/callback/__tests__/route.test.ts src/app/auth/login/__tests__/login.test.tsx --reporter=verbose`; e2e `e2e/auth-callback.spec.ts` | `auth` `Test Files 6 passed (6) Tests 109 passed (109)`; `callback` `Tests 16 passed (16)`. Missing env shows an error, not a spinner (rc=0, `Test Files 3 passed (3) Tests 44 passed (44)`): `✓ src/lib/auth/__tests__/helpers.test.ts > signInWithMagicLink > returns auth_not_configured (no throw) when Supabase env is missing`, `✓ src/app/auth/callback/__tests__/route.test.ts > GET /auth/callback > missing env → auth_not_configured`, `✓ src/app/auth/login/__tests__/login.test.tsx > LoginPage > not configured: shows the error immediately, disables the form, keeps "continue without account"`; e2e `✓ provider error lands on login with the code only…`, `✓ callback without a code lands on login with a deterministic error`, `✓ a failed exchange with next=//evil.com lands on login on this origin`, `✓ next=//evil.com on a successful exchange lands on /dashboard on this origin @sync` |
 | AC14 i18n and a11y | **MET** | `npx vitest run i18n`; `npm run lint` (`i18next/no-literal-string` = error on `src/**/*.tsx`); e2e `e2e/a11y.spec.ts` | i18n `Test Files 8 passed (8) Tests 56 passed (56)` (hr/en parity, packs); lint: no problems; a11y: `✓ /dashboard`, `/workout`, `/exercises`, `/history`, `/settings` `has no serious axe violations`, `✓ secondary G4 screens have no serious axe violations`, `✓ pinch zoom is allowed and the document language is set` (userScalable removed) |
 | AC15 PWA | **MET** | `npm run test:e2e:offline` (prod build with E2E hooks, `E2E_SERVER=prod`); manifest check with `node -e` over `public/manifest.json` | rc=0, `5 passed (8.9s)`: `✓ a workout can be logged while offline`, `✓ an offline reload can use a catalog chunk never opened before`, `✓ an uncached route offline falls back to the offline page`, `✓ switching to English works offline…`, `✓ a backup can be restored while offline`. Manifest: `display "standalone"`, `start_url "/dashboard"`, icons `192x192` and `512x512` in both `any` and `maskable`, with every file present. It is linked from `src/app/layout.tsx:14`. No test drives a browser install prompt |
 | AC16 CI | **PARTIAL** | `PORT=3110 bash scripts/ci-local.sh` (a local mirror of `.github/workflows/ci.yml`); `gitleaks git --redact`; `npm audit --audit-level=high` | rc=0, `CI-LOCAL: PASS`. Every step passes: quality (guard .only/.skip, npm ci, lint, tsc, test:coverage, build, check-bundle), e2e chromium+mobile (`124 passed`), e2e-offline (`5 passed`, `playwright: ran=5 skipped=0`), sync-e2e (supabase test db `Result: PASS`, `UPGRADE TEST: PASS`, test:sync `vitest: ran=20 skipped=0`, playwright sync+auth `ran=6 skipped=0`), and security (gitleaks, npm audit high). gitleaks: `210 commits scanned … no leaks found`. npm audit high: rc=0 (`5 vulnerabilities (1 low, 4 moderate)`). **"PR checks green" is not verifiable yet:** `v2` is not pushed and no PR exists, so the GitHub run is pending. The first push of `v2` is also the first run of the new workflow |
-| AC17 baseline | **PARTIAL** (the rest is morning and owner work) | `grep -n "^#" README.md`; `sed -n 1,12p CHANGELOG.md`; `gh pr list -R bureksirovic-web/tytax-autonomous --state open`; `gh repo view … --json isArchived`; `gh issue list -R bureksirovic-web/new_tytax` | README has the stack, run, env, sync, privacy, deploy and rollback sections, **but** it still labels v2 features "in progress / not yet verified" (lines 8, 11, 20–26; filed as U28). CHANGELOG has `## [Unreleased]`. Issues: 0 open in new_tytax. They are listed in `docs/v2/ISSUES-TO-FILE.md` (28) and are the next step. tytax-autonomous: `isArchived: false`, and open PRs #61 to #76 (16 PRs). The #67–76 mandate and the archive are **morning items** |
+| AC17 baseline | **PARTIAL** (the rest is morning and owner work) | `grep -n "^#" README.md`; `sed -n 1,12p CHANGELOG.md`; `gh pr list -R bureksirovic-web/tytax-autonomous --state open`; `gh repo view … --json isArchived`; `gh issue list -R bureksirovic-web/new_tytax` | README has the stack, run, env, sync, privacy, deploy and rollback sections, **but** it still labels v2 features "in progress / not yet verified" (lines 8, 11, 20–26; filed as U28). CHANGELOG has `## [Unreleased]`. Issues: 0 open in new_tytax. They are listed in `docs/v2/ISSUES-TO-FILE.md` (28) and are the next step. tytax-autonomous: `isArchived: false` and 16 open PRs (#61–76); new_tytax: 0 open issues. Raw `gh` output is pasted below the table. The #67–76 mandate and the archive are **morning items** |
 | AC18 migration and import safety | **MET** | `npx vitest run migration`; `npx vitest run legacy-import` (transactional import); e2e `workout-loop.spec.ts`, `offline.spec.ts` | migration `Test Files 13 passed (13) Tests 93 passed (93)` (v2→v3 into `SessionExercise[]`, idempotent re-run, malformed legacy shapes, rollback); legacy-import 150 passed (failed import leaves the DB unchanged, re-import idempotent); `✓ the same exercise added twice logs independently`; `✓ an offline reload can use a catalog chunk never opened before` |
 | Zero skips (§10.2, all suites) | **MET** | `grep -rnE "\b(test\|it\|describe\|suite\|bench)(\.(describe\|serial\|parallel\|concurrent\|sequential))?\.(only\|skip\|fixme\|todo\|skipIf\|runIf\|fail\|fails)\b" src e2e`; runtime no-skips reporters | grep: no matches (`grep rc=1`). vitest shows no skipped count. The Playwright no-skips reporter reported only the 4 `offline.spec.ts` serial siblings of the by-design dev failure below. On the prod server all 5 ran and passed |
 
+**AC17 raw `gh` output** (06:17, on `d3bb596`):
+
+```
+$ gh pr list -R bureksirovic-web/tytax-autonomous --state open --limit 50
+76	⚡ Bolt: Memoize getImpact optimization	bolt-memoize-getimpact-1536020764741824072	OPEN	2026-02-05T23:08:41Z
+75	⚡ Bolt: Memoize getImpact parsing	bolt-memoize-impact-18296593054922659561	OPEN	2026-02-04T23:18:10Z
+74	⚡ Bolt: Memoize getImpact to optimize filtering and analytics	bolt-memoize-getimpact-13620585226430771141	OPEN	2026-02-03T23:27:36Z
+73	⚡ Bolt: Optimize getImpact with WeakMap caching	bolt/optimize-get-impact-memoization-13870432028214641695	OPEN	2026-02-02T23:14:18Z
+72	⚡ Bolt: Memoize Arsenal category generation	bolt-optimize-arsenal-categories-9932473860794374723	OPEN	2026-02-01T23:36:02Z
+71	⚡ Bolt: Cache `getImpact` calculation	bolt-cache-getimpact-1213746196255912183	OPEN	2026-01-31T23:22:46Z
+70	⚡ Bolt: Optimize workout view render loop	bolt-optimize-workout-render-877706977311523666	OPEN	2026-01-30T23:31:50Z
+69	⚡ Bolt: Memoize getImpact for 19x faster parsing	bolt/memoize-getimpact-11920355442424871934	OPEN	2026-01-29T23:18:27Z
+68	⚡ Bolt: Memoize getImpact for faster list filtering	bolt/memoize-get-impact-17402918018732187399	OPEN	2026-01-28T23:20:59Z
+67	⚡ Bolt: Optimize getImpact with WeakMap memoization	bolt-optimize-get-impact-6140043359702273978	OPEN	2026-01-27T23:38:25Z
+66	⚡ Bolt: Memoize getImpact for faster list filtering	bolt-memoize-impact-15757634462254178008	OPEN	2026-01-26T23:22:50Z
+65	⚡ Bolt: Memoize getImpact for faster list filtering	bolt/memoize-get-impact-1501355913590789231	DRAFT	2026-01-25T23:18:08Z
+64	⚡ Bolt: Memoize getImpact for faster filtering	bolt-memoize-impact-16194524769015875143	DRAFT	2026-01-24T23:25:04Z
+63	⚡ Bolt: Memoize getImpact for faster rendering	bolt/memoize-get-impact-15578713207971785279	DRAFT	2026-01-23T23:35:18Z
+62	⚡ Bolt: Memoize getImpact and Arsenal categories	bolt-memoize-impact-13836002172320153053	DRAFT	2026-01-22T23:30:08Z
+61	⚡ Bolt: Memoize Live Session Impact	bolt/memoize-impact-calc-7710368578722547047	DRAFT	2026-01-21T23:33:43Z
+$ gh pr list -R bureksirovic-web/tytax-autonomous --state open --limit 50 --json number,author,isDraft --jq '.[] | "\(.number) \(.author.login) draft=\(.isDraft)"'
+76 bureksirovic-web draft=false
+75 bureksirovic-web draft=false
+74 bureksirovic-web draft=false
+73 bureksirovic-web draft=false
+72 bureksirovic-web draft=false
+71 bureksirovic-web draft=false
+70 bureksirovic-web draft=false
+69 bureksirovic-web draft=false
+68 bureksirovic-web draft=false
+67 bureksirovic-web draft=false
+66 bureksirovic-web draft=false
+65 app/google-labs-jules draft=true
+64 app/google-labs-jules draft=true
+63 app/google-labs-jules draft=true
+62 app/google-labs-jules draft=true
+61 app/google-labs-jules draft=true
+$ gh repo view bureksirovic-web/tytax-autonomous --json isArchived
+{"isArchived":false}
+$ gh issue list -R bureksirovic-web/new_tytax --state open
+(no output, rc=0)
+```
+
 **The full e2e runs, stated plainly.** Both runs were on the dev server with the sync env, and neither is green on its own:
 - `npx playwright test --project=chromium`: rc=1, `65 passed, 1 failed, 4 did not run`.
-- `npx playwright test --project=mobile --grep-invert @sync`: rc=1, `62 passed, 1 failed, 4 did not run`.
+- `npx playwright test --project=mobile` (re-run on `d3bb596`, @sync specs included, as in every integration-log full run): rc=1, `65 passed, 1 failed, 4 did not run`. The first mobile run at 06:06 used `--grep-invert @sync` (`62 passed, 1 failed, 4 did not run`); that flag had no reason, so it was dropped and the run repeated.
 
 In both, the one failure is `offline.spec.ts:53`, with `Error: offline.spec needs E2E_SERVER=prod (see docs/v2/requests/G4-03)`. This is by design under `next dev`. The CI e2e job excludes the file, and `npm run test:e2e:offline` runs it on a prod build (5/5 above). Because the plain local run can never be green, this is filed as U20.
 
@@ -84,7 +127,7 @@ Sources: `docs/v2/goals/G1..G5-REPORT.md` (Wave 1 and Wave 2 sections), `~/Proje
     - program helpers;
     - video links;
     - npm audit highs cleared with `overrides`.
-  - 2 DSH refuters: all 5 of R2's findings were reproduced and fixed.
+  - 2 DSH refuters: all 5 of R2's findings were reproduced and fixed; of R1's 3, 2 were fixed and R1-1 was documented.
 - **Gave up on:**
   - T1-X app metadata as a station source: it sits behind a bot checkpoint.
   - The station mapping still needs an owner review (U15).
@@ -185,7 +228,7 @@ Sources: `docs/v2/goals/G1..G5-REPORT.md` (Wave 1 and Wave 2 sections), `~/Proje
 
 **Local refuters.** Engine queue checked first each time.
 - **Per goal:**
-  - G1: 2 DSH refuters, 5 + 3 findings reproduced and fixed. R1-1 was documented, not changed.
+  - G1: 2 DSH refuters. R2: 5 of 5 findings reproduced and fixed. R1: 3 reproduced, 2 fixed, and R1-1 documented, not changed (G1-REPORT "Hardening").
   - G2: 11 findings in the workflow (10 fixed, 1 not reproduced), plus 26 failing DSH cases (20 fixed, 4 dropped as design with measurement, 2 unfixed; 1 of those was later fixed at integration).
   - G3: 20 findings (18 fixed, 1 routed to G4 and fixed at integration, 1 dropped: its symbol does not exist).
   - G4: 18 findings (13 fixed by G4; 2 not reproduced, 1 of them hardened anyway; 3 were other goals' items, already requests, and all 3 are fixed in the merged tree).
@@ -229,12 +272,12 @@ No Terra residuals.
 
 ## 5. Environment actions on this host
 
-These are from `docs/v2/goals/G5-REPORT.md` "Environment actions", re-checked at 06:10.
+These are from `docs/v2/goals/G5-REPORT.md` "Environment actions", re-checked at 06:10. Host-specific names (user, network interfaces, process ids) are left out because `bureksirovic-web/new_tytax` is a public repository.
 - **Docker daemon:** started for this boot, not enabled. `systemctl is-enabled docker` gives `disabled`, and `is-active` gives `active`.
-- **Socket ACL:** `setfacl -m u:tomi:rw /var/run/docker.sock` for this boot only. `getfacl` shows `user:tomi:rw-`. It is lost on reboot or when the socket is re-created.
-- **iptables:** `DOCKER-USER` DROP rules for ports 54420:54431 on the external interfaces (`wlp206s0`, `enp211s0f0np0`, `enp211s0f1np1`, `usb0`, `wg0`, `tailscale0`). They are **not saved**, so they are gone after a reboot. `docker ps` still shows 3 `0.0.0.0` port bindings (U1).
-- **Local Supabase:** the stack (`project_id tytax-v2`, API `127.0.0.1:54421`) **is still running**: 5 containers up; the rest were stopped by the CLI (realtime, storage, studio, etc.).
-- **Port 3100** is held by an unrelated process, paperclip (a systemd `--user` service), which was not touched. Every integration Playwright run used `PORT=3110` and `NEXT_PUBLIC_APP_URL=http://localhost:3110`.
+- **Socket ACL:** a `setfacl` rw entry on `/var/run/docker.sock` for the invoking user, for this boot only. It is lost on reboot or when the socket is re-created.
+- **iptables:** `DOCKER-USER` DROP rules for ports 54420:54431 on the dev host's external interfaces, for this boot only (U1).
+- **Local Supabase:** the stack (`project_id tytax-v2`) was left up for the morning steps; §8 has the clean-up.
+- **Port 3100** is held by an unrelated local service, which was not touched. Every integration Playwright run used `PORT=3110` and `NEXT_PUBLIC_APP_URL=http://localhost:3110`.
 
 ## 6. Estimate vs actuals
 
@@ -380,7 +423,7 @@ Duplicates are merged: for example, G3's "repeat without catalog" and refuter #1
 
 #### U21. e2e flake: profiles.spec.ts calls tytax.snapshot() right after page.reload() (S3, debt)
 - **What:** `tytax.snapshot()` runs before `window.__tytaxE2E` is reinstalled after a bare reload; 1 failure in 3 full dev runs ('window.__tytaxE2E is missing').
-- **Evidence:** docs/v2/integration-log.md §11 'Unfixed (step 5)'; `e2e/profiles.spec.ts:114-125`.
+- **Evidence:** docs/v2/integration-log.md §11 'Unfixed (step 5)'; `e2e/profiles.spec.ts:114-125`. The flaky test is the AC9 proving test for profile isolation (docs/v2/FINAL-REPORT.md §2, AC9).
 - **Why not fixed:** Not reproducible on demand (0 failures in 20 isolated runs).
 - **Proposed fix:** Make `snapshot()` and the other hook calls wait for the hooks like `waitReady` does, or call `waitReady` after every reload in the spec.
 
@@ -434,23 +477,26 @@ Duplicates are merged: for example, G3's "repeat without catalog" and refuter #1
   - G4-W2-30 (a): optional.
 - **Declined requests that carry debt** are filed: G4-17 (U24), G4-21 (U25), G4-37 §3 (U26), G2-W2-03 (U10), and G5-01/G5-04 (U8).
 - **Goal-report items closed at or before integration:**
-  - G1 F1/F4/F5/F7/F8;
+  - G1 F1/F4/F5/F7/F8, F2 (time sets), F3 (stored e1RM: `storedE1rm` now returns `rankableE1rm`, `src/lib/db/repo/rows.ts:129-131`) and W2-F1;
   - G2 Wave 1 #1 and #2, Wave 2 #1;
   - G3 AC4 through the UI, `prRecords` end-to-end, `crypto.randomUUID`, History time sets;
   - G4 hydration mismatch, PR count stale after an edit, legacy import disabled, pinned metrics device-local, the G3/G5 test breakage, the `/workout` test id;
   - G5 CSP `connect-src`, the service worker caching Supabase, backup `accountId`, AccountSection with sync off, S3-06, S3-10, lint residuals, and check-bundle and audit in the worktree.
   - Each one has its row in `docs/v2/requests/INDEX.md` or its step in `docs/v2/integration-log.md`.
-- **The `slice.spec.ts` load flake from G4 Wave 2:** it did not recur in any integration run (all 3 full runs since the G5 merge were clean apart from the by-design offline failure).
+- **The `slice.spec.ts` load flake from G4 Wave 2:** it did not recur in any integration run. The integration e2e runs were not all clean otherwise: the other non-offline failures were the `[mobile] profiles.spec.ts:114` flake on 4178790 (integration-log §11, filed as U21) and the `sync-roundtrip.spec.ts:63` and `auth-callback.spec.ts:86` disabled-submit failures after the G5 merge, fixed in 5fab111 and 1033f9b (integration-log §7; the product side is U9). Every other failure in those runs was the by-design `offline.spec.ts:53` failure under `next dev` (U20).
 - **Terra T1/T2:** false, measured (§4).
 
 ## 8. Morning checklist (owner lanes)
 
 - [ ] **D2 deploy decision:** Render (`render.yaml`) or rig/VPS. Nothing is deployed and no tag exists. After the decision, the release protocol runs: tag, push the tag, and `gh release create` in the same step as the deploy.
-- [ ] **Push `v2` and open the PR `v2 → main`** (GOALS step 8; not done in this step). The first GitHub Actions run decides AC16 "PR checks green". Do not merge, and do not self-merge within five minutes.
+- [ ] **Push `v2` and open the PR `v2 → main`** (GOALS step 8; not done in this step). The target repo is public: host user, interface and process names were removed from §5, `G5-REPORT.md` and `integration-log.md`, but absolute home-directory paths remain in older docs (`git grep -lI /home/ -- docs` lists 7 other files under `docs/v2/`); decide before the push whether to scrub them. The first GitHub Actions run decides AC16 "PR checks green". Do not merge, and do not self-merge within five minutes.
 - [ ] **File the 28 issues** in `docs/v2/ISSUES-TO-FILE.md` in `bureksirovic-web/new_tytax`, then tick each box with its number. This completes the AC17 issues part.
+  - First create the labels. `gh label list -R bureksirovic-web/new_tytax` at 06:17 shows only GitHub's defaults (bug, documentation, duplicate, enhancement, good first issue, help wanted, invalid, question, wontfix), so `gh issue create --label security|debt|S2|S3` fails until they exist. The commands are in `docs/v2/ISSUES-TO-FILE.md`.
+  - The repo is public. Decide before filing whether U1 (S2 security, local dev-stack exposure) is filed there as written (it names no host details) or kept private.
 - [ ] **Archive `bureksirovic-web/tytax-autonomous`** with a pointer to new_tytax (`isArchived: false` today).
   - Close PRs #67–76 with "superseded by new_tytax v2" (the AC17 mandate).
-  - Also close the bot PRs outside the mandate. The live listing at 06:10 shows **#61–66 open** (#61–65 by `app/google-labs-jules`, #66 by the owner account), one more than the #62–66 in the brief.
+  - Also close the bot PRs outside the mandate: **#61–65**, drafts by `app/google-labs-jules` (live listing at 06:17, pasted in §2).
+  - **The owner decides on #66.** It is open, not a draft, and authored by the owner account like #67–76, but it is outside the #67–76 mandate (GOALS.md step 8, PLAN.md).
   - Archiving needs the owner's go.
 - [ ] **If sync goes live on hosted Supabase:** set the gateway request-body limit (4 MiB, matching `request_body_limit()`) through Supabase support or a reverse proxy, and record it on the wiki page (U2). Also apply migrations 001–005 there, following the `supabase/README.md` preflight.
 - [ ] **Review `docs/v2/station-sample.md`** (50 rows, seed 42) and the 64 FRAME/FREE_WEIGHT mappings in `docs/v2/station-unresolved.md`. Corrections go into `scripts/data/station-manual.json` (U15).

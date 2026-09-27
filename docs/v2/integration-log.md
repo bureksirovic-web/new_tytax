@@ -279,7 +279,7 @@ An earlier aborted attempt (branch `v2-integration-wave1-attempt`, older SHAs) i
 
 Every file under `docs/v2/requests/` was read (61 request files, plus the `repro/` and `G4-W2-01-merge/` helpers) and checked against the merged tree, not against the requests' own status lines: grep for the named symbols, a scratch vitest comparing every local string table and every i18n md table with the dictionary (370 table values identical; md tables: G1 0/G5 0 differences, G3 10 stale md values), and the tests each request names. Base: `82c4acb`; commits `06cce1f`..`61482c7` (15). Same table: `docs/v2/requests/INDEX.md`.
 
-- Port: 3100 was taken by a non-TYTAX process (`paperclipai`, a systemd --user service, pid 2278633 then 2326947; not touched). From 03:37 every Playwright run used `PORT=3110` and `NEXT_PUBLIC_APP_URL=http://localhost:3110`.
+- Port: 3100 was taken by a non-TYTAX process (an unrelated local service; not touched). From 03:37 every Playwright run used `PORT=3110` and `NEXT_PUBLIC_APP_URL=http://localhost:3110`.
 - Red-first checks (old code restored in the work tree, run, restored back): G5-02 old CSP → `sync-roundtrip` "reaches device B" fails (`toBeVisible` element not found, the OTP call is blocked); G5-10 old stores → `expected undefined to be defined` (x2); G2 W2 #1 old counts → `skipped: -2`; G5-05 old service → 2 of 3 fail. S3-10 live: an untracked probe file made `E2E_SERVER=prod` refuse with "E2E_SERVER=prod refuses a dirty work tree (tree 61482c7…-dirty-a876f61fe2ff)".
 - Test corrections (no assertion weakened): `repo-import-natural-key.test.ts` 2 expectations `updated: 1` → `0` with a comment: counts are file rows only, which is the G2 W2 #1 fix. No test was deleted or skipped.
 
@@ -408,7 +408,7 @@ ci=0 lint=0 tsc=0 test=0 build=0, test:coverage=0.
 All files          |   97.31 |    93.04 |   97.11 |    98.4 |   # test:coverage
 ```
 
-### E2E on 34eee1b (sync env, `PORT=3110`: 3100 is held by a non-TYTAX process, paperclip pid 2326947, not touched)
+### E2E on 34eee1b (sync env, `PORT=3110`: 3100 is held by an unrelated local service, not touched)
 - `PORT=3110 npx playwright test --project=chromium`: 64 passed, 1 failed, 3 did not run, exit 1. Only failure `offline.spec.ts:53` "offline.spec needs E2E_SERVER=prod" (by design under `next dev`; 3 serial siblings did not run), same as step 2.
 - Prod step `PORT=3110 npm run test:e2e:offline`: 4 passed, exit 0.
 
@@ -416,7 +416,7 @@ All files          |   97.31 |    93.04 |   97.11 |    98.4 |   # test:coverage
 - None new. Option for later: a relative (not wall-clock) edit-cost check would drop the coverage multiplier.
 
 ## 10. INTEGRATION step 4: Final gate (2026-09-27)
-Base 2f9a72c. No code changed in this step (only this log). Port: 3100 is still held by a non-TYTAX process (paperclip, pid 2326947, not touched), so every e2e run used `PORT=3110`. Sync env from `npx -y supabase@2.118.0 status -o env` in `app/` (project tytax-v2, API 127.0.0.1:54421).
+Base 2f9a72c. No code changed in this step (only this log). Port: 3100 is still held by a non-TYTAX process (an unrelated local service, not touched), so every e2e run used `PORT=3110`. Sync env from `npx -y supabase@2.118.0 status -o env` in `app/` (project tytax-v2, API 127.0.0.1:54421).
 
 ### Final gate
 1. `npm ci && npm run lint && npx tsc --noEmit && npm test && npm run build`: ci=0 lint=0 tsc=0 test=0 build=0.
@@ -478,7 +478,7 @@ Base 2f9a72c. No code changed in this step (only this log). Port: 3100 is still 
 - check-bundle `/dashboard` 262.2 kB > 250 kB (PLAN §10.2 AC8; a CI step, so CI `quality` fails). What: same as steps 6/7/8. Evidence: 217.0 kB at 04e4ce5, 259.2 kB after the G4 merge; source-map attribution puts most of it in the i18n dictionary chunk (en + hr and all `modules/*`, ~37.7 kB gzip) that every route loads through `LocaleProvider`/`useT`. Tried: nothing new in this step (the step brief allows code changes only for a real failure; this one is known, and the fix changes locale loading). Proposed fix: load only the active locale up front and import the other one lazily in `LocaleProvider` (the sync `t(key, locale)` in `src/lib/i18n/index.ts` and its English fallback have to become async or be preloaded; roughly 18 kB saved). File as debt S3.
 
 ## 11. INTEGRATION step 5: first-load JS budget on every route (2026-09-27)
-Base 28f88cb. Commits: `4178790` perf(i18n), `14c7fe8` test(e2e). Port 3110 (3100 is still paperclip, pid 2326947, not touched). Sync env from `npx -y supabase@2.118.0 status -o env` (API_URL, ANON_KEY, SERVICE_ROLE_KEY, MAILPIT_URL, `NEXT_PUBLIC_SYNC_ENABLED=true`, `NEXT_PUBLIC_APP_URL=http://localhost:3110`).
+Base 28f88cb. Commits: `4178790` perf(i18n), `14c7fe8` test(e2e). Port 3110 (3100 is still held by an unrelated local service, not touched). Sync env from `npx -y supabase@2.118.0 status -o env` (API_URL, ANON_KEY, SERVICE_ROLE_KEY, MAILPIT_URL, `NEXT_PUBLIC_SYNC_ENABLED=true`, `NEXT_PUBLIC_APP_URL=http://localhost:3110`).
 
 ### Measured first (before any change)
 - `npm run build && node scripts/check-bundle.mjs` on 28f88cb: exit 1, `/dashboard 262.2 kB`, 12 routes over 250, max `/workout/active 275.1 kB`.
