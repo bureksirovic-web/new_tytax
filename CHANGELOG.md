@@ -5,7 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-v2 rewrite (branch `v2`, plan in `docs/v2/PLAN.md`). Entries below are the intended v2 scope; they are finalised at integration.
+## [2.0.0] - 2026-09-27
+
+v2 rewrite (plan `docs/v2/PLAN.md`, results `docs/v2/FINAL-REPORT.md`). First deploy: https://tytax.opghaha.eu (sync off). No earlier release exists to roll back to.
 
 ### Added
 - Frozen v2 contracts in `src/contracts/` (domain, repository, training, catalog, sync); `src/types` re-exports them.

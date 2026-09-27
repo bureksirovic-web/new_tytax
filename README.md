@@ -5,11 +5,10 @@ It is a local-first PWA: all data lives on the device (IndexedDB), and it works 
 Croatian is the default language; English is available. Several family members can share one device,
 each with their own profile.
 
-> **Status: v2 (in progress).** Branch `v2` is an overnight rewrite of the broken layers of
-> `new_tytax` 0.1.0 (see `docs/v2/PLAN.md`). The 0.1.0 core loop does not work: a quick workout
-> cannot start, the active program is never found, and sync cannot work. Items marked
-> *v2 (in progress)* below are planned for v2 and are not yet verified. This README is
-> finalised at integration.
+> **Status: v2.0.0, live at https://tytax.opghaha.eu.** v2 rewrote the broken layers of
+> `new_tytax` 0.1.0 (plan: `docs/v2/PLAN.md`, results: `docs/v2/FINAL-REPORT.md`). Every item marked
+> *v2* below is covered by the acceptance criteria AC1–AC18 in the final report. Sync is optional and
+> off on the public deploy.
 
 Built AI-first (Claude/Codex agents) under human ownership.
 
@@ -17,18 +16,18 @@ Built AI-first (Claude/Codex agents) under human ownership.
 
 | Area | State |
 |---|---|
-| Exercise library: TYTAX T1, bodyweight and kettlebell data | present in 0.1.0; v2 (in progress): full 1,436-exercise TYTAX catalog with real stations/attachments, lazy-loaded |
-| Workout logger: kg / reps / RIR per set, rest timer, warm-ups | v2 (in progress): draft survives reload, same exercise twice per session |
-| Programs: TYTAX 6-day preset, builder, rotation that advances | v2 (in progress) |
-| Progression: prefill from last session (RIR ≥3 → +2.5 kg, RIR 2 → +1.25 kg), ghost reps | v2 (in progress) |
-| PRs: e1RM (Brzycki) detection on done working sets only | v2 (in progress) |
-| Analytics: recovery (48 h), ACWR, volume, impact / lagging muscle | pure functions exist; v2 (in progress): correctness fixes |
-| Tools: plate calculator, 1RM calculator | v2 (in progress) |
-| Family profiles on one device | v2 (in progress) |
-| Legacy import from `tytax-autonomous` backups | v2 (in progress) |
-| JSON backup/restore, CSV export | v2 (in progress): CSV formula-injection escaping |
-| Optional Supabase sync | v2 (in progress); off by default |
-| PWA install, offline use, hr/en i18n | v2 (in progress) |
+| Exercise library: TYTAX T1, bodyweight and kettlebell data | present in 0.1.0; v2: full 1,436-exercise TYTAX catalog with real stations/attachments, lazy-loaded |
+| Workout logger: kg / reps / RIR per set, rest timer, warm-ups | v2: draft survives reload, same exercise twice per session |
+| Programs: TYTAX 6-day preset, builder, rotation that advances | v2 |
+| Progression: prefill from last session (RIR ≥3 → +2.5 kg, RIR 2 → +1.25 kg), ghost reps | v2 |
+| PRs: e1RM (Brzycki) detection on done working sets only | v2 |
+| Analytics: recovery (48 h), ACWR, volume, impact / lagging muscle | pure functions exist; v2: correctness fixes |
+| Tools: plate calculator, 1RM calculator | v2 |
+| Family profiles on one device | v2 |
+| Legacy import from `tytax-autonomous` backups | v2 |
+| JSON backup/restore, CSV export | v2: CSV formula-injection escaping |
+| Optional Supabase sync | v2; off by default |
+| PWA install, offline use, hr/en i18n | v2 |
 
 ## Stack
 
@@ -67,7 +66,7 @@ PORT=3100 npm run dev     # http://localhost:3100
 | `npm run test:coverage` | Unit tests with V8 coverage |
 | `PORT=310<n> npm run test:e2e` | Playwright e2e (starts its own dev server; refuses to run without `PORT`) |
 | `npm run test:e2e:ui` | Playwright UI mode |
-| `npm run test:sync` | v2 (in progress): sync tests against local Supabase |
+| `npm run test:sync` | v2: sync tests against local Supabase |
 
 ## Environment variables
 
@@ -86,7 +85,7 @@ Copy `.env.example` to `.env.local`. All variables are optional; with none set, 
 ## Sync (optional)
 
 - **Off by default.** With `NEXT_PUBLIC_SYNC_ENABLED` unset, the app is fully usable offline and never talks to Supabase.
-- **Model (v2, in progress):** Dexie stays the source of truth. Changes are queued locally, then pushed and pulled per table with a cursor.
+- **Model (v2):** Dexie stays the source of truth. Changes are queued locally, then pushed and pulled per table with a cursor.
   Conflicts resolve as last-write-wins on the **server** `updated_at`. Deletes are tombstones (`deleted_at`), so they propagate
   to other devices. Retries do not block the UI, and a re-push is idempotent.
 - **Local Supabase** (Docker required; the CLI is run through `npx`, it is not a dependency):
@@ -118,9 +117,9 @@ Copy `.env.example` to `.env.local`. All variables are optional; with none set, 
 
 - Training history, bodyweight and settings are stored in the browser's IndexedDB on the device.
 - **Family profiles are NOT a security boundary: anyone with the device can see every family profile's data; only the Supabase account (when sync is on) is protected by RLS.**
-- With sync on, rows are scoped to the signed-in Supabase account by row-level security (`using` + `with check` on every table, v2 in progress).
+- With sync on, rows are scoped to the signed-in Supabase account by row-level security (`using` + `with check` on every table).
 - The Supabase anon key is public by design. API routes log status and a request id, never payloads.
-- Imports are validated and size-capped; CSV export escapes spreadsheet formulas (v2, in progress).
+- Imports are validated and size-capped; CSV export escapes spreadsheet formulas (v2).
 
 ## Testing
 
@@ -150,12 +149,12 @@ The e2e server gets `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` from your shell only,
 ## CI
 
 `.github/workflows/ci.yml`. Today it runs lint, type check, unit coverage, build and e2e on pushes and PRs to `main`.
-v2 (in progress) adds: `playwright install --with-deps`, e2e on chromium plus one mobile project, the bundle budget check,
+v2 adds: `playwright install --with-deps`, e2e on chromium plus one mobile project, the bundle budget check,
 a mandatory `sync-e2e` job on disposable local Supabase, gitleaks, and `npm audit --audit-level=high`.
 
 ## Deploy
 
-**Nothing is deployed.** The old Render service is gone. The target (Render via `render.yaml`, or the rig/VPS) is decided later.
+**Live:** https://tytax.opghaha.eu, self-hosted behind a Cloudflare tunnel, with sync off (all user data stays in the browser). It is built off-host as the Next.js standalone output and served by `node server.js`. The host runbook (paths, unit, rollback) is kept in the owner's private infrastructure notes, not in this public repository. `render.yaml` is kept for a possible Render deploy; it is not used today.
 
 Release protocol:
 1. Semver tag on the merged commit (`git tag vX.Y.Z && git push origin vX.Y.Z`).
@@ -168,11 +167,11 @@ Release protocol:
 
 - **Deploy:** redeploy the previous release tag.
 - **Code:** `git checkout <previous-tag>`. Before v2 merges, `main` is untouched, so `git checkout main` is the rollback.
-- **Data:** Dexie schema migrations are additive, and a JSON export of the local database is taken automatically before a migration runs (v2, in progress). Restore it from Settings → Backup.
+- **Data:** Dexie schema migrations are additive, and a JSON export of the local database is taken automatically before a migration runs (v2). Restore it from Settings → Backup.
 
 ## Legacy import (tytax-autonomous)
 
-v2 (in progress): Settings imports a JSON backup from the original single-file app `bureksirovic-web/tytax-autonomous`
+v2: Settings imports a JSON backup from the original single-file app `bureksirovic-web/tytax-autonomous`
 (its localStorage keys such as `tytax_logs`, `tytax_training_plan`, `tytax_session_order`, `tytax_bodyweight_log`,
 `tytax_custom_protocols`, `tytax_users_list`, including per-user `_<user>` suffixes). It maps old exercise names onto
 the new catalog, runs as one transaction (a failed import changes nothing), is idempotent on re-run, and never writes to
@@ -184,7 +183,7 @@ the old app's storage.
 src/
   app/          Next.js routes: (app)/ screens, auth/, api/health (the only API route)
   components/   UI primitives, layout, workout, sync
-  contracts/    v2 (in progress): frozen domain / repo / training / catalog / sync interfaces
+  contracts/    v2: frozen domain / repo / training / catalog / sync interfaces
   data/         exercise data: tytax, bodyweight, kettlebell
   hooks/        React hooks
   lib/          db (Dexie), sync, auth, supabase, analytics, i18n, export, ...
