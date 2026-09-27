@@ -141,13 +141,13 @@ export interface AttachmentDef {
 
 export type SetType = 'warmup' | 'working' | 'drop' | 'failure';
 
+/** 'time' = static holds, carries, stretches: the set records `durationSeconds`. */
+export type ExerciseMeasure = 'reps' | 'time';
+
 /**
  * One set. Warm-ups (`type: 'warmup'`) and sets with `done: false` never
  * count toward PRs, volume, impact, recovery or ACWR.
  */
-/** 'time' = static holds, carries, stretches: the set records `durationSeconds`. */
-export type ExerciseMeasure = 'reps' | 'time';
-
 export interface SetEntry {
   /** Unique id (uuid). */
   id: string;
