@@ -139,21 +139,17 @@ export function createE2EHooks(repo: Repository, options: E2EHooksOptions): AppE
 }
 
 /**
- * What AppBootstrap installs: the contract hooks plus boot state. `ready` is
- * false until the app finished booting; `bootError` is set when it failed, so
- * e2e waits can fail with the real error while `reset()` stays usable.
- * docs/v2/requests/G5-07.md asks for `ready: boolean` + `bootError?` in the
- * `E2EHooks` contract; until then the window assignment below narrows the type.
+ * What AppBootstrap installs: the contract hooks with writable boot state.
+ * `ready` is false until the app finished booting; `bootError` is set when it
+ * failed, so e2e waits can fail with the real error while `reset()` stays
+ * usable (`E2EHooks.ready`/`bootError`, docs/v2/requests/G5-07.md).
  */
-export interface E2EBootHooks extends Omit<AppE2EHooks, 'ready'> {
-  ready: boolean;
-  bootError?: string;
-}
+export type E2EBootHooks = AppE2EHooks & { ready: boolean; bootError?: string };
 
 /** Installs the hooks on `window.__tytaxE2E` with `ready: false`; the caller flips it. */
 export function installBootingE2EHooks(repo: Repository, options: E2EHooksOptions): E2EBootHooks {
   const hooks: E2EBootHooks = { ...createE2EHooks(repo, options), ready: false };
-  window.__tytaxE2E = hooks as E2EHooks;
+  window.__tytaxE2E = hooks;
   return hooks;
 }
 

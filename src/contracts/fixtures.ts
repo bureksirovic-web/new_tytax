@@ -174,7 +174,10 @@ export interface E2EStateSnapshot {
 
 /** Installed on `window.__tytaxE2E` outside production (or with NEXT_PUBLIC_E2E_HOOKS=1). */
 export interface E2EHooks {
-  readonly ready: true;
+  /** false while the app boots; true once an active profile exists (docs/v2/requests/G5-07.md). */
+  readonly ready: boolean;
+  /** Set when the boot failed; e2e waits throw it instead of timing out (G5-07). */
+  readonly bootError?: string;
   /** Git SHA the running app was built from. */
   readonly sha: string;
   /** Wipe IndexedDB data and the persisted workout draft. */

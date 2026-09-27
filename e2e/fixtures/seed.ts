@@ -42,8 +42,7 @@ const NO_PROFILE_HOOK = 'window.__tytaxE2E has no profile hook: the served build
  */
 export async function waitForApp(page: Page): Promise<void> {
   const handle = await page.waitForFunction(() => {
-    // `bootError` and a false `ready` are not in the E2EHooks contract yet (docs/v2/requests/G5-07.md).
-    const hooks = window.__tytaxE2E as { ready?: boolean; bootError?: string } | undefined;
+    const hooks = window.__tytaxE2E;
     if (hooks?.bootError !== undefined) return { bootError: hooks.bootError };
     return hooks?.ready === true ? { bootError: null } : false;
   });
