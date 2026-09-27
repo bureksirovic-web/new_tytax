@@ -21,13 +21,13 @@ import { AUTH_STRINGS } from '../src/lib/auth/i18n';
  */
 
 /**
- * TEMPORARY, remove each when its request is applied (the spec must still pass):
- * - bypassCSP: docs/v2/requests/G5-02.md. next.config.ts (frozen) limits CSP
- *   connect-src to https://*.supabase.co, which blocks the local stack.
- * - serviceWorkers 'block': docs/v2/requests/G5-03.md. public/sw.js (G4)
- *   intercepts and caches cross-origin Supabase GETs.
+ * The CSP and service-worker workarounds are gone: next.config.ts allows the
+ * configured Supabase origin (docs/v2/requests/G5-02.md), and public/sw.js
+ * never touches cross-origin requests (G5-03). This spec runs with the worker
+ * allowed (playwright.config.ts blocks it by default for dev-server speed), so
+ * a worker that intercepted Supabase GETs would fail the pull here.
  */
-const DEVICE = { bypassCSP: true, serviceWorkers: 'block' } as const;
+const DEVICE = { serviceWorkers: 'allow' } as const;
 test.use(DEVICE);
 
 /** A fresh browser context renders DEFAULT_LOCALE (G4: 'hr'). */
@@ -89,6 +89,13 @@ test('a workout logged on device A reaches device B through Supabase', { tag: '@
     const tytaxB = createTytax(pageB);
     await signIn(pageB, env, user.email, '/auth/account');
     await expect(pageB.getByTestId('sync-account-email')).toHaveText(user.email);
+    // G5-03: the pull below runs with the service worker in control of the page.
+    await expect
+      .poll(() => pageB.evaluate(() => Boolean(navigator.serviceWorker?.controller)), {
+        message: 'the service worker controls device B',
+        timeout: 30_000,
+      })
+      .toBe(true);
     await syncAndSettle(pageB);
 
     const logsOnB = await tytaxB.listLogs(activeProfileId as string);

@@ -24,6 +24,29 @@ const scriptSrc = isDev
   ? "'self' 'unsafe-inline' 'unsafe-eval'"
   : "'self' 'unsafe-inline'";
 
+/**
+ * The configured Supabase origin (plus its websocket origin) for CSP
+ * connect-src (request G5-02). The browser talks to Supabase directly, so a
+ * local (`http://127.0.0.1:54421`), self-hosted or custom-domain Supabase must
+ * be allowed next to `https://*.supabase.co`. Read when the config loads, the
+ * same moment NEXT_PUBLIC_* values are inlined, so the CSP matches the bundle.
+ * Returns '' (production value unchanged) when the URL is unset or not http(s).
+ */
+export function supabaseConnectSrc(raw = process.env.NEXT_PUBLIC_SUPABASE_URL): string {
+  const value = raw?.trim();
+  if (!value) return '';
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return '';
+    const ws = `${u.protocol === 'https:' ? 'wss' : 'ws'}://${u.host}`;
+    return ` ${u.origin} ${ws}`;
+  } catch {
+    return '';
+  }
+}
+
+const connectSrc = `'self' https://*.supabase.co${supabaseConnectSrc()} ws://localhost:* ws://127.0.0.1:*`;
+
 const nextConfig: NextConfig = {
   output: "standalone",
   env: {
@@ -47,7 +70,7 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: [
-          { key: 'Content-Security-Policy', value: `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co ws://localhost:* ws://127.0.0.1:*; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` },
+          { key: 'Content-Security-Policy', value: `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src ${connectSrc}; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

@@ -80,9 +80,6 @@ test('a failed exchange with next=//evil.com lands on login on this origin (erro
  * Supabase (sync-e2e job); missing env fails, never skips.
  */
 test.describe('open redirect after a successful sign-in', () => {
-  // TEMPORARY (same as e2e/sync-roundtrip.spec.ts): requests G5-02 (CSP) and G5-03 (service worker).
-  test.use({ bypassCSP: true, serviceWorkers: 'block' });
-
   test('next=//evil.com on a successful exchange lands on /dashboard on this origin', { tag: '@sync' }, async ({ page, baseURL }) => {
     test.setTimeout(60_000);
     const env = requireSyncE2EEnv();
