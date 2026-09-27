@@ -129,7 +129,23 @@ describe('LocaleProvider', () => {
   });
 });
 
-describe('locale-core (mirror of G4 src/lib/i18n)', () => {
+describe('integration: one locale source (G4-01/G4-40)', () => {
+  it('DEFAULT_LOCALE is hr (D3/AC14) and locale-core is G4 src/lib/i18n itself', async () => {
+    const i18n = await import('@/lib/i18n');
+    expect(DEFAULT_LOCALE).toBe('hr');
+    expect(DEFAULT_LOCALE).toBe(i18n.DEFAULT_LOCALE);
+    expect(translate).toBe(i18n.t);
+    expect(readStoredLocale).toBe(i18n.readStoredLocale);
+  });
+
+  it('outside a provider t() shows the default-locale text, never the raw key', () => {
+    render(<Probe />);
+    expect(screen.getByTestId('home').textContent).toBe(homeIn('hr'));
+    expect(screen.getByTestId('set').textContent).toBe(setIn('hr', 3));
+  });
+});
+
+describe('locale-core (re-export of G4 src/lib/i18n)', () => {
   it('interpolate replaces known {vars} and keeps unknown ones visible', () => {
     expect(interpolate('Set {n} of {total}', { n: 2 })).toBe('Set 2 of {total}');
     expect(interpolate('plain')).toBe('plain');

@@ -1,11 +1,9 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Locale, TranslationKey } from '@/lib/i18n';
-// INTEGRATION: ./locale-core.ts becomes a re-export of '@/lib/i18n' (see its header).
 import {
   DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
-  interpolate,
   readStoredLocale,
   translate,
   type TranslationVars,
@@ -20,11 +18,9 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue>({
   locale: DEFAULT_LOCALE,
   setLocale: () => {},
-  // INTEGRATION (G4-01): becomes `(key, vars) => translate(key, DEFAULT_LOCALE, vars)`.
-  // It echoes the key here because the wave-0 dashboard/programs/settings tests
-  // in this worktree render outside the provider and query by key; G4's branch
-  // rewrites those tests (they mock useLocale).
-  t: (key, vars) => interpolate(key, vars),
+  // G4-01: outside a provider (tests, global-error) show the default-locale text,
+  // never the raw key.
+  t: (key, vars) => translate(key, DEFAULT_LOCALE, vars),
 });
 
 const noopSubscribe = () => () => {};
