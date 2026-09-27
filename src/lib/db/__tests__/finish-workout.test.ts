@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { training } from '@/lib/training';
 import { draft, exercise, freshRepo, template, T0 } from './helpers';
 
 afterEach(() => {
