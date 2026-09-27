@@ -79,7 +79,7 @@ function emptyBackup(exportedAt: string): BackupV3 {
 }
 
 /** The hooks this app installs: the contract with every optional profile method present (G2-01). */
-export type AppE2EHooks = E2EHooks & Required<Pick<E2EHooks, 'setActiveProfile' | 'removeProfile' | 'listProfiles'>>;
+export type AppE2EHooks = E2EHooks & Required<Pick<E2EHooks, 'setActiveProfile' | 'removeProfile' | 'listProfiles' | 'listPRRecords'>>;
 
 export function createE2EHooks(repo: Repository, options: E2EHooksOptions): AppE2EHooks {
   const storage = options.storage ?? (() => window.localStorage);
@@ -134,6 +134,10 @@ export function createE2EHooks(repo: Repository, options: E2EHooksOptions): AppE
 
     listProfiles() {
       return repo.profiles.list();
+    },
+
+    listPRRecords(profileId) {
+      return repo.prs.list(profileId);
     },
   };
 }

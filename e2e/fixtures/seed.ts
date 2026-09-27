@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { Profile, Program, WorkoutLog } from '../../src/contracts/domain';
+import type { PRRecord, Profile, Program, WorkoutLog } from '../../src/contracts/domain';
 import type {
   E2EStateSnapshot,
   SeedLogInput,
@@ -28,12 +28,15 @@ export interface TytaxFixture {
   removeProfile(profileId: string): Promise<void>;
   /** Every profile (repo.profiles.list). */
   listProfiles(): Promise<Profile[]>;
+  /** The profile's stored PR records (repo.prs.list; request G3-03). */
+  listPRRecords(profileId: string): Promise<PRRecord[]>;
 }
 
 const MISSING =
   'window.__tytaxE2E is missing: open a page with tytax.gotoApp() first, and serve a dev build or one built with NEXT_PUBLIC_E2E_HOOKS=1';
 /** The profile hooks are optional in the contract (G5-08); a build without them fails loudly. */
 const NO_PROFILE_HOOK = 'window.__tytaxE2E has no profile hook: the served build predates G2-01 (rebuild it)';
+const NO_PR_HOOK = 'window.__tytaxE2E has no listPRRecords hook: the served build predates G3-03 (rebuild it)';
 
 /**
  * Wait until the app booted (`__tytaxE2E.ready`). When the boot failed, the
@@ -154,6 +157,18 @@ export function createTytax(page: Page): TytaxFixture {
           return hooks.listProfiles();
         },
         { missing: MISSING, noHook: NO_PROFILE_HOOK },
+      );
+    },
+
+    listPRRecords(profileId) {
+      return page.evaluate(
+        async ({ profileId: pid, missing, noHook }) => {
+          const hooks = window.__tytaxE2E;
+          if (hooks === undefined) throw new Error(missing);
+          if (hooks.listPRRecords === undefined) throw new Error(noHook);
+          return hooks.listPRRecords(pid);
+        },
+        { profileId, missing: MISSING, noHook: NO_PR_HOOK },
       );
     },
   };

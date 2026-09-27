@@ -12,6 +12,7 @@
 
 import type {
   Modality,
+  PRRecord,
   Profile,
   ProfileSettings,
   Program,
@@ -205,6 +206,8 @@ export interface E2EHooks {
   removeProfile?(profileId: string): Promise<void>;
   /** repo.profiles.list(). Optional (G5-08). */
   listProfiles?(): Promise<Profile[]>;
+  /** repo.prs.list(profileId): the stored PR records. Optional (docs/v2/requests/G3-03.md). */
+  listPRRecords?(profileId: string): Promise<PRRecord[]>;
 }
 
 declare global {

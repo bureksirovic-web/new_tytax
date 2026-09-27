@@ -6,8 +6,9 @@ import { test, expect } from './fixtures';
  * finishing that session advances the rotation and the log records which
  * program session it was.
  *
- * The dashboard (G4) exposes no testid for the predicted session in this
- * worktree, so the prediction is asserted on /workout only.
+ * The prediction is asserted on /workout and on the dashboard
+ * (`dashboard-next-session`, request G3-03); the second test installs the
+ * preset through the programs UI (`install-preset`).
  */
 
 test('finishing the first program session advances /workout to the second', async ({ page, tytax }) => {
@@ -49,6 +50,8 @@ test('finishing the first program session advances /workout to the second', asyn
   await tytax.gotoApp('/workout');
   await expect(page.getByTestId('next-session-name')).toHaveText(second.name);
   await expect(page.getByTestId('current-draft')).toHaveCount(0);
+  await tytax.gotoApp('/dashboard');
+  await expect(page.getByTestId('dashboard-next-session')).toContainText(second.name);
 
   const logs = await tytax.listLogs(activeProfileId!);
   expect(logs).toHaveLength(1);
@@ -86,4 +89,24 @@ test('a rest session is completed from /workout and the rotation wraps to the fi
   await tytax.gotoApp('/workout');
   await expect(page.getByTestId('next-session-name')).toHaveText(program.sessions[0].name);
   expect(await tytax.listLogs(activeProfileId!)).toHaveLength(0);
+});
+
+test('installing the TYTAX preset through the programs UI names its first session on the dashboard', async ({ page, tytax }) => {
+  await tytax.gotoApp('/programs');
+  await tytax.reset();
+  const preset = getPresetById(DEFAULT_TYTAX_PRESET_ID);
+  expect(preset).toBeDefined();
+  const first = preset!.sessions[0];
+  expect(first.isRest).not.toBe(true);
+
+  await tytax.gotoApp('/programs');
+  const install = page.locator(`[data-testid="install-preset"][data-preset-id="${DEFAULT_TYTAX_PRESET_ID}"]`);
+  await install.click();
+  // Installed and activated: the card drops its install-only control.
+  await expect(page.locator(`[data-testid="install-preset-only"][data-preset-id="${DEFAULT_TYTAX_PRESET_ID}"]`)).toHaveCount(0);
+
+  await tytax.gotoApp('/dashboard');
+  await expect(page.getByTestId('dashboard-next-session')).toContainText(first.name);
+  await tytax.gotoApp('/workout');
+  await expect(page.getByTestId('next-session-name')).toHaveText(first.name);
 });

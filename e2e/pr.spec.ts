@@ -92,6 +92,12 @@ test('beating the stored best e1RM celebrates the PR and persists it', async ({ 
   const newest = logs.find((l) => l.exercises[0].sets.some((s) => s.kg === 105));
   expect(newest?.prCount).toBe(2);
   expect(newest?.exercises[0].sets.filter((s) => s.isPR).map((s) => s.kg)).toEqual([105]);
+  // AC6 persisted (G3-03): this workout wrote one e1RM and one weight record at 105 kg.
+  const records = (await tytax.listPRRecords(activeProfileId!)).filter((r) => r.workoutLogId === newest?.id && !r.deletedAt);
+  expect(records.map((r) => [r.prType, r.kg, r.reps]).sort()).toEqual([
+    ['e1rm', 105, 5],
+    ['weight', 105, 5],
+  ]);
 });
 
 test('a heavier warm-up or undone set is not a PR: straight to history', async ({ page, tytax }) => {

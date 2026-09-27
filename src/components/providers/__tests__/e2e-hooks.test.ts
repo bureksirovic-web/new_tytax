@@ -163,6 +163,18 @@ describe('createE2EHooks', () => {
     expect(listed).toEqual(await repo.profiles.list());
   });
 
+  it('listPRRecords returns the repository PR records of that profile only (G3-03)', async () => {
+    const hooks = hooksFor(repo);
+    const me = await hooks.seedProfile({ name: 'Me' });
+    const other = await hooks.seedProfile({ name: 'Other', activate: false });
+    await hooks.seedHistory(me.id, [{ daysAgo: 1, exercises: [BENCH] }]);
+
+    const records = await hooks.listPRRecords(me.id);
+    expect(records).toEqual(await repo.prs.list(me.id));
+    expect(records.every((r) => r.profileId === me.id)).toBe(true);
+    expect(await hooks.listPRRecords(other.id)).toEqual([]);
+  });
+
   it('removeProfile wipes only that profile and its data (G2-01)', async () => {
     const hooks = hooksFor(repo);
     const keep = await hooks.seedProfile({ name: 'Keep' });
