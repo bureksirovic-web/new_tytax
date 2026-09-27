@@ -44,7 +44,10 @@ export function baseSettings(device: LegacyDeviceSettings | undefined, plateWeig
 }
 
 export function plateSet(weights: readonly number[] | undefined): number[] {
-  const valid = (weights ?? []).filter((w) => typeof w === 'number' && Number.isFinite(w) && w > 0);
+  // An untyped v2 row may hold a string ('20,10,5') or an object here.
+  const valid = (Array.isArray(weights) ? (weights as readonly unknown[]) : []).filter(
+    (w): w is number => typeof w === 'number' && Number.isFinite(w) && w > 0,
+  );
   if (valid.length === 0) return [...DEFAULT_PROFILE_SETTINGS.plateSetKg];
   return [...new Set(valid)].sort((a, b) => b - a);
 }

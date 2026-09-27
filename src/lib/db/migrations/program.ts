@@ -7,7 +7,7 @@
  * `id` asc for a deterministic tie-break). Soft-deleted programs never win.
  */
 import type { LegacyProgramV2, Program, ProgramSession } from '@/contracts';
-import { EPOCH_ISO, clampIndex, coerceCalendarDay, coerceTimestamp, compact, toModalities, toModality } from './coerce';
+import { EPOCH_ISO, clampIndex, coerceCalendarDay, coerceTimestamp, compact, recordsOf, toModalities, toModality } from './coerce';
 
 type AnyProgram = LegacyProgramV2 | Program;
 type AnySession = AnyProgram['sessions'][number];
@@ -23,7 +23,7 @@ export interface ProgramsMigration {
 }
 
 function migrateSession(session: AnySession): ProgramSession {
-  const exercises = Array.isArray(session.exercises) ? session.exercises : [];
+  const exercises = recordsOf<AnySession['exercises'][number]>(session.exercises);
   return {
     ...session,
     exercises: exercises.map((ex) => ({ ...ex, modality: toModality(ex.modality) })),
@@ -45,7 +45,7 @@ export function migrateProgramV2(program: AnyProgram, now: string = EPOCH_ISO): 
   const deleted: unknown = program.deletedAt;
   const rest: Partial<LegacyProgramV2> & Omit<LegacyProgramV2, 'isActive'> = { ...(program as LegacyProgramV2) };
   delete rest.isActive;
-  const sessions = (Array.isArray(program.sessions) ? program.sessions : []).map(migrateSession);
+  const sessions = recordsOf<AnySession>(program.sessions).map(migrateSession);
   return compact<Program>({
     ...rest,
     sessions,

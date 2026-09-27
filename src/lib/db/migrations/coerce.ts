@@ -15,6 +15,21 @@ export function toModalities(values: readonly unknown[]): Modality[] {
   return [...new Set(values.map(toModality))];
 }
 
+/** A non-null, non-array object (an IndexedDB row or a nested record). */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The object entries of `value` when it is an array; `[]` for anything else.
+ * v2 rows are untyped IndexedDB data: a missing, non-array or holey array
+ * field must never throw inside the upgrade transaction (it would abort the
+ * upgrade on every open and leave the app unable to open its database).
+ */
+export function recordsOf<T extends object>(value: unknown): T[] {
+  return Array.isArray(value) ? (value.filter(isRecord) as unknown as T[]) : [];
+}
+
 /** Finite number or the fallback. */
 export function finiteOr(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;

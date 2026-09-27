@@ -11,7 +11,7 @@
  * re-issued so set ids stay unique within the log.
  */
 import type { LegacyExerciseLogV2, LegacyWorkoutLogV2, SessionExercise, SetEntry, WorkoutLog } from '@/contracts';
-import { clampRir, compact, finiteOr, strOr, toModalities, toModality } from './coerce';
+import { clampRir, compact, finiteOr, isRecord, recordsOf, strOr, toModalities, toModality } from './coerce';
 
 type LegacySetV2 = LegacyExerciseLogV2['sets'][number];
 
@@ -20,9 +20,10 @@ type LegacySetV2 = LegacyExerciseLogV2['sets'][number];
  * (and v2 lacked or had optional) are present. Migration output always passes.
  */
 export function isV3Log(log: LegacyWorkoutLogV2 | WorkoutLog): log is WorkoutLog {
-  const exercises: readonly object[] = log.exercises;
+  const exercises: unknown = log.exercises;
   return (
-    exercises.every((e) => typeof (e as { uid?: unknown }).uid === 'string') &&
+    Array.isArray(exercises) &&
+    exercises.every((e) => isRecord(e) && typeof e.uid === 'string') &&
     typeof log.finishedAt === 'string' &&
     typeof log.updatedAt === 'string' &&
     !('familyMemberId' in log)
@@ -59,7 +60,7 @@ function uniqueSetId(set: SetEntry, fallback: string, seen: Set<string>): SetEnt
 }
 
 function migrateExercise(ex: LegacyExerciseLogV2, logId: string, index: number, seen: SeenSets): SessionExercise {
-  const raw = Array.isArray(ex.sets) ? ex.sets : [];
+  const raw = recordsOf<LegacySetV2>(ex.sets);
   const signature = JSON.stringify([ex.exerciseRef, raw.map((s) => s.id)]);
   const allIds = raw.every((s) => typeof s.id === 'string' && s.id !== '');
   const shared = raw.length > 0 && allIds && seen.signatures.has(signature);
@@ -130,7 +131,7 @@ function addSeconds(iso: string, seconds: number): string {
 export function migrateLogV2(log: LegacyWorkoutLogV2 | WorkoutLog, ctx: { now: string }): WorkoutLog {
   if (isV3Log(log)) return normaliseV3Log(log);
   const legacy = log as LegacyWorkoutLogV2;
-  const legacyExercises = Array.isArray(legacy.exercises) ? legacy.exercises : [];
+  const legacyExercises = recordsOf<LegacyExerciseLogV2>(legacy.exercises);
   const seen: SeenSets = { signatures: new Set(), setIds: new Set() };
   const exercises = legacyExercises.map((ex, i) => migrateExercise(ex, legacy.id, i, seen));
   const durationSeconds = Math.max(0, finiteOr(legacy.durationSeconds, 0));
