@@ -88,4 +88,13 @@ describe('record stamps written with isoDate()', () => {
     snap.arsenal = [{ id: 'bench', profileId: 'local', addedAt: '2026-02-01' }];
     expect(() => parseBackupV3(JSON.stringify(asBackup(snap)))).not.toThrow();
   });
+
+  it('a family member row without createdAt (refuter R1, 2026-09-27) migrates to a restorable profile stamped now', () => {
+    const snapshot = { ...v2Snapshot(), familyMembers: [{ id: 'fm-no', profileId: 'u-1', name: 'NoDate' }] } as unknown as SnapshotV2;
+    const backup = asBackup(snapshot);
+    const fm = backup.profiles.find((p) => p.id === 'fm-no');
+    expect(fm).toMatchObject({ name: 'NoDate', createdAt: CTX.now, updatedAt: CTX.now });
+    const { backup: restored } = parseBackupV3(JSON.stringify(backup));
+    expect(restored.profiles.find((p) => p.id === 'fm-no')?.createdAt).toBe(CTX.now);
+  });
 });

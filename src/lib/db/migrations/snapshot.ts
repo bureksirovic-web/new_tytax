@@ -84,7 +84,7 @@ export function migrateSnapshotV2toV3(snapshot: SnapshotV2, ctx: MigrationCtx): 
   const primary = owners.primaryIdOrNull();
   for (const m of members) {
     const ownerSettings = settingsById.get(m.profileId) ?? (primary !== null ? settingsById.get(primary) : undefined);
-    profiles.push(migrateFamilyMemberV2(m, ownerSettings ?? baseSettings(ctx.legacyDeviceSettings), activeOf(m.id)));
+    profiles.push(migrateFamilyMemberV2(m, ownerSettings ?? baseSettings(ctx.legacyDeviceSettings), activeOf(m.id), ctx.now));
   }
 
   const prRecords = (snapshot.prRecords ?? []).map((pr) =>

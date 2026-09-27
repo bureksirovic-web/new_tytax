@@ -94,12 +94,18 @@ export function migrateProfileV2(
   });
 }
 
-/** v2 family member -> v3 profile with a copy of the owner's settings. */
+/**
+ * v2 family member -> v3 profile with a copy of the owner's settings. v2 always
+ * wrote `createdAt`; a row without one gets `now` (the epoch without it), as
+ * `migrateProfileV2` does, so the profile stays a valid (restorable) v3 row.
+ */
 export function migrateFamilyMemberV2(
   member: LegacyFamilyMemberV2,
   ownerSettings: ProfileSettings,
   activeProgramId: string | null,
+  now: string = EPOCH,
 ): Profile {
+  const createdAt = strOr(member.createdAt, now);
   return compact<Profile>({
     id: member.id,
     name: strOr(member.name, 'Profile'),
@@ -108,8 +114,8 @@ export function migrateFamilyMemberV2(
     bodyweightKg: member.bodyweightKg,
     gender: member.gender,
     experienceLevel: member.experienceLevel,
-    createdAt: member.createdAt,
-    updatedAt: member.createdAt,
+    createdAt,
+    updatedAt: createdAt,
   });
 }
 
