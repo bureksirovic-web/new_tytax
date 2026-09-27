@@ -89,7 +89,7 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
 
     let advancedProgram: FinishResult['advancedProgram'];
     if (program && program.sessions.length > 0) {
-      const next = await advanceIn(ctx, w, program);
+      const next = await advanceIn(ctx, w, program, draft.programSessionId);
       advancedProgram = { programId: next.id, nextSessionIndex: next.currentSessionIndex };
     }
 

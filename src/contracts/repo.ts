@@ -220,7 +220,9 @@ export interface Repository {
   /**
    * Atomic and idempotent. In one transaction: writes the log (id = draft.id),
    * detects PRs over done working sets and writes them, advances the program
-   * rotation when `draft.programId` is set, and queues sync ops. Calling it
+   * rotation when `draft.programId` is set (to the session after
+   * `draft.programSessionId` when the program still has it, else after the
+   * current pointer), and queues sync ops. Calling it
    * again with the same draft id writes nothing and returns
    * `alreadyFinished: true` with the stored log; if that log has since been
    * deleted, it writes nothing and throws `CONFLICT`.

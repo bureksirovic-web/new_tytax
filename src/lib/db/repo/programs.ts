@@ -48,10 +48,16 @@ export async function getOwnedProgram(ctx: RepoContext, profileId: string, id: s
   return p && p.profileId === profileId && !p.deletedAt ? p : undefined;
 }
 
-/** Moves the rotation pointer (i + 1) % sessions.length and stores it. */
-export async function advanceIn(ctx: RepoContext, w: WriteScope, program: Program): Promise<Program> {
+/**
+ * Moves the rotation pointer (i + 1) % sessions.length and stores it. `i` is
+ * the index of `fromSessionId` when the program still has that session (a
+ * finished workout advances from the session actually trained, even if the
+ * pointer moved meanwhile: rotation edit, sync), else the current pointer.
+ */
+export async function advanceIn(ctx: RepoContext, w: WriteScope, program: Program, fromSessionId?: string): Promise<Program> {
   if (program.sessions.length === 0) throw new RepoError('VALIDATION', `Program ${program.id} has no sessions`);
-  const current = validIndex(program.currentSessionIndex, program.sessions) ? program.currentSessionIndex : -1;
+  const trained = fromSessionId === undefined ? -1 : program.sessions.findIndex((s) => s.id === fromSessionId);
+  const current = trained >= 0 ? trained : validIndex(program.currentSessionIndex, program.sessions) ? program.currentSessionIndex : -1;
   const next: Program = {
     ...program,
     currentSessionIndex: (current + 1) % program.sessions.length,
