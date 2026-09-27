@@ -21,6 +21,9 @@ interface ProgramSessionListProps {
 }
 
 /** Row keys by exercise id + occurrence, so moving/removing another row keeps an open editor mounted. */
+/** Route of the session editor; not UI text. */
+const sessionEditHref = (programId: string, sessionId: string, suffix: string) => `/programs/${programId}/session/${sessionId}${suffix}`;
+
 function rowKeys(session: ProgramSession): string[] {
   const seen = new Map<string, number>();
   return session.exercises.map((e) => {
@@ -88,7 +91,7 @@ export function ProgramSessionList({ program, lookup, onSessionChange, hrefSuffi
         {training.map((session, i) => {
           const exs = session.exercises.map((e) => lookup(e.exerciseId)).filter((e): e is Exercise => e !== undefined);
           const focus = projectedFocus(exs);
-          const editHref = `/programs/${program.id}/session/${session.id}${hrefSuffix}`;
+          const editHref = sessionEditHref(program.id, session.id, hrefSuffix);
           const keys = rowKeys(session);
           const count = session.exercises.length;
           return (

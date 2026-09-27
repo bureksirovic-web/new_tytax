@@ -4,6 +4,9 @@ import { usePathname } from 'next/navigation';
 import { useLocale } from '@/components/providers';
 import { FOCUS_RING, NAV_SECTIONS, isNavActive } from './nav-items';
 
+/** DOM id tying a section heading to its list (aria-labelledby); not UI text. */
+const sectionHeadingId = (label: string) => `sidebar-section-${label}`;
+
 export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLocale();
@@ -20,7 +23,7 @@ export function Sidebar() {
       </div>
       <nav data-app-nav="sidebar" className="flex-1 overflow-y-auto py-3" aria-label={t('layout_main_nav')}>
         {NAV_SECTIONS.map((section) => {
-          const headingId = `sidebar-section-${section.label}`;
+          const headingId = sectionHeadingId(section.label);
           return (
             <div key={section.label} className="mb-4">
               <div

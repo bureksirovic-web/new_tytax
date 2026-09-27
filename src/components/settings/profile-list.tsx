@@ -17,6 +17,9 @@ interface ProfileListProps {
 }
 
 /** Profile rows: name, badges, workout count, switch and delete. */
+/** DOM id of a row's delete-blocked reason (aria-describedby); not UI text. */
+const blockReasonId = (profileId: string) => `settings-profile-block-${profileId}`;
+
 export function ProfileList({ rows, activeId, busy, onSwitch, onDelete }: ProfileListProps) {
   const { t } = useT();
   const last = rows.length <= 1;
@@ -31,7 +34,7 @@ export function ProfileList({ rows, activeId, busy, onSwitch, onDelete }: Profil
           : accountBlocked
             ? t('set_profile_account_delete_blocked')
             : undefined;
-        const reasonId = `settings-profile-block-${p.id}`;
+        const reasonId = blockReasonId(p.id);
         return (
           <li
             key={p.id}
