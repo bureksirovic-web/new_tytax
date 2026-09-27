@@ -32,6 +32,27 @@ import { dataTable, isDataRow, isObject, sameRow, timeOf, type DataRow, type Dat
 
 type BackupKey = Exclude<keyof BackupV3, 'format' | 'version' | 'exportedAt'>;
 
+/**
+ * Keys that change an object's prototype once copied by assignment or spread.
+ * `JSON.parse` makes them OWN properties, so a caller that skipped
+ * `safeParseJson` (src/lib/import) could store them; importBackup refuses them.
+ */
+const UNSAFE_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** Path of the first own unsafe key anywhere in `value`, or null. Iterative: no stack limit. */
+function unsafeKeyPath(value: unknown, root: string): string | null {
+  const stack: Array<[unknown, string]> = [[value, root]];
+  while (stack.length > 0) {
+    const [v, path] = stack.pop()!;
+    if (typeof v !== 'object' || v === null) continue;
+    for (const key of Object.keys(v)) {
+      if (UNSAFE_KEYS.has(key)) return `${path}.${key}`;
+      stack.push([(v as Record<string, unknown>)[key], `${path}.${key}`]);
+    }
+  }
+  return null;
+}
+
 /** Backup array → Dexie table, profiles first so ownership checks can see them. */
 const BACKUP_TABLES: ReadonlyArray<readonly [BackupKey, DataTableName, SyncTable]> = [
   ['profiles', 'profiles', 'profiles'],
@@ -71,6 +92,8 @@ export function validateBackup(backup: unknown, rowProblem: RowProblemFn): asser
       throw new RepoError('VALIDATION', `Backup field ${key} has a record without profileId`);
     }
     rows.forEach((row, i) => {
+      const unsafe = unsafeKeyPath(row, `${key}[${i}]`);
+      if (unsafe) throw new RepoError('VALIDATION', `Backup ${unsafe} is an unsafe key`);
       const problem = rowProblem(key, row);
       if (problem) throw new RepoError('VALIDATION', `Backup ${key}[${i}] (id ${String(row.id)}) is malformed: ${problem}`);
     });
