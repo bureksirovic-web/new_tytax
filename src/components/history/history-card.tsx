@@ -4,7 +4,8 @@ import type { Units, WorkoutLog } from '@/contracts/domain';
 import { formatWeight } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/use-t';
 import { PencilIcon, TrashIcon } from './icons';
-import { durationMinutes, formatLogDate } from './log-math';
+import { formatClock } from './duration';
+import { durationMinutes, formatLogDate, logHoldSeconds } from './log-math';
 import { logDisplayName } from './log-name';
 
 interface Props {
@@ -22,6 +23,7 @@ export function HistoryCard({ log, units, onDelete }: Props) {
   const date = formatLogDate(log, locale);
   const named = { name, date };
   const exerciseNames = [...new Set(log.exercises.map((e) => e.exerciseName))].join(', ');
+  const hold = logHoldSeconds(log);
 
   return (
     <li
@@ -46,6 +48,11 @@ export function HistoryCard({ log, units, onDelete }: Props) {
             <p data-testid="history-item-volume" className="font-mono text-sm font-bold text-accent-fg">
               {formatWeight(log.totalVolumeKg, units, locale)}
             </p>
+            {hold > 0 ? (
+              <p data-testid="history-item-hold" className="font-mono text-xs text-fg-2">
+                {t('hist_hold_value', { time: formatClock(hold) })}
+              </p>
+            ) : null}
             <p className="text-xs text-fg-muted">
               {t('sets')}: <span data-testid="history-item-sets">{log.totalSets}</span>
             </p>

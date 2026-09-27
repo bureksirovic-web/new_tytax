@@ -78,6 +78,9 @@ test('time set: typed 45 s and a 30 s hold are saved as durations with no kg vol
   await expect(page).toHaveURL(/\/workout\/debrief$/);
   await page.getByTestId('save-workout').click();
   await expect(page).toHaveURL(/\/history$/);
+  // G3-W2-03: the History list shows the hold total (45 s + 30 s), not only "0 kg".
+  const saved = page.getByTestId('history-item').first();
+  await expect(saved.getByTestId('history-item-hold')).toContainText('01:15');
 
   const { activeProfileId } = await tytax.snapshot();
   expect(activeProfileId).toEqual(expect.any(String));
@@ -92,8 +95,8 @@ test('time set: typed 45 s and a 30 s hold are saved as durations with no kg vol
 });
 
 test('a finished 45 s hold comes back as the placeholder only: the next duration starts empty', async ({ page, tytax }) => {
-  // Refuter-2 F1/F6: history is created through a real finished workout (the seed fixture has no
-  // durationSeconds, docs/v2/requests/G3-W2-03.md), then the same exercise is started again.
+  // Refuter-2 F1/F6: history is created through a real finished workout (the UI path; the seed
+  // fixture's durationSeconds is covered by the seeded-hold test below), then the same exercise is started again.
   await tytax.gotoApp('/workout');
   await tytax.reset();
   await startQuick(page);
@@ -310,4 +313,27 @@ test.describe('360 px phone', () => {
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(pageWidth).toBeLessThanOrEqual(360);
   });
+});
+
+test('a seeded hold renders as a duration in History (G3-W2-03)', async ({ page, tytax }) => {
+  await tytax.gotoApp('/history');
+  await tytax.reset();
+  const { activeProfileId } = await tytax.snapshot();
+  expect(activeProfileId).toEqual(expect.any(String));
+  const [log] = await tytax.seedHistory(activeProfileId as string, [
+    {
+      daysAgo: 1,
+      sessionName: 'Seeded hold',
+      exercises: [{ exerciseId: HOLD_ID, sets: [{ kg: 0, reps: 0, durationSeconds: 45 }, { kg: 0, reps: 0, durationSeconds: 80 }] }],
+    },
+  ]);
+  expect(log.exercises[0].sets.map((s) => s.durationSeconds)).toEqual([45, 80]);
+
+  await page.goto(`/history/${log.id}`);
+  const durations = page.getByTestId('history-set-duration');
+  await expect(durations).toHaveCount(2);
+  await expect(durations.nth(0)).toHaveText('00:45');
+  await expect(durations.nth(1)).toHaveText('01:20');
+  await expect(page.getByTestId('history-metric-hold')).toContainText('02:05');
+  await expect(page.getByTestId('history-set').first()).not.toContainText('×');
 });

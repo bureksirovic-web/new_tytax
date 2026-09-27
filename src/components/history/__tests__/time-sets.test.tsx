@@ -4,6 +4,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { WorkoutLog } from '@/contracts/domain';
 import { buildWorkoutLog, sequentialIds } from '@/contracts/fixtures';
 import { getRepository } from '@/lib/db';
+import HistoryPage from '@/app/(app)/history/page-client';
 import HistoryDetailPage from '@/app/(app)/history/[id]/page-client';
 import HistoryEditPage from '@/app/(app)/history/[id]/edit/page-client';
 import { en, NOW, renderEn, resetDb, resolvedParams, router, seedProfile, seriousViolations } from './test-utils';
@@ -105,5 +106,34 @@ describe('History: time-measured sets', () => {
     expect(sets[1].rir).toBe(1);
     // bench untouched: still 1 000 kg (time sets carry 0 kg)
     expect(saved?.totalVolumeKg).toBe(1000);
+  });
+
+  it('list item shows the log hold total next to the kg volume (G3-W2-03)', async () => {
+    await seedTimed();
+    renderEn(<HistoryPage />);
+    const item = await screen.findByTestId('history-item');
+    // Done working holds only: 45 s + 60 s (the warm-up 20 s and the undone 30 s do not count).
+    expect(within(item).getByTestId('history-item-hold')).toHaveTextContent(en('hist_hold_value', { time: '01:45' }));
+  });
+
+  it('list item has no hold line for a log without time sets', async () => {
+    const me = await seedProfile('Ana');
+    await getRepository().importBackup({
+      format: 'tytax-backup',
+      version: 3,
+      exportedAt: NOW.toISOString(),
+      profiles: [],
+      workoutLogs: [buildWorkoutLog(me.id, { daysAgo: 1, exercises: [{ exerciseId: 'bench', sets: [{ kg: 100, reps: 5 }] }] }, NOW, sequentialIds('k'))],
+      programs: [],
+      prRecords: [],
+      bodyweightEntries: [],
+      exerciseNotes: [],
+      arsenal: [],
+      equipment: [],
+    });
+    renderEn(<HistoryPage />);
+    const item = await screen.findByTestId('history-item');
+    expect(within(item).getByTestId('history-item-volume')).toBeInTheDocument();
+    expect(within(item).queryByTestId('history-item-hold')).toBeNull();
   });
 });
