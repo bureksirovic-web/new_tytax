@@ -32,6 +32,9 @@ export async function finishWorkout(ctx: RepoContext, draft: WorkoutDraft, debri
     if (existing) {
       // The draft id is the idempotency key; it must never surface another profile's log.
       if (existing.profileId !== draft.profileId) throw new RepoError('CONFLICT', `Workout ${draft.id} belongs to another profile`);
+      // Finished, then deleted (e.g. on another device) before this draft was cleared:
+      // a tombstone is never reported as a saved workout. The draft stays; the UI shows the error.
+      if (existing.deletedAt) throw new RepoError('CONFLICT', `Workout ${draft.id} was deleted`);
       return { log: existing, prs: [], alreadyFinished: true };
     }
 

@@ -222,7 +222,8 @@ export interface Repository {
    * detects PRs over done working sets and writes them, advances the program
    * rotation when `draft.programId` is set, and queues sync ops. Calling it
    * again with the same draft id writes nothing and returns
-   * `alreadyFinished: true` with the stored log.
+   * `alreadyFinished: true` with the stored log; if that log has since been
+   * deleted, it writes nothing and throws `CONFLICT`.
    */
   finishWorkout(draft: WorkoutDraft, debrief?: WorkoutDebrief): Promise<FinishResult>;
 
