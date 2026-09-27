@@ -649,3 +649,11 @@ Scored artifact: `git diff main...v2` over the G5/integration scope (supabase, s
 - D1 (third time) gateway body cap on local and hosted Kong. Unchanged disposition: outside the repo (see round 3). Residual.
 - D2 "partially fixed": held rows still ended the run as a successful sync. Fixed: `pullRun` reports rows it could not map; the adapter ends that run `error` / `invalid_row` with no `lastSyncedAt`, explained in the sync panel (`sync.error.invalid_row`, en + hr, request row in `docs/v2/requests/G5-i18n.md`). `pull-invalid.test.ts` and `sync-panel.test.tsx` red before. d5628ba. Not done (proposed follow-up): the server-side rehome of legacy null-`family_member_id` rows to a recovery family member (a data-repair migration that also changes the 002 upgrade-test expectation `cross-account workout_logs.family_member_id repaired to null`).
 - Checks on d5628ba: `npm run test:sync` 3 files / 20 tests passed; gate lint rc=0, tsc rc=0, test rc=0 (332 files, 2517 tests), build rc=0.
+
+### Round 5: not scored (critic-gate exit 11, stalled), best = round 2 (REJECTED 3/10)
+`critic-gate ... --round 5` refused the call: "the last two recorded rounds did not improve on an earlier round". `critic-gate --job tytax-v2 --best`: seq 2, round 2, REJECTED 3/10. Its gap is the gateway body cap (outside the repo). Verdict, rounds table, Terra dispositions and the two unfixed items with proposed fixes: `docs/v2/critic-verdict.md`.
+
+### Final checks (d5628ba, docs after)
+- `npm run check-bundle`: OK (`/dashboard` 238.7 kB gzip, `/workout/active` 246.7 kB, all routes within 250 kB, no catalog leak).
+- `npx playwright test --project=chromium --project=mobile` (dev server, sync env, `PORT=3110`): 130 passed incl. `@sync` round trip; 2 failed = `offline.spec.ts:53` "needs E2E_SERVER=prod" (by design), 8 did not run (its serial siblings).
+- `npm run test:e2e:offline`: exit 0, 5 passed (chromium). `E2E_SERVER=prod npx playwright test e2e/offline.spec.ts --project=mobile`: exit 0, 5 passed. (A first attempt refused on the tree guard, "E2E_SERVER=prod refuses a dirty work tree", because this log was uncommitted; rerun after f6697f7.)
