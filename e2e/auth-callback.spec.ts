@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 import { serverHasSupabase } from './fixtures/env';
-import { adminClient, createUser, deleteUser, magicLinkIn, mailIds, requireSyncE2EEnv } from './fixtures/supabase';
+import { adminClient, createUser, deleteUser, fillLoginEmail, magicLinkIn, mailIds, requireSyncE2EEnv } from './fixtures/supabase';
 import { DEFAULT_LOCALE } from '../src/components/providers/locale-core';
 import { AUTH_STRINGS } from '../src/lib/auth/i18n';
 
@@ -91,7 +91,7 @@ test.describe('open redirect after a successful sign-in', () => {
     try {
       const before = new Set(await mailIds(env, user.email));
       await page.goto('/auth/login?next=%2Fauth%2Faccount');
-      await page.locator('#auth-email').fill(user.email);
+      await fillLoginEmail(page, user.email, ui['auth.login.submit']);
       await page.getByRole('button', { name: ui['auth.login.submit'] }).click();
       await expect(page.getByText(ui['auth.login.sent_title'])).toBeVisible();
       let id = '';

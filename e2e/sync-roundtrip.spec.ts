@@ -3,6 +3,7 @@ import {
   adminClient,
   createUser,
   deleteUser,
+  fillLoginEmail,
   magicLinkIn,
   mailIds,
   requireSyncE2EEnv,
@@ -37,7 +38,7 @@ const BENCH_ID = 'tytax_smith-machine_smith-flat-bench-press';
 async function signIn(page: Page, env: SyncE2EEnv, email: string, next: string): Promise<void> {
   const before = new Set(await mailIds(env, email));
   await page.goto(`/auth/login?next=${encodeURIComponent(next)}`);
-  await page.locator('#auth-email').fill(email);
+  await fillLoginEmail(page, email, ui['auth.login.submit']);
   await page.getByRole('button', { name: ui['auth.login.submit'] }).click();
   await expect(page.getByText(ui['auth.login.sent_title'])).toBeVisible();
 

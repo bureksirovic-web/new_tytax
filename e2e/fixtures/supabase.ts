@@ -3,6 +3,7 @@
  * `sync-e2e` job). Missing env fails the test with instructions; nothing skips.
  * Never logs keys, tokens or links.
  */
+import { expect, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const HOW_TO =
@@ -71,4 +72,19 @@ export async function magicLinkIn(env: SyncE2EEnv, id: string): Promise<string> 
   const link = text.match(/https?:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>)]+/)?.[0];
   if (!link) throw new Error('no /auth/v1/verify link in the Mailpit message');
   return link;
+}
+
+/**
+ * Types `email` into the magic-link form and waits until the form has taken it.
+ * A fill that lands before hydration stays in the DOM but not in React state,
+ * so the submit button stays disabled (seen in the full parallel run after the
+ * v2-g5 merge: 120 s timeout on a disabled "Nastavi s e-mailom"). Retries the
+ * fill until the button is enabled.
+ */
+export async function fillLoginEmail(page: Page, email: string, submitName: string): Promise<void> {
+  const submit = page.getByRole('button', { name: submitName });
+  await expect(async () => {
+    await page.locator('#auth-email').fill(email);
+    await expect(submit).toBeEnabled({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
 }
