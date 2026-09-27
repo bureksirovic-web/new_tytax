@@ -1,6 +1,6 @@
 'use client';
 import { useId, useRef, useState } from 'react';
-import type { WorkoutDraft, WorkoutDebrief } from '@/contracts/domain';
+import type { Units, WorkoutDraft, WorkoutDebrief } from '@/contracts/domain';
 import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { DebriefSummary } from '@/components/workout/debrief-summary';
@@ -21,9 +21,11 @@ export interface DebriefFormProps {
   onSave: (debrief: WorkoutDebrief) => Promise<void>;
   /** Drops the draft (confirmed). Offered instead of saving when no set is done. */
   onDiscard: () => void;
+  /** The profile's display units for the volume (default kg). */
+  units?: Units;
 }
 
-export function DebriefForm({ draft, onSave, onDiscard }: DebriefFormProps) {
+export function DebriefForm({ draft, onSave, onDiscard, units }: DebriefFormProps) {
   const locale = useLocale();
   const t = useFinishStrings();
   // A workout without a done working set is not saved (no empty log, no rotation advance).
@@ -53,7 +55,7 @@ export function DebriefForm({ draft, onSave, onDiscard }: DebriefFormProps) {
 
   return (
     <div className="space-y-5">
-      <DebriefSummary draft={draft} />
+      <DebriefSummary draft={draft} units={units} />
       <DebriefRpeField value={rpeText} onChange={setRpeText} />
 
       <div>

@@ -70,14 +70,24 @@ describe('debrief page (G3 finish)', () => {
 
   it('summarises done working sets, exercises and duration', () => {
     render(<DebriefPage />);
-    // Done non-warm-up sets: 100×5 + 80×8 = 500 + 640 = 1140 kg over 2 sets.
-    expect(screen.getByTestId('debrief-volume')).toHaveTextContent('1140');
+    // Done non-warm-up sets: 100×5 + 80×8 = 500 + 640 = 1140 kg over 2 sets (locale number format, with the unit).
+    expect(screen.getByTestId('debrief-volume')).toHaveTextContent('1,140 kg');
     expect(screen.getByTestId('debrief-sets')).toHaveTextContent('2');
     expect(screen.getByTestId('debrief-exercises')).toHaveTextContent('2');
     // Started 47 min 10 s ago → rounds to 47.
     expect(screen.getByTestId('debrief-duration')).toHaveTextContent('47 min');
     // No time sets → no hold stat.
     expect(screen.queryByTestId('debrief-hold')).toBeNull();
+  });
+
+  // Refuter R2 (2026-09-27): the volume was raw kg with no unit, whatever the profile's units.
+  it('shows the volume in the profile\'s units (lb) with the locale number format', () => {
+    hook.units = 'lb';
+    render(<DebriefPage />);
+    // 1140 kg × 2.20462 = 2513.27 lb → 2,513.3 lb (en).
+    expect(screen.getByTestId('debrief-volume')).toHaveTextContent('2,513.3 lb');
+    expect(screen.getByTestId('debrief-volume')).not.toHaveTextContent('kg');
+    expect(screen.getByTestId('debrief-sets')).toHaveTextContent('2');
   });
 
   it('shows the seconds held (G1 holdSeconds) and keeps time sets out of kg volume', () => {
@@ -93,7 +103,7 @@ describe('debrief page (G3 finish)', () => {
     render(<DebriefPage />);
     // 45 + 80 = 125 s = 2:05 (the undone 60 s set does not count); the 10 kg on h1 is not volume.
     expect(screen.getByTestId('debrief-hold')).toHaveTextContent('2:05');
-    expect(screen.getByTestId('debrief-volume')).toHaveTextContent('1140');
+    expect(screen.getByTestId('debrief-volume')).toHaveTextContent('1,140 kg');
     // 2 rep sets + 2 done time sets.
     expect(screen.getByTestId('debrief-sets')).toHaveTextContent('4');
   });

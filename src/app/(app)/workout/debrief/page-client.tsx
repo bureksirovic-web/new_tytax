@@ -71,7 +71,13 @@ export default function DebriefPage() {
         </h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{draft.sessionName}</p>
       </header>
-      <DebriefForm key={draft.id} draft={draft} onSave={save} onDiscard={() => useWorkoutStore.getState().discard()} />
+      <DebriefForm
+        key={draft.id}
+        draft={draft}
+        units={settings.units}
+        onSave={save}
+        onDiscard={() => useWorkoutStore.getState().discard()}
+      />
     </div>
   );
 }

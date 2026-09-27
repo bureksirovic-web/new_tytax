@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
-import type { WorkoutDraft } from '@/contracts/domain';
+import type { Units, WorkoutDraft } from '@/contracts/domain';
 import { useLocale } from '@/components/providers';
+import { formatWeight } from '@/lib/i18n';
 import { formatDuration } from '@/stores/measure';
 import { summarizeDraft } from '@/stores/workout-selectors';
 import { useFinishStrings } from '@/components/workout/strings/finish';
@@ -26,10 +27,11 @@ function Stat({ label, value, testId }: { label: string; value: string; testId: 
 }
 
 /**
- * Exercises, done working sets, volume (kg, done working rep sets only) and
+ * Exercises, done working sets, volume (done working rep sets only, in the
+ * profile's units and the locale's number format, as history shows it) and
  * duration; with time sets also the seconds held (G1 `holdSeconds`, m:ss).
  */
-export function DebriefSummary({ draft }: { draft: WorkoutDraft }) {
+export function DebriefSummary({ draft, units = 'kg' }: { draft: WorkoutDraft; units?: Units }) {
   const locale = useLocale();
   const t = useFinishStrings();
   // Frozen when the debrief opens, so the figure does not tick while typing notes.
@@ -41,7 +43,7 @@ export function DebriefSummary({ draft }: { draft: WorkoutDraft }) {
     <div className="grid grid-cols-2 gap-2">
       <Stat label={locale.t('debrief_exercises')} value={String(summary.exerciseCount)} testId="debrief-exercises" />
       <Stat label={locale.t('sets')} value={String(summary.doneSets)} testId="debrief-sets" />
-      <Stat label={locale.t('debrief_volume')} value={String(Math.round(summary.volumeKg))} testId="debrief-volume" />
+      <Stat label={locale.t('debrief_volume')} value={formatWeight(summary.volumeKg, units, locale.locale)} testId="debrief-volume" />
       <Stat label={t('duration')} value={t('duration_value', { n: minutes })} testId="debrief-duration" />
       {summary.timeSeconds > 0 ? <Stat label={t('hold_total')} value={formatDuration(summary.timeSeconds)} testId="debrief-hold" /> : null}
     </div>
