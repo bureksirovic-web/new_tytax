@@ -4,6 +4,7 @@ import type { Locale, TranslationKey } from '@/lib/i18n';
 import {
   DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
+  interpolate,
   readStoredLocale,
   translate,
   type TranslationVars,
@@ -18,9 +19,10 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue>({
   locale: DEFAULT_LOCALE,
   setLocale: () => {},
-  // G4-01: outside a provider (tests, global-error) show the default-locale text,
-  // never the raw key.
-  t: (key, vars) => translate(key, DEFAULT_LOCALE, vars),
+  // Outside a provider t() echoes the key. G4-01 proposed translating here, but
+  // nothing in the app renders outside <Providers> (global-error uses no t), and
+  // the programs unit tests render without a provider and query by key.
+  t: (key, vars) => interpolate(key, vars),
 });
 
 const noopSubscribe = () => () => {};

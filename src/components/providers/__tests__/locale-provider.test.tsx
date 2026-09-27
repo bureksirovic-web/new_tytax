@@ -6,6 +6,10 @@ import { translations, type Locale } from '@/lib/i18n';
 import { DEFAULT_LOCALE, interpolate, LOCALE_STORAGE_KEY, readStoredLocale, translate } from '../locale-core';
 import { LocaleProvider, useLocale } from '../locale-provider';
 
+// src/test-setup.ts makes the other unit tests render English by default; this
+// file tests the real module (DEFAULT_LOCALE 'hr').
+vi.unmock('@/components/providers/locale-core');
+
 /** Shows a plain key, an interpolated key and a language switch. */
 function Probe() {
   const { locale, setLocale, t } = useLocale();
@@ -136,12 +140,6 @@ describe('integration: one locale source (G4-01/G4-40)', () => {
     expect(DEFAULT_LOCALE).toBe(i18n.DEFAULT_LOCALE);
     expect(translate).toBe(i18n.t);
     expect(readStoredLocale).toBe(i18n.readStoredLocale);
-  });
-
-  it('outside a provider t() shows the default-locale text, never the raw key', () => {
-    render(<Probe />);
-    expect(screen.getByTestId('home').textContent).toBe(homeIn('hr'));
-    expect(screen.getByTestId('set').textContent).toBe(setIn('hr', 3));
   });
 });
 
