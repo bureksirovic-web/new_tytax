@@ -8,18 +8,70 @@
  * in-progress workout survives a reload. Hydration is manual
  * (`skipHydration`): pages call `useWorkoutHydrated()` and must not act on
  * `draft === null` until it returns true.
+ *
+ * Hardening: the persisted draft is repaired, not dropped, when one row is
+ * bad (`sanitizeDraft`, ./draft-validation.ts); another tab's write re-reads
+ * it (`syncAcrossTabs`, ./cross-tab.ts); `toggleSetDone` needs kg > 0 unless
+ * the exercise is bodyweight (same rule as set-rules `canCompleteSet`).
+ *
+ * G3 actions (pure immutable updates, helpers in ./draft-ops.ts):
+ * - `startDraft(input: StartDraftInput): WorkoutDraft` — start from prepared
+ *   exercises (program start, deload, weak point); replaces any draft.
+ * - `swapExercise(uid, exercise, sets?): string | null` — replaces the exercise
+ *   in place (same uid) when none of its sets is done; otherwise keeps it and
+ *   INSERTS the new exercise after it, returning the new uid (logged work is
+ *   never discarded). `sets` default: fresh empty working sets. Null when
+ *   there is no draft or the uid is unknown.
+ * - `addPreparedExercise(se): string | null` — appends a built SessionExercise
+ *   (e.g. from `buildSessionExercise`); a uid already in the draft is replaced
+ *   by a fresh one. Returns the uid used.
+ * - `prependWarmups(uid, warmups)` — inserts warm-ups before the first
+ *   non-warm-up set.
+ * - `replaceExercises(exercises, opts?: { isDeload?: boolean })` — replaces the
+ *   whole exercise list; `isDeload` true marks the draft, false clears it.
+ *
+ * Wave 2:
+ * - Time sets (`measure.ts`): `updateSet` accepts `durationSeconds` (whole,
+ *   non-negative seconds). A done set stays done while the set itself holds
+ *   work: seconds > 0, or reps (+ kg unless bodyweight). The `measure`
+ *   argument is accepted for callers but never erases work logged in the other
+ *   dimension; a done time set an edit leaves at 0 s is no longer done. `toggleTimeSetDone(uid, setId, ghost?)` marks a time set done with
+ *   its seconds, or — empty — by adopting the ghost (reps/kg ignored);
+ *   `toggleSetDone` stays the reps rule. `addSet` after a time set copies no
+ *   duration: the previous hold becomes the new set's `ghostDurationSeconds`.
+ * - Hold timers (refuter-2 F2): `removeSet`, `removeExercise` and `discard`
+ *   clear the stored starts of the sets they drop (`clearHoldStarts`, ./hold-storage.ts).
+ * - `startFromLog(profileId, log, measureOf?)` → WorkoutDraft | null: "repeat
+ *   workout" (G4-25); rules in `draftFromLog` (./draft-ops.ts). Returns null and
+ *   changes nothing while a draft is in progress; to replace one, `discard()`
+ *   first (the orchestrator's `repeatLog({ replace: true })` does). Unlike
+ *   G4-25's proposal, `programId`/`programSessionId` are dropped: a repeat is a
+ *   quick workout and never advances the program rotation.
+ * - `reorderExercises(uids)` → applies an exact permutation of the draft's
+ *   uids; anything else is a no-op.
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { newUuid } from '@/lib/db/ids';
 import type {
   Exercise,
   Program,
   ProgramExercise,
   SessionExercise,
+  ExerciseMeasure,
   SetEntry,
   WorkoutDraft,
+  WorkoutLog,
 } from '@/contracts/domain';
+import { useRestTimerStore } from './rest-timer-store';
+import { draftFromLog, makeDraft, prependWarmupsTo, reorderByUids, swapInDraft, uniqueUids, type StartDraftInput } from './draft-ops';
+import { syncAcrossTabs } from './cross-tab';
+import { sanitizeDraft } from './draft-validation';
+import { cleanSeconds } from './measure';
+import { clearHoldStarts } from './hold-storage';
+
+export type { StartDraftInput } from './draft-ops';
 
 export const WORKOUT_DRAFT_STORAGE_KEY = 'tytax.workout-draft.v3';
 export const WORKOUT_DRAFT_VERSION = 3;
@@ -60,19 +112,41 @@ export interface WorkoutActions {
   moveExercise(uid: string, direction: -1 | 1): void;
   /** Appends a working set that copies the last set's kg, reps 0. */
   addSet(uid: string): void;
-  updateSet(uid: string, setId: string, patch: SetPatch): void;
+  /** `measure` decides the done rule for an edit (see the file header). */
+  updateSet(uid: string, setId: string, patch: SetPatch, measure?: ExerciseMeasure): void;
   removeSet(uid: string, setId: string): void;
   /** Flips `done`; stamps `completedAt` when it becomes done, clears it otherwise. */
   toggleSetDone(uid: string, setId: string): void;
+  /**
+   * Time sets: flips `done`. An empty duration adopts the set's
+   * `ghostDurationSeconds`, else `ghostSeconds` (the card's last-session hint);
+   * with neither it stays not done.
+   */
+  toggleTimeSetDone(uid: string, setId: string, ghostSeconds?: number): void;
+  /** Repeat workout: a new draft from a history log (see `draftFromLog`); null (no change) while a draft is in progress. */
+  startFromLog(profileId: string, log: WorkoutLog, measureOf?: (exerciseId: string) => ExerciseMeasure | undefined): WorkoutDraft | null;
+  /** Reorders the draft to `uids` when it is an exact permutation of its uids; otherwise no-op. */
+  reorderExercises(uids: readonly string[]): void;
   setNotes(notes: string): void;
+  /** Drops the draft and stops the rest timer. */
   discard(): void;
+  /** Starts a draft from prepared exercises, replacing any current draft. */
+  startDraft(input: StartDraftInput): WorkoutDraft;
+  /** See the file header: replace in place, or insert after when sets are done. */
+  swapExercise(uid: string, exercise: Exercise, sets?: SetEntry[]): string | null;
+  /** Appends a fully built exercise; returns its (possibly re-issued) uid, or null without a draft. */
+  addPreparedExercise(se: SessionExercise): string | null;
+  /** Inserts warm-up sets before the first non-warm-up set. */
+  prependWarmups(uid: string, warmups: SetEntry[]): void;
+  /** Replaces every exercise (deload / injector); `isDeload` sets or clears the flag. */
+  replaceExercises(exercises: SessionExercise[], opts?: { isDeload?: boolean }): void;
 }
 
 export type WorkoutStore = WorkoutState & WorkoutActions;
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 
-const newId = (): string => crypto.randomUUID();
+const newId = newUuid;
 const nowIso = (): string => new Date().toISOString();
 
 export function emptyWorkingSet(kg = 0): SetEntry {
@@ -129,6 +203,10 @@ function withExercise(
   return { ...draft, exercises };
 }
 
+function modalityOf(draft: WorkoutDraft | null, uid: string): SessionExercise['modality'] | undefined {
+  return draft?.exercises.find((e) => e.uid === uid)?.modality;
+}
+
 function withSet(
   draft: WorkoutDraft | null,
   uid: string,
@@ -141,57 +219,21 @@ function withSet(
   });
 }
 
-// ─── Persisted-shape validation (localStorage is untrusted input) ────────────
+// ─── Persisted-shape validation: ./draft-validation.ts (strict predicate + repair) ─
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isSetEntry(v: unknown): v is SetEntry {
-  return (
-    isRecord(v) &&
-    typeof v.id === 'string' &&
-    typeof v.type === 'string' &&
-    typeof v.kg === 'number' &&
-    typeof v.reps === 'number' &&
-    typeof v.done === 'boolean'
-  );
-}
-
-function isSessionExercise(v: unknown): v is SessionExercise {
-  return (
-    isRecord(v) &&
-    typeof v.uid === 'string' &&
-    typeof v.exerciseId === 'string' &&
-    typeof v.exerciseName === 'string' &&
-    typeof v.modality === 'string' &&
-    Array.isArray(v.sets) &&
-    v.sets.every(isSetEntry)
-  );
-}
-
-export function isWorkoutDraft(v: unknown): v is WorkoutDraft {
-  return (
-    isRecord(v) &&
-    typeof v.id === 'string' &&
-    typeof v.profileId === 'string' &&
-    typeof v.sessionName === 'string' &&
-    typeof v.startedAt === 'string' &&
-    Array.isArray(v.exercises) &&
-    v.exercises.every(isSessionExercise)
-  );
-}
+export { isWorkoutDraft } from './draft-validation';
 
 function draftFromPersisted(persisted: unknown): WorkoutDraft | null {
-  if (!isRecord(persisted)) return null;
-  return isWorkoutDraft(persisted.draft) ? persisted.draft : null;
+  if (typeof persisted !== 'object' || persisted === null) return null;
+  const draft = (persisted as Record<string, unknown>).draft;
+  return draft === null || draft === undefined ? null : sanitizeDraft(draft, nowIso());
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 export const useWorkoutStore = create<WorkoutStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       draft: null,
 
       startQuick: (profileId, sessionName) => {
@@ -237,9 +279,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       removeExercise: (uid) =>
-        set((s) =>
-          s.draft ? { draft: { ...s.draft, exercises: s.draft.exercises.filter((e) => e.uid !== uid) } } : s,
-        ),
+        set((s) => {
+          if (!s.draft) return s;
+          clearHoldStarts(s.draft.exercises.filter((e) => e.uid === uid).flatMap((e) => e.sets.map((x) => x.id)));
+          return { draft: { ...s.draft, exercises: s.draft.exercises.filter((e) => e.uid !== uid) } };
+        }),
 
       moveExercise: (uid, direction) =>
         set((s) => {
@@ -256,30 +300,126 @@ export const useWorkoutStore = create<WorkoutStore>()(
         set((s) => ({
           draft: withExercise(s.draft, uid, (ex) => {
             const last = ex.sets[ex.sets.length - 1];
-            return { ...ex, sets: [...ex.sets, emptyWorkingSet(last?.kg ?? 0)] };
+            const next = emptyWorkingSet(last?.kg ?? 0);
+            // Time sets (refuter-2 F1): the previous hold is only the placeholder hint, never a value.
+            const hint = cleanSeconds(last?.durationSeconds) || cleanSeconds(last?.ghostDurationSeconds);
+            if (hint > 0) next.ghostDurationSeconds = hint;
+            return { ...ex, sets: [...ex.sets, next] };
           }),
         })),
 
       updateSet: (uid, setId, patch) =>
-        set((s) => ({ draft: withSet(s.draft, uid, setId, (entry) => ({ ...entry, ...patch, id: entry.id })) })),
+        set((s) => ({
+          draft: withExercise(s.draft, uid, (ex) => {
+            if (!ex.sets.some((x) => x.id === setId)) return ex;
+            const sets = ex.sets.map((entry) => {
+              if (entry.id !== setId) return entry;
+              const next = { ...entry, ...patch, id: entry.id };
+              if ('durationSeconds' in patch) next.durationSeconds = cleanSeconds(patch.durationSeconds);
+              // A done set stays done while the SET still holds work in either dimension (refuter-2 F4):
+              // seconds > 0, or reps with a weight (unless bodyweight). The measure only picks the inputs
+              // shown; a wrong or not-yet-loaded measure never erases work logged in the other dimension.
+              // So a done time set cleared to 0 s, or a rep set cleared to 0 reps, is no longer done.
+              const complete = cleanSeconds(next.durationSeconds) > 0 || (next.reps > 0 && (next.kg > 0 || ex.modality === 'bodyweight'));
+              return next.done && !complete ? { ...next, done: false, completedAt: undefined } : next;
+            });
+            return { ...ex, sets };
+          }),
+        })),
 
       removeSet: (uid, setId) =>
-        set((s) => ({
-          draft: withExercise(s.draft, uid, (ex) => ({ ...ex, sets: ex.sets.filter((x) => x.id !== setId) })),
-        })),
+        set((s) => {
+          clearHoldStarts([setId]);
+          return {
+            draft: withExercise(s.draft, uid, (ex) => ({ ...ex, sets: ex.sets.filter((x) => x.id !== setId) })),
+          };
+        }),
 
       toggleSetDone: (uid, setId) =>
         set((s) => ({
-          draft: withSet(s.draft, uid, setId, (entry) =>
-            entry.done
-              ? { ...entry, done: false, completedAt: undefined }
-              : { ...entry, done: true, completedAt: nowIso() },
-          ),
+          draft: withSet(s.draft, uid, setId, (entry) => {
+            if (entry.done) return { ...entry, done: false, completedAt: undefined };
+            // Empty reps adopt last session's ghost reps; with neither, a set cannot be done.
+            // Mirrors set-rules `canCompleteSet`: a weight is needed unless bodyweight (F5).
+            const reps = entry.reps > 0 ? entry.reps : Math.round(entry.ghostReps ?? 0);
+            if (reps <= 0) return entry;
+            if (!(entry.kg > 0) && modalityOf(s.draft, uid) !== 'bodyweight') return entry;
+            return { ...entry, reps, done: true, completedAt: nowIso() };
+          }),
         })),
+
+      toggleTimeSetDone: (uid, setId, ghostSeconds) =>
+        set((s) => ({
+          draft: withSet(s.draft, uid, setId, (entry) => {
+            if (entry.done) return { ...entry, done: false, completedAt: undefined };
+            // Empty duration adopts the ghost (explicit tap/Enter, the ghost-reps rule); neither → not done.
+            const seconds = cleanSeconds(entry.durationSeconds) || cleanSeconds(entry.ghostDurationSeconds) || cleanSeconds(ghostSeconds);
+            if (seconds <= 0) return entry;
+            return { ...entry, durationSeconds: seconds, done: true, completedAt: nowIso() };
+          }),
+        })),
+
+      startFromLog: (profileId, log, measureOf) => {
+        if (get().draft) return null; // G4-25: never overwrite a workout in progress
+        const draft = draftFromLog(profileId, log, nowIso(), measureOf);
+        useRestTimerStore.getState().stop();
+        set({ draft });
+        return draft;
+      },
+
+      reorderExercises: (uids) =>
+        set((s) => {
+          const draft = reorderByUids(s.draft, uids);
+          return draft === s.draft ? s : { draft };
+        }),
 
       setNotes: (notes) => set((s) => (s.draft ? { draft: { ...s.draft, notes } } : s)),
 
-      discard: () => set({ draft: null }),
+      discard: () => {
+        // A rest belongs to its workout: never carry it into the next one.
+        useRestTimerStore.getState().stop();
+        clearHoldStarts(); // refuter-2 F2: no hold outlives its workout (finish ends with discard too)
+        set({ draft: null });
+      },
+
+      startDraft: (input) => {
+        const draft = makeDraft(input, nowIso());
+        set({ draft });
+        return draft;
+      },
+
+      swapExercise: (uid, exercise, sets) => {
+        let out: string | null = null;
+        set((s) => {
+          const res = swapInDraft(s.draft, uid, exercise, sets);
+          out = res.uid;
+          return res.uid ? { draft: res.draft } : s;
+        });
+        return out;
+      },
+
+      addPreparedExercise: (se) => {
+        let out: string | null = null;
+        set((s) => {
+          if (!s.draft) return s;
+          const [entry] = uniqueUids([se], s.draft.exercises.map((e) => e.uid));
+          out = entry.uid;
+          return { draft: { ...s.draft, exercises: [...s.draft.exercises, entry] } };
+        });
+        return out;
+      },
+
+      prependWarmups: (uid, warmups) =>
+        set((s) => ({ draft: withExercise(s.draft, uid, (ex) => prependWarmupsTo(ex, warmups)) })),
+
+      replaceExercises: (exercises, opts) =>
+        set((s) => {
+          if (!s.draft) return s;
+          const draft: WorkoutDraft = { ...s.draft, exercises: uniqueUids(exercises) };
+          if (opts?.isDeload === true) draft.isDeload = true;
+          if (opts?.isDeload === false) delete draft.isDeload;
+          return { draft };
+        }),
     }),
     {
       name: WORKOUT_DRAFT_STORAGE_KEY,
@@ -295,6 +435,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
 );
 
 // ─── Hydration ───────────────────────────────────────────────────────────────
+
+// Another tab's write (or this tab becoming visible again) re-reads the draft (F1).
+syncAcrossTabs(WORKOUT_DRAFT_STORAGE_KEY, () => useWorkoutStore.persist.rehydrate());
 
 function subscribeHydration(onChange: () => void): () => void {
   const offStart = useWorkoutStore.persist.onHydrate(onChange);

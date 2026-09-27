@@ -70,3 +70,43 @@ export function ArrowRightIcon(props: IconProps) {
     </Svg>
   );
 }
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 5.5v13l10-6.5-10-6.5z" />
+    </Svg>
+  );
+}
+
+export function SwapIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+    </Svg>
+  );
+}
+
+export function FlameIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3c1 4 5 5.5 5 10a5 5 0 01-10 0c0-2.5 1.5-3.5 2-5.5 1 1.5 2 2 3 2-1-2.5-.5-4.5 0-6.5z" />
+    </Svg>
+  );
+}
+
+export function SlidersIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4" />
+    </Svg>
+  );
+}
+
+export function StationsIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h10M4 12h7M4 17h4M18 5v14M15 16l3 3 3-3" />
+    </Svg>
+  );
+}

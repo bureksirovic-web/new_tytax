@@ -32,6 +32,7 @@ describe('workout selectors', () => {
     expect(countsAsWork(set(1, 1, true))).toBe(true);
     expect(countsAsWork(set(1, 1, true, 'warmup'))).toBe(false);
     expect(countsAsWork(set(1, 1, false))).toBe(false);
+    expect(countsAsWork(set(60, 0, true))).toBe(false); // a 0-rep set is never logged work
   });
 
   it('computes per-exercise volume', () => {
@@ -50,7 +51,9 @@ describe('workout selectors', () => {
       totalSets: 6,
       // 900 + 600 = 1500.
       volumeKg: 1500,
+      // No time sets.
+      timeSeconds: 0,
     });
-    expect(summarizeDraft({ ...draft, exercises: [] })).toEqual({ exerciseCount: 0, doneSets: 0, totalSets: 0, volumeKg: 0 });
+    expect(summarizeDraft({ ...draft, exercises: [] })).toEqual({ exerciseCount: 0, doneSets: 0, totalSets: 0, volumeKg: 0, timeSeconds: 0 });
   });
 });

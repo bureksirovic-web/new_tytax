@@ -1,53 +1,50 @@
 'use client';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { WorkoutDraft, WorkoutDebrief } from '@/contracts/domain';
 import { useLocale } from '@/components/providers';
 import { Button } from '@/components/ui/button';
+import { DebriefSummary } from '@/components/workout/debrief-summary';
+import { DebriefRpeField, parseRpe } from '@/components/workout/debrief-rpe-field';
+import { DiscardWorkoutButton } from '@/components/workout/discard-workout-button';
+import { useFinishStrings } from '@/components/workout/strings/finish';
 import { summarizeDraft } from '@/stores/workout-selectors';
+
+export { parseRpe } from '@/components/workout/debrief-rpe-field';
 
 export interface DebriefFormProps {
   draft: WorkoutDraft;
-  /** Persists the workout; a rejection keeps the draft and shows the error. */
+  /**
+   * Persists the workout. A rejection keeps the draft and shows the error;
+   * a resolve keeps the button disabled (the page navigates away).
+   */
   onSave: (debrief: WorkoutDebrief) => Promise<void>;
+  /** Drops the draft (confirmed). Offered instead of saving when no set is done. */
+  onDiscard: () => void;
 }
 
-const RPE_MIN = 1;
-const RPE_MAX = 10;
-
-function parseRpe(text: string): number | undefined {
-  const n = Number(text.trim().replace(',', '.'));
-  if (text.trim() === '' || !Number.isFinite(n)) return undefined;
-  return Math.min(RPE_MAX, Math.max(RPE_MIN, Math.round(n)));
-}
-
-function Stat({ label, value, testId }: { label: string; value: string; testId: string }) {
-  return (
-    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-3">
-      <p className="mb-1 text-xs uppercase tracking-widest text-[var(--text-muted)]">{label}</p>
-      <p data-testid={testId} className="font-mono text-2xl font-bold text-[var(--highlight)]">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-export function DebriefForm({ draft, onSave }: DebriefFormProps) {
-  const { t } = useLocale();
-  const rpeId = useId();
+export function DebriefForm({ draft, onSave, onDiscard }: DebriefFormProps) {
+  const locale = useLocale();
+  const t = useFinishStrings();
+  // A workout without a done working set is not saved (no empty log, no rotation advance).
+  const empty = summarizeDraft(draft).doneSets === 0;
   const notesId = useId();
   const [rpeText, setRpeText] = useState('');
   const [notes, setNotes] = useState(draft.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  const summary = summarizeDraft(draft);
+  // Synchronous guard: a double click lands before `saving` re-renders the button.
+  const inFlight = useRef(false);
 
   async function save() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
     setFailed(false);
     const trimmed = notes.trim();
     try {
       await onSave({ rpe: parseRpe(rpeText), notes: trimmed === '' ? undefined : trimmed });
     } catch {
+      inFlight.current = false;
       setFailed(true);
       setSaving(false);
     }
@@ -55,40 +52,18 @@ export function DebriefForm({ draft, onSave }: DebriefFormProps) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label={t('debrief_exercises')} value={String(summary.exerciseCount)} testId="debrief-exercises" />
-        <Stat label={t('sets')} value={String(summary.doneSets)} testId="debrief-sets" />
-        <Stat label={t('debrief_volume')} value={String(Math.round(summary.volumeKg))} testId="debrief-volume" />
-      </div>
-
-      <div>
-        {/* i18n: `debrief_rpe` requested in docs/v2/requests/G1-i18n.md. */}
-        <label htmlFor={rpeId} className="mb-1 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
-          {t('debrief_title')} ({RPE_MIN}–{RPE_MAX})
-        </label>
-        <input
-          id={rpeId}
-          type="number"
-          inputMode="numeric"
-          min={RPE_MIN}
-          max={RPE_MAX}
-          step={1}
-          value={rpeText}
-          data-testid="debrief-rpe"
-          onChange={(e) => setRpeText(e.target.value)}
-          className="min-h-11 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 font-mono text-base text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)]"
-        />
-      </div>
+      <DebriefSummary draft={draft} />
+      <DebriefRpeField value={rpeText} onChange={setRpeText} />
 
       <div>
         <label htmlFor={notesId} className="mb-1 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
-          {t('my_notes')}
+          {locale.t('my_notes')}
         </label>
         <textarea
           id={notesId}
           rows={3}
           value={notes}
-          placeholder={t('notes_placeholder')}
+          placeholder={locale.t('notes_placeholder')}
           data-testid="debrief-notes"
           onChange={(e) => setNotes(e.target.value)}
           className="w-full resize-none rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--highlight)]"
@@ -97,21 +72,30 @@ export function DebriefForm({ draft, onSave }: DebriefFormProps) {
 
       {failed && (
         <p data-testid="debrief-error" role="alert" className="rounded-lg border border-red-700 bg-red-950 p-3 text-sm text-red-100">
-          {t('error')}
+          {locale.t('error')}
         </p>
       )}
 
-      <Button
-        data-testid="save-workout"
-        size="lg"
-        fullWidth
-        disabled={saving}
-        loading={saving}
-        onClick={() => void save()}
-        className="font-bold uppercase tracking-widest"
-      >
-        {t('debrief_save_exit')}
-      </Button>
+      {empty ? (
+        <div data-testid="debrief-empty" className="space-y-3 rounded-lg border border-[var(--border-color)] p-3">
+          <p className="font-display font-bold uppercase tracking-wider text-[var(--highlight)]">{t('empty_title')}</p>
+          <p className="text-sm text-[var(--text-secondary)]">{t('empty_body')}</p>
+          <DiscardWorkoutButton sessionName={draft.sessionName} onDiscard={onDiscard} />
+        </div>
+      ) : (
+        <Button
+          data-testid="save-workout"
+          size="lg"
+          fullWidth
+          disabled={saving}
+          loading={saving}
+          aria-busy={saving}
+          onClick={() => void save()}
+          className="font-bold uppercase tracking-widest"
+        >
+          {locale.t('debrief_save_exit')}
+        </Button>
+      )}
     </div>
   );
 }

@@ -153,6 +153,37 @@ describe('workout store', () => {
     expect(sets[0].reps).toBe(7);
   });
 
+  it('an edit that empties a done set un-does it (never a done 0-rep or 0-kg set)', () => {
+    store().startQuick('p1', 'Quick');
+    const uid = store().addExercise(makeExercise({ defaultSets: 1, modality: 'tytax' }));
+    if (!uid) throw new Error('no uid');
+    const id = draft().exercises[0].sets[0].id;
+    store().updateSet(uid, id, { kg: 60, reps: 5 });
+    store().toggleSetDone(uid, id);
+    store().updateSet(uid, id, { reps: 0 });
+    expect(draft().exercises[0].sets[0]).toMatchObject({ kg: 60, reps: 0, done: false });
+    expect(draft().exercises[0].sets[0].completedAt).toBeUndefined();
+    store().updateSet(uid, id, { reps: 6 });
+    store().toggleSetDone(uid, id);
+    store().updateSet(uid, id, { kg: 0 });
+    expect(draft().exercises[0].sets[0].done).toBe(false);
+    store().updateSet(uid, id, { kg: 62.5, done: true });
+    expect(draft().exercises[0].sets[0]).toMatchObject({ kg: 62.5, reps: 6, done: true });
+    store().updateSet(uid, id, { kg: 65 });
+    expect(draft().exercises[0].sets[0]).toMatchObject({ kg: 65, done: true });
+  });
+
+  it('a done bodyweight set may drop to 0 kg but not to 0 reps', () => {
+    store().startQuick('p1', 'Quick');
+    const uid = store().addExercise(makeExercise({ defaultSets: 1, modality: 'bodyweight' }));
+    if (!uid) throw new Error('no uid');
+    const id = draft().exercises[0].sets[0].id;
+    store().updateSet(uid, id, { kg: 0, reps: 12, done: true });
+    expect(draft().exercises[0].sets[0].done).toBe(true);
+    store().updateSet(uid, id, { reps: 0 });
+    expect(draft().exercises[0].sets[0].done).toBe(false);
+  });
+
   it('addSet on an exercise without sets starts at 0 kg', () => {
     store().startQuick('p1', 'Quick');
     const uid = store().addExercise(makeExercise({ defaultSets: 1 }));
@@ -302,7 +333,9 @@ describe('workout store', () => {
     expect(
       isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: 't', exercises: [{ uid: 'u' }] }),
     ).toBe(false);
-    expect(isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: 't', exercises: [] })).toBe(true);
+    // Hardening F4: startedAt must be a parseable date.
+    expect(isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: 't', exercises: [] })).toBe(false);
+    expect(isWorkoutDraft({ id: 'd', profileId: 'p', sessionName: 's', startedAt: '2026-09-20T10:00:00.000Z', exercises: [] })).toBe(true);
   });
 
   it('useWorkoutHydrated rehydrates once on mount and then reports true', async () => {
