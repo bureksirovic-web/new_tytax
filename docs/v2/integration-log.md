@@ -604,3 +604,48 @@ One run of a partial `vitest run src/components src/lib/__tests__` under load ha
 - `npx playwright test --project=chromium --project=mobile` (dev server): exit 1; 130 passed (128 + the new dashboard warm-up test in both projects), 2 failed, 8 did not run. Both failures are `offline.spec.ts:53` "offline.spec needs E2E_SERVER=prod" (by design under `next dev`); did-not-run = its 4 serial siblings per project.
 - `npm run test:e2e:offline`: exit 0, chromium 5 passed. `E2E_SERVER=prod npx playwright test e2e/offline.spec.ts --project=mobile`: exit 0, 5 passed.
 - `npm run test:sync`: exit 0, 2 files, 16 tests passed.
+
+## 13. INTEGRATION step 5: critic gate + Terra (2026-09-27)
+
+Scored artifact: `git diff main...v2` over the G5/integration scope (supabase, src/lib/{sync,auth,supabase}, src/proxy.ts, src/app/{auth,api}, src/components/{providers,sync}, .github, scripts/ci-local.sh, eslint/playwright/vitest configs, e2e/fixtures, next.config.ts, public/sw.js). Full diff 879,705 bytes; the artifact omits the 9 generated pgTAP files (`supabase/tests/generate.py`, which writes them, stays in) and the bodies of the 10 deleted files (old `/api/{sync,profile,workout}` routes, `engine.ts`, `queue.ts` and their own tests: the code under test is gone), listing both in its header. Built by `scratchpad/critic/build.sh`. Job `tytax-v2`, critic `terra`, author `claude-opus`.
+
+### Round 1: REJECTED 2/10 (security 2, completeness 2, risk 3; 3/3 quotes verified, 0 counted blockers)
+- D1 `public/sw.js` caches same-origin navigations by pathname "without considering credentials"; asked for an account-switch regression test. Verified: not reproducible. Every shell route is prerendered static (`.next/prerender-manifest.json` lists all 12 `SHELL_ROUTES`), no page, layout or route outside `src/app/auth` imports `next/headers`, `@/lib/supabase/server` or `@supabase/ssr` (only `src/app/auth/callback/route.ts` reads cookies), and user data lives only in IndexedDB. The cached HTML is the same for every account. Pinned by `src/__tests__/sw-cache-user-independent.test.ts` (14 tests; runs the real `public/sw.js` in a vm): `/auth/**`, `/api/**` and cross-origin Supabase requests are never intercepted, `CACHE_URLS` cannot smuggle them in, and the import ban above holds. 7bb8475.
+- D2 migration 002 section h (and the section d reference repair) rewrote existing data irreversibly. Real. Fixed: `public.migration_repair_archive` (RLS on, no grants, `on delete cascade` with the account, PK + `on conflict do nothing`) receives every original value before `pg_temp.repair` rewrites it. `supabase/README.md` has the preflight count query and the restore statement. `supabase/upgrade_test/assert_upgraded.test.sql` +10 assertions (red before: `relation "public.migration_repair_archive" does not exist`); pgTAP `00_schema` +3. 4b7a03f.
+
+### Terra pass (`lane terra --effort high`, the same artifact): 4 findings
+| # | Sev | Finding | Disposition |
+|---|---|---|---|
+| T1 | S1 | `public/sw.js:199` navigation cache can replay Alice's authenticated HTML to Bob | Same as critic D1: not reproducible (static prerendered HTML, no server session reads outside `/auth`); invariant test 7bb8475 |
+| T2 | S1 | `004_v2_quotas.sql:147` `pg_column_size(n.*)` misses TOASTed values, so the 64 MiB quota can be bypassed | False, measured: 5 `workout_logs` rows whose `exercises` is 7,000 md5 strings (1,260,020 bytes stored, TOASTed) raised `sync_usage.byte_count` by 1,260,705. A whole-row datum inlines out-of-line values, so the charge covers them at stored size |
+| T3 | S2 | `outbox-ops.ts:12` `MAX_PEEK` 6,400: that many dead letters or other-account ops hide every live op | Real. Fixed: the window widens until PEEK_LIMIT live ops or the outbox ends. `backlog.test.ts` 2 tests red before (`expected [] to deeply equal ['op-99999']`). 715e7d8 |
+| T4 | S2 | `adapter.ts:23` a backlog over 50×200 ops ends the run `idle` with no follow-up | Real. Fixed: a run whose last allowed round still settled ops schedules a follow-up run (`maxPushRounds` option for tests). `backlog.test.ts` red before (`expected 0 to be greater than 0`: no timer armed). 715e7d8 |
+
+### Checks after the fixes (7bb8475)
+- `supabase/upgrade_test/run.sh`: UPGRADE TEST: PASS (002: 24/24, 003: 17/17, 004: 7/7).
+- `npx -y supabase@2.118.0 db reset && npx -y supabase@2.118.0 test db`: Files=9, Tests=792, Result: PASS.
+- Gate: lint rc=0, tsc rc=0, test rc=0 (Test Files 330 passed, Tests 2510 passed; was 2492, +18 new), build rc=0.
+
+### Round 2: REJECTED 3/10 (security 3, completeness 2, risk 3, evidence 8; both round-1 defects confirmed fixed)
+- D1 no request-body limit before the caps: "column caps, a 200-row SQL trigger, and a 64 MiB account quota execute only after the gateway/PostgREST has accepted and parsed the body". Real, measured: a 4.5 MB, 150-row upsert to `bodyweight_entries` was accepted (HTTP 201). Fixed:
+  - migration `005_v2_request_limit.sql`: `public.request_guard()` as PostgREST `db-pre-request` (role setting on `authenticator`, loads with `notify pgrst`), POST/PATCH/PUT above `public.request_body_limit()` = 4 MiB -> `PT413`/413, missing `Content-Length` -> `PT411`/411, reads pass. Probe through Kong: 5,265,002-byte body -> 413 `request body is 5265002 bytes (max 4194304)`; the same body sent chunked -> 413 (the gateway buffers and sets Content-Length). 5974657.
+  - client: `chunkRanges()` splits every upsert at 100 rows or 2 MiB of UTF-8 JSON (`MAX_PUSH_BYTES`). e85356e.
+  - tests: `push-bytes.test.ts` 6 (all red before), pgTAP `09_request_limit` 18, live `request-limit.sync.test.ts` 4 (with the role setting reset: 3 red, `expected 201 to be 413`), `upgrade_test` extended to 005 (5 assertions, twice-applied) and now a step of the CI `sync-e2e` job and of `scripts/ci-local.sh`.
+  - Residual, stated in `supabase/README.md`: Kong and PostgREST still receive the body before the guard; a byte cap at that layer is a Supabase platform setting outside the repo.
+
+### Checks after round 2 fixes (5974657)
+- `supabase db reset` (001-005 from scratch) + `supabase test db`: Files=10, Tests=810, PASS. `upgrade_test/run.sh`: PASS (002 24, 003 17, 004 7, 005 5).
+- `npm run test:sync` (sync env): Test Files 3 passed, Tests 20 passed.
+- Gate: lint rc=0, tsc rc=0, test rc=0 (331 files, 2516 tests), build rc=0.
+
+### Round 3: REJECTED 2/10 (correctness 4, security 3, completeness 3, risk 2, evidence 8)
+- D1 (again) the guard "is not a Kong/API-gateway body-size cap"; asked for a gateway limit on local and hosted Supabase. Not fixable in this repo, with evidence: the local gateway is `public.ecr.aws/supabase/kong:2.8.1`, created by the Supabase CLI, whose `/usr/local/kong/nginx-kong.conf` has `client_max_body_size 0`; `supabase/config.toml` (CLI 2.118.0) has no key for it (its only size keys are `max_rows` and storage `file_size_limit`); the hosted gateway is a Supabase platform setting, and cloud Supabase is out of bounds for this run. 005 is the in-repo bound: PostgreSQL never parses an oversized body. Recorded as a residual in `supabase/README.md` and `docs/v2/critic-verdict.md`.
+- D2 a pull mapping failure is "treated as a successful skip ... and the cursor advances" (legacy rows whose `family_member_id` 002 nulls). Real. Fixed: the first unmappable row holds the persisted cursor before it for the rest of the run, so later runs re-read it and it lands once it maps; everything after it is still applied in the same run. `pull-invalid.test.ts` red before (`expected ['2026-03-01','2026-03-03'] to deeply equal [...,'2026-03-02',...]`). Residual: a legacy row with a null `family_member_id` stays unmappable until the server assigns it a family member (proposed follow-up: a repair migration that creates one recovery family member per affected account and points those rows at it, archived like 002's repairs).
+
+### Checks after round 3 fixes
+- `npm run test:sync`: 3 files, 20 tests passed. Gate: lint rc=0, tsc rc=0, test rc=0 (332 files, 2517 tests), build rc=0.
+
+### Round 4: REJECTED 2/10 (correctness 6, security 2, completeness 3, risk 2, actionability 4)
+- D1 (third time) gateway body cap on local and hosted Kong. Unchanged disposition: outside the repo (see round 3). Residual.
+- D2 "partially fixed": held rows still ended the run as a successful sync. Fixed: `pullRun` reports rows it could not map; the adapter ends that run `error` / `invalid_row` with no `lastSyncedAt`, explained in the sync panel (`sync.error.invalid_row`, en + hr, request row in `docs/v2/requests/G5-i18n.md`). `pull-invalid.test.ts` and `sync-panel.test.tsx` red before. d5628ba. Not done (proposed follow-up): the server-side rehome of legacy null-`family_member_id` rows to a recovery family member (a data-repair migration that also changes the 002 upgrade-test expectation `cross-account workout_logs.family_member_id repaired to null`).
+- Checks on d5628ba: `npm run test:sync` 3 files / 20 tests passed; gate lint rc=0, tsc rc=0, test rc=0 (332 files, 2517 tests), build rc=0.
